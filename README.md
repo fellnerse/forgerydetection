@@ -5,3 +5,4 @@
  - setup python environment:
     1. make sure python3.7 is active
     2. run in root folder: `poetry install`
+ - using pycharm: mark `src` as sources root directory
