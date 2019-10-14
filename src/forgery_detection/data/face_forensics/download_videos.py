@@ -7,7 +7,6 @@ Example usage:
 import argparse
 import json
 import os
-import random
 import sys
 import tempfile
 import time
@@ -195,7 +194,7 @@ def main(args):
         if "original_youtube_videos" in dataset:
             # Here we download the original youtube videos zip file
             print("Downloading original youtube videos.")
-            if not "info" in dataset_path:
+            if "info" not in dataset_path:
                 print("Please be patient, this may take a while (~40gb)")
                 suffix = ""
             else:
