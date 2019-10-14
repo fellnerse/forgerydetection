@@ -6,6 +6,7 @@ from ray.tune import Trainable
 from torch import nn
 from torch import optim
 from torchvision import models
+from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.utils import get_data_loaders
 
@@ -28,9 +29,12 @@ class VGgTrainable(Trainable):
     def _setup(self, config):
         self.epoch_size = config.get("epoch_size")
         self.test_size = config.get("test_size")
+        self.batch_size = config.get("batch_size")
         use_cuda = config.get("use_gpu") and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
-        self.train_loader, self.test_loader = get_data_loaders(batch_size=16)
+        self.train_loader, self.test_loader = get_data_loaders(
+            batch_size=self.batch_size
+        )
         self.model = VGG11Binary().to(self.device)
         self.optimizer = optim.SGD(
             self.model.parameters(),
@@ -41,9 +45,11 @@ class VGgTrainable(Trainable):
     def _train(self):
         # train
         self.model.train()
-        for batch_idx, (data, target) in enumerate(self.train_loader):
+        for batch_idx, (data, target) in enumerate(
+            tqdm(self.train_loader, total=self.epoch_size / self.batch_size)
+        ):
             if batch_idx * len(data) > self.epoch_size:
-                return
+                break
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
@@ -56,7 +62,9 @@ class VGgTrainable(Trainable):
         correct = 0
         total = 0
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.test_loader):
+            for batch_idx, (data, target) in enumerate(
+                tqdm(self.test_loader, total=self.test_size / self.batch_size)
+            ):
                 if batch_idx * len(data) > self.test_size:
                     break
                 data, target = data.to(self.device), target.to(self.device)

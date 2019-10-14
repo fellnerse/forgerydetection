@@ -13,6 +13,8 @@ torchvision = "^0.4.1"
 joblib = "^0.14.0"
 ray = "^0.7.5"
 tensorboardX = "^1.9"
+tensorflow = "1.14.0" # todo: update to tensorflow 2.0.0 (some bug with the manifest)
+tensorboard = "1.14.0"
 
 [tool.poetry.dev-dependencies]
 

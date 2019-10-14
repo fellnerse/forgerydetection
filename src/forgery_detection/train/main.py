@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import ray
 from ray import tune
+from ray.tune.logger import DEFAULT_LOGGERS
 from ray.tune.schedulers import ASHAScheduler
 
 from forgery_detection.models.simple_vgg import VGgTrainable
@@ -38,10 +39,16 @@ def main():
             "args": args,
             "lr": tune.uniform(0.001, 0.1),
             "momentum": tune.uniform(0.1, 0.9),
-            "epoch_size": 512,
-            "test_size": 256,
+            "epoch_size": 16,
+            "test_size": 8,
+            "batch_size": 4,
         },
+        loggers=DEFAULT_LOGGERS,
+        name="vgg_experiments",
+        local_dir="./log",
     )
+
+    print(analysis)
 
     print("Best config is:", analysis.get_best_config(metric="mean_accuracy"))
 
