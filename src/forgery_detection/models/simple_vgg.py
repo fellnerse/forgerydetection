@@ -10,7 +10,6 @@ class VGG11Binary(nn.Module):
         self.vgg11_bn.classifier = nn.Sequential(
             *list(self.vgg11_bn.classifier)[:-1],
             nn.Linear(in_features=4096, out_features=2, bias=True),
-            nn.Softmax(1)
         )
 
     def forward(self, x):

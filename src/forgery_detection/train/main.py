@@ -61,7 +61,7 @@ def main():
         time_attr="training_iteration",
         metric="mean_accuracy",
         mode="max",
-        perturbation_interval=2,
+        perturbation_interval=5,
         hyperparam_mutations={"hyper_parameter": hyper_parameter},
     )
     experiment_name = f"vgg_experiments/{datetime.now()}"

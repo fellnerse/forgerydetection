@@ -3,7 +3,6 @@ import os
 import ray
 import torch
 from ray.tune import Trainable
-from torch.nn import functional as F
 
 
 class SimpleTrainable(Trainable):
@@ -16,6 +15,8 @@ class SimpleTrainable(Trainable):
         self._initialize_optimizer(
             config["optimizer"], self.hyper_parameter[("optimizer")]
         )
+
+        self.loss = config["loss"]()
 
         self.train_loader, self.test_loader = ray.get(
             [self.settings["train_loader_id"], self.settings["test_loader_id"]]
@@ -34,11 +35,11 @@ class SimpleTrainable(Trainable):
             )
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = F.nll_loss(output, target)  # todo this seems to be wrong
+            loss = self.loss(output, target)  # todo this seems to be wrong
             loss.backward()
             self.optimizer.step()
 
-            total_loss -= loss.item()
+            total_loss += loss.item()
 
         # test
         self.model.eval()
