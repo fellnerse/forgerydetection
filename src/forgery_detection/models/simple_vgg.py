@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from ray.tune import Trainable
 from torch import nn
-from torch import optim
 from torchvision import models
 
 
@@ -25,31 +24,34 @@ class VGG11Binary(nn.Module):
 
 class VGgTrainable(Trainable):
     def _setup(self, config):
-        self.epoch_size = config.get("epoch_size")
-        self.test_size = config.get("test_size")
-        self.batch_size = config.get("batch_size")
-        use_cuda = config.get("use_gpu") and torch.cuda.is_available()
+        self.settings = config["settings"]
+        try:
+            use_cuda = self.settings["use_gpu"] and torch.cuda.is_available()
+        except KeyError:
+            use_cuda = False
         self.device = torch.device("cuda" if use_cuda else "cpu")
-        self.train_loader, self.test_loader = ray.get(
-            [config.get("train_loader_id"), config.get("test_loader_id")]
-        )
-        self.model = VGG11Binary().to(self.device)
 
-        self.lr = config.get("lr")
-        self.decay = config.get("decay")
-        self._initialize_optimizer()
+        self.model = config["model"]().to(self.device)
+        self.hyper_parameter = config["hyper_parameter"]
+        self._initialize_optimizer(
+            config["optimizer"], self.hyper_parameter[("optimizer")]
+        )
+
+        self.train_loader, self.test_loader = ray.get(
+            [self.settings["train_loader_id"], self.settings["test_loader_id"]]
+        )
 
     def _train(self):
         # train
         total_loss = torch.zeros(1)
         self.model.train()
         for batch_idx, (data, target) in enumerate(self.train_loader):
-            if batch_idx * len(data) > self.epoch_size:
+            if batch_idx * len(data) > self.settings["epoch_size"]:
                 break
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = F.nll_loss(output, target)
+            loss = F.nll_loss(output, target)  # todo this seems to be wrong
             loss.backward()
             self.optimizer.step()
 
@@ -61,7 +63,7 @@ class VGgTrainable(Trainable):
         total = 0
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(self.test_loader):
-                if batch_idx * len(data) > self.test_size:
+                if batch_idx * len(data) > self.settings["test_size"]:
                     break
                 data, target = data.to(self.device), target.to(self.device)
                 outputs = self.model(data)
@@ -73,8 +75,7 @@ class VGgTrainable(Trainable):
         return {
             "mean_accuracy": acc,
             "total_loss": total_loss.mean().item(),
-            "lr": self.lr,
-            "decay": self.decay,
+            "hyper_parameter": self.hyper_parameter,
         }
 
     def _save(self, checkpoint_dir):
@@ -85,13 +86,12 @@ class VGgTrainable(Trainable):
     def _restore(self, checkpoint_path):
         self.model.load_state_dict(torch.load(checkpoint_path))
 
-    def _initialize_optimizer(self):
-        self.optimizer = optim.SGD(
-            self.model.parameters(), lr=self.lr, momentum=self.decay
-        )
+    def _initialize_optimizer(self, optimizer_cls, optimizer_config: dict):
+        self.optimizer = optimizer_cls(self.model.parameters(), **optimizer_config)
 
     def reset_config(self, new_config):
-        self.lr = new_config.get("lr")
-        self.decay = new_config.get("decay")
-        self._initialize_optimizer()
+        self.hyper_parameter = new_config["hyper_parameter"]
+        self._initialize_optimizer(
+            new_config["optimizer"], self.hyper_parameter["optimizer"]
+        )
         return True
