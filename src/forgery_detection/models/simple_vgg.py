@@ -34,11 +34,14 @@ class VGgTrainable(Trainable):
             [config.get("train_loader_id"), config.get("test_loader_id")]
         )
         self.model = VGG11Binary().to(self.device)
-        self.reset_config(config)
+
+        self.lr = config.get("lr")
+        self.decay = config.get("decay")
+        self._initialize_optimizer()
 
     def _train(self):
         # train
-        total_loss = 0
+        total_loss = torch.zeros(1)
         self.model.train()
         for batch_idx, (data, target) in enumerate(self.train_loader):
             if batch_idx * len(data) > self.epoch_size:
@@ -50,7 +53,7 @@ class VGgTrainable(Trainable):
             loss.backward()
             self.optimizer.step()
 
-            # total_loss += loss.item()
+            total_loss -= loss.item()
 
         # test
         self.model.eval()
@@ -69,7 +72,7 @@ class VGgTrainable(Trainable):
         acc = correct / total
         return {
             "mean_accuracy": acc,
-            "total_loss": total_loss,
+            "total_loss": total_loss.mean().item(),
             "lr": self.lr,
             "decay": self.decay,
         }
@@ -82,17 +85,13 @@ class VGgTrainable(Trainable):
     def _restore(self, checkpoint_path):
         self.model.load_state_dict(torch.load(checkpoint_path))
 
-    def reset_config(self, new_config):
+    def _initialize_optimizer(self):
         self.optimizer = optim.SGD(
-            self.model.parameters(),
-            lr=new_config.get("lr", 0.01),
-            momentum=new_config.get("decay", 0.01),
+            self.model.parameters(), lr=self.lr, momentum=self.decay
         )
-        # optim.Adam(
-        #     self.model.parameters(),
-        #     lr=new_config.get("lr", 0.01),
-        #     weight_decay=new_config.get("decay"),
-        # )
-        self.lr = new_config.get("lr", 0.01)
+
+    def reset_config(self, new_config):
+        self.lr = new_config.get("lr")
         self.decay = new_config.get("decay")
+        self._initialize_optimizer()
         return True

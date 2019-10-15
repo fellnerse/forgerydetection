@@ -465,6 +465,14 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7)", "win-inet-pton"]
 
 [[package]]
 category = "main"
+description = "A Python module to customize the process title"
+name = "setproctitle"
+optional = false
+python-versions = "*"
+version = "1.1.10"
+
+[[package]]
+category = "main"
 description = "Python 2 and 3 compatibility utilities"
 name = "six"
 optional = false
@@ -659,7 +667,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "contextlib2", "unittest2"]
 
 [metadata]
-content-hash = "8250b311234f8e5ff66e97285d525a103d8a12de6426828b1b755290c0de70df"
+content-hash = "e3f564b0f386b599c3475bdfdc6f49e0761473f9b3a621abae0df79c3351e3e4"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -982,6 +990,10 @@ redis = [
 requests = [
     {file = "requests-2.22.0-py2.py3-none-any.whl", hash = "sha256:9cf5292fcd0f598c671cfc1e0d7d1a7f13bb8085e9a590f48c010551dc6c4b31"},
     {file = "requests-2.22.0.tar.gz", hash = "sha256:11e007a8a2aa0323f5a921e9e6a2d7e4e67d9877e85773fba9ba6419025cbeb4"},
+]
+setproctitle = [
+    {file = "setproctitle-1.1.10.tar.gz", hash = "sha256:6283b7a58477dd8478fbb9e76defb37968ee4ba47b05ec1c053cb39638bd7398"},
+    {file = "setproctitle-1.1.10.zip", hash = "sha256:6a035eddac62898786aed2c2eee7334c28cfc8106e8eb29fdd117cac56c6cdf0"},
 ]
 six = [
     {file = "six-1.12.0-py2.py3-none-any.whl", hash = "sha256:3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c"},
