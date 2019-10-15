@@ -16,10 +16,10 @@ simple_vgg = {
         "optimizer": Adam,
         "hyper_parameter": {  # todo put this in config as well
             "optimizer": {
-                "lr": lambda _: random.uniform(
+                "lr": lambda: random.uniform(
                     0.001, 0.1
                 ),  # this is just for initializing the trials
-                "weight_decay": lambda _: random.uniform(0.1, 0.9),
+                "weight_decay": lambda: random.uniform(0.1, 0.9),
             }
         },
     },

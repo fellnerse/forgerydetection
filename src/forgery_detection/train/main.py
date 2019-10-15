@@ -19,7 +19,7 @@ def sample(hyper_parameter: dict) -> dict:
         if isinstance(value, dict):
             sampled_dict[key] = sample(value)
         elif isinstance(value, LambdaType):
-            sampled_dict[key] = sample_from(value)
+            sampled_dict[key] = sample_from(lambda _: value())
         else:
             sampled_dict[key] = value
     return sampled_dict
