@@ -6,7 +6,6 @@ from ray.tune import Trainable
 from torch import nn
 from torch import optim
 from torchvision import models
-from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.utils import get_data_loaders
 
@@ -45,9 +44,7 @@ class VGgTrainable(Trainable):
     def _train(self):
         # train
         self.model.train()
-        for batch_idx, (data, target) in enumerate(
-            tqdm(self.train_loader, total=self.epoch_size / self.batch_size)
-        ):
+        for batch_idx, (data, target) in enumerate(self.train_loader):
             if batch_idx * len(data) > self.epoch_size:
                 break
             data, target = data.to(self.device), target.to(self.device)
@@ -62,9 +59,7 @@ class VGgTrainable(Trainable):
         correct = 0
         total = 0
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(
-                tqdm(self.test_loader, total=self.test_size / self.batch_size)
-            ):
+            for batch_idx, (data, target) in enumerate(self.test_loader):
                 if batch_idx * len(data) > self.test_size:
                     break
                 data, target = data.to(self.device), target.to(self.device)
