@@ -22,7 +22,7 @@ class VGG11Binary(nn.Module):
         return self.vgg11_bn.forward(x)
 
 
-class VGgTrainable(Trainable):
+class SimpleTrainable(Trainable):
     def _setup(self, config):
         self.settings = config["settings"]
         try:
