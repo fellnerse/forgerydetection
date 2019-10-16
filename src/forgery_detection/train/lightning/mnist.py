@@ -1,11 +1,13 @@
+from collections import OrderedDict
+
 import pytorch_lightning as pl
 import torch
-from torch.autograd import Variable
+from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from forgery_detection.data.face_forensics.utils import get_data
-from forgery_detection.models.simple_vgg import VGG11Binary
+from forgery_detection.models.simple_vgg import SqueezeBinary
 
 
 class CoolSystem(pl.LightningModule):
@@ -15,61 +17,59 @@ class CoolSystem(pl.LightningModule):
         self.train_data = get_data(train_data_dir)
         self.val_data = get_data(val_data_dir)
 
-        # self.model = SqueezeBinary()
-        self.model = VGG11Binary()
+        self.model = SqueezeBinary()
+        # self.model = VGG11Binary()
 
     def forward(self, x):
         return self.model.forward(x)
 
-    def make_one_hot(self, labels, C=2):
-        one_hot = torch.cuda.FloatTensor(
-            labels.size(0), C, labels.size(2), labels.size(3)
-        ).zero_()
-        target = one_hot.scatter_(1, labels.data, 1)
-
-        target = Variable(target)
-
-        return target
+    def loss(self, logits, labels):
+        cross_engropy = F.cross_entropy(logits, labels)
+        return cross_engropy
 
     def training_step(self, batch, batch_nb):
         # REQUIRED
         x, y = batch
         y_hat = self.forward(x)
-        loss = F.cross_entropy(y_hat, y)
-        tensorboard_logs = {"train_loss": loss}
-        return {"loss": loss, "log": tensorboard_logs}
+        loss_val = self.loss(y_hat, y)
+        train_acc = self.calculate_accuracy(y_hat, y)
+
+        tensorboard_dict = {"train_loss": loss_val, "train_acc": train_acc}
+        output = OrderedDict({"loss": loss_val, "log": tensorboard_dict})
+
+        return output
 
     def validation_step(self, batch, batch_nb):
         # OPTIONAL
         x, y = batch
         y_hat = self.forward(x)
 
-        correct = torch.zeros(1)
-        total = 0
-        _, predicted = torch.max(y_hat.data, 1)
-        total += y.size(0)
-        correct += (predicted == y).sum().item()
+        loss_val = self.loss(y_hat, y)
+        val_acc = self.calculate_accuracy(y_hat, y)
 
-        acc = correct / total
+        output = {"val_loss": loss_val, "val_acc": val_acc}
+        output["log"] = output
 
-        return {
-            "val_loss": F.cross_entropy(y_hat, y),
-            "acc": acc,
-            "log": {"val_acc": acc},
-        }
+        return output
 
     def validation_end(self, outputs):
         # OPTIONAL
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        acc = torch.stack([x["acc"] for x in outputs]).mean()
-        tensorboard_logs = {"val_loss": avg_loss, "acc": acc}
-        return {"avg_val_loss": avg_loss, "log": tensorboard_logs}
+        val_loss_mean = torch.stack([x["val_loss"] for x in outputs]).mean()
+        val_acc_mean = torch.stack([x["val_acc"] for x in outputs]).mean()
+        tensorboard_dict = {"val_loss": val_loss_mean, "val_acc": val_acc_mean}
+        result = {"log": tensorboard_dict, "val_loss": val_loss_mean}
+        return result
+
+    def calculate_accuracy(self, y_hat, y):
+        labels_hat = torch.argmax(y_hat, dim=1)
+        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
+        val_acc = torch.tensor(val_acc)
+        return val_acc
 
     def configure_optimizers(self):
-        # REQUIRED
-        # can return multiple optimizers and learning_rate schedulers
-        # (LBFGS it is automatically supported, no need for closure function)
-        return torch.optim.Adam(self.parameters(), lr=0.00001)
+        optimizer = optim.Adam(self.parameters(), lr=0.00001)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
+        return [optimizer], [scheduler]
 
     @pl.data_loader
     def train_dataloader(self):

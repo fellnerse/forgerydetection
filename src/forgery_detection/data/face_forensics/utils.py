@@ -10,9 +10,20 @@ from torchvision.datasets import ImageFolder
 DATASET_ROOT = Path.home() / "PycharmProjects" / "data_10"
 
 
+class SaveImageFolder(ImageFolder):
+    def __getitem__(self, index):
+        try:
+            return super().__getitem__(index)
+        except OSError as e:
+            print("Some error with an image: ", e)
+            print("With path:", self.samples[index][0])
+            self.samples.pop(index)
+            return self.__getitem__(index)
+
+
 def get_data(data_dir) -> ImageFolder:
     """Get initialized ImageFolder with faceforensics data"""
-    return ImageFolder(
+    return SaveImageFolder(
         str(data_dir),
         transform=transforms.Compose(
             [
