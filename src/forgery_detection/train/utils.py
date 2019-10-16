@@ -1,4 +1,5 @@
 import os
+from types import LambdaType
 
 import ray
 import torch
@@ -82,3 +83,16 @@ class SimpleTrainable(Trainable):
             new_config["optimizer"], self.hyper_parameter["optimizer"]
         )
         return True
+
+
+def sample(hyper_parameter: dict) -> dict:
+    sampled_dict = {}
+    for key, value in hyper_parameter.items():
+        if isinstance(value, dict):
+            sampled_dict[key] = sample(value)
+        elif isinstance(value, LambdaType):
+            sampled_dict[key] = value()
+            # todo find a way of actually wrapping this correctly
+        else:
+            sampled_dict[key] = value
+    return sampled_dict

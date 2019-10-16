@@ -1,29 +1,16 @@
 from datetime import datetime
-from types import LambdaType
 
 import numpy as np
 import ray
 import torch
 from ray import tune
-from ray.tune import sample_from
 from ray.tune.logger import DEFAULT_LOGGERS
 from ray.tune.schedulers import PopulationBasedTraining
 
 from forgery_detection.data.face_forensics.utils import get_data_loaders
 from forgery_detection.train.config import simple_vgg
+from forgery_detection.train.utils import sample
 from forgery_detection.train.utils import SimpleTrainable
-
-
-def sample(hyper_parameter: dict) -> dict:
-    sampled_dict = {}
-    for key, value in hyper_parameter.items():
-        if isinstance(value, dict):
-            sampled_dict[key] = sample(value)
-        elif isinstance(value, LambdaType):
-            sampled_dict[key] = sample_from(lambda _: value())
-        else:
-            sampled_dict[key] = value
-    return sampled_dict
 
 
 def main():
@@ -61,7 +48,7 @@ def main():
         time_attr="training_iteration",
         metric="mean_accuracy",
         mode="max",
-        perturbation_interval=5,
+        perturbation_interval=2,
         hyperparam_mutations={"hyper_parameter": hyper_parameter},
     )
     experiment_name = f"vgg_experiments/{datetime.now()}"

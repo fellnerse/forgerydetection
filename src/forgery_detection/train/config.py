@@ -1,5 +1,4 @@
-import random
-
+import numpy as np
 from torch import nn
 from torch.optim import Adam
 
@@ -9,25 +8,25 @@ simple_vgg = {
     "config": {
         "settings": {
             "use_gpu": False,
-            "epoch_size": 32,
-            "test_size": 4,
+            "epoch_size": 4,
+            "test_size": 1,
             "batch_size": 16,
         },
         "model": VGG11Binary,
         "optimizer": Adam,
         "loss": nn.CrossEntropyLoss,
-        "hyper_parameter": {  # todo put this in config as well
+        "hyper_parameter": {
             "optimizer": {
-                "lr": lambda: random.uniform(
-                    0.001, 0.1
+                "lr": lambda: np.random.uniform(
+                    10e-8, 10e-3
                 ),  # this is just for initializing the trials
-                "weight_decay": lambda: random.uniform(0.1, 0.9),
+                "weight_decay": lambda: np.random.uniform(0.1, 0.9),
             }
         },
     },
     "stop": {"mean_accuracy": 1.1, "training_iteration": 400},
     "resources_per_trial": {"cpu": 2, "gpu": 0},
     "num_samples": 4,
-    "checkpoint_freq": 5,
+    "checkpoint_freq": 0,
     "keep_checkpoints_num": 5,
 }
