@@ -46,33 +46,80 @@ def get_data_loaders(batch_size, validation_split=0.1, data_dir=DATASET_ROOT):
     return train_loader, validation_loader
 
 
-def _copy_images(source, target):
-    target.absolute().mkdir(parents=False, exist_ok=True)
-    print(target.absolute())
+def _copy_images(source, target, target_val):
+    target.mkdir(parents=True, exist_ok=True)
+    target_val.mkdir(parents=True, exist_ok=True)
     for folder in source.iterdir():
         if folder.is_dir():
             image_folders = folder / "raw" / "images"
             if image_folders.exists():
                 print("processing", folder)
                 shutil.copytree(image_folders, target / folder.name)
+                _do_val_split(target / folder.name, target_val)
             else:
                 print("skipping", folder)
 
 
-def copy_all_images(source_dir, target_dir):
+def _do_val_split(source, target):
+    folders = list(source.glob("*"))
+    # just take the last video as test
+    try:
+        shutil.move(str(folders[-1]), target / source.name / folders[-1].name)
+    except OSError as e:
+        print("probably the permissions of the source folder are read only: ", e)
+
+
+def copy_all_images(source_dir, target_dir_train):
+    """Copies images from source dir to target dir.
+
+    source dir has to follow faceforensics folder structure:
+
+    data:
+        - manipulated_sequences:
+            - a:
+                - raw:
+                    - images
+            - b:
+                - raw:
+                    - images
+            ...
+        - original_sequences:
+            - a:
+                - raw:
+                    - images
+            - b:
+                - raw:
+                    - images
+            ...
+
+    Will do a train val split, by moving the las video of each method to a val folder.
+
+    resulting structure:
+
+
+    """
     source_dir = Path(source_dir)
-    target_dir = Path(target_dir)
+    target_dir_val = Path(target_dir_train) / "val"
+    target_dir_train = Path(target_dir_train) / "train"
 
     if not source_dir.exists():
         raise FileNotFoundError(f"{source_dir} does not exist")
 
     manipulated_sequences_source = source_dir / "manipulated_sequences"
-    manipulated_sequences_target = target_dir / "manipulated_sequences"
-    _copy_images(manipulated_sequences_source, manipulated_sequences_target)
+    manipulated_sequences_target = target_dir_train / "manipulated_sequences"
+    _copy_images(
+        manipulated_sequences_source,
+        manipulated_sequences_target,
+        target_dir_val / "manipulated_sequences",
+    )
 
     original_sequences_source = source_dir / "original_sequences"
-    original_sequences_target = target_dir / "original_sequences"
-    _copy_images(original_sequences_source, original_sequences_target)
+    original_sequences_target = target_dir_train / "original_sequences"
+    _copy_images(
+        original_sequences_source,
+        original_sequences_target,
+        target_dir_val / "original_sequences",
+    )
 
 
 if __name__ == "__main__":

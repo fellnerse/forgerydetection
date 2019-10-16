@@ -3,11 +3,13 @@ from datetime import datetime
 import click
 import numpy as np
 import ray
+from pytorch_lightning import Trainer
 from ray import tune
 from ray.tune.logger import DEFAULT_LOGGERS
 from ray.tune.schedulers import PopulationBasedTraining
 
 from forgery_detection.train.config import simple_vgg
+from forgery_detection.train.lightning.mnist import CoolSystem
 from forgery_detection.train.utils import process_config
 from forgery_detection.train.utils import SimpleTrainable
 
@@ -47,5 +49,27 @@ def run_pbt(data_dir):
     # print("Best config is:", analysis.get_best_config(metric="mean_accuracy"))
 
 
+@click.command()
+@click.option(
+    "--train_data_dir",
+    default="~/PycharmProjects/data_10/train",
+    help="Path to data to train on",
+)
+@click.option(
+    "--val_data_dir",
+    default="~/PycharmProjects/data_10/val",
+    help="Path to data to validate on",
+)
+@click.option("--batch_size", default=128, help="Path to data to validate on")
+def run_lightning(train_data_dir, val_data_dir, batch_size):
+
+    model = CoolSystem(train_data_dir, val_data_dir, batch_size)
+
+    # most basic trainer, uses good defaults
+    trainer = Trainer(gpus=1)
+    trainer.fit(model)
+
+
 if __name__ == "__main__":
-    run_pbt()
+    # run_pbt()
+    run_lightning()

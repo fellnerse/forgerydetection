@@ -14,3 +14,15 @@ class VGG11Binary(nn.Module):
 
     def forward(self, x):
         return self.vgg11_bn.forward(x)
+
+
+class SqueezeBinary(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.squeeze = models.squeezenet1_1(pretrained=True, num_classes=1000)
+
+        final_conv = nn.Conv2d(512, 2, kernel_size=1)
+        self.squeeze.classifier = nn.Sequential(nn.Dropout(p=0.5), final_conv)
+
+    def forward(self, x):
+        return self.squeeze.forward(x)
