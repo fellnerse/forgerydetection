@@ -5,6 +5,8 @@ import ray
 import torch
 from ray.tune import Trainable
 
+from forgery_detection.data.face_forensics.utils import get_data_loaders
+
 
 class SimpleTrainable(Trainable):
     def _setup(self, config):
@@ -95,3 +97,26 @@ def sample(hyper_parameter: dict) -> dict:
         else:
             sampled_dict[key] = value
     return sampled_dict
+
+
+def process_config(data_dir, train_spec):
+    batch_size = train_spec["config"]["settings"]["batch_size"]
+    train_loader, test_loader = get_data_loaders(
+        batch_size=batch_size, data_dir=data_dir
+    )  # todo thin about what actually needs ot be pinned
+    # X_id = pin_in_object_store(np.random.random(size=100000000))
+    train_spec["config"]["settings"]["train_loader_id"] = ray.put(train_loader)
+    train_spec["config"]["settings"]["test_loader_id"] = ray.put(test_loader)
+    try:
+        use_cuda = (
+            train_spec["config"]["settings"]["use_gpu"] and torch.cuda.is_available()
+        )
+    except KeyError:
+        use_cuda = False
+    train_spec["config"]["settings"]["device"] = torch.device(
+        "cuda" if use_cuda else "cpu"
+    )
+    # sample one time from hyper parameter for starting values
+    hyper_parameter = train_spec["config"]["hyper_parameter"].copy()
+    train_spec["config"]["hyper_parameter"] = sample(hyper_parameter)
+    return hyper_parameter
