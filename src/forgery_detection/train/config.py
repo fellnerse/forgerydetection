@@ -8,8 +8,8 @@ simple_vgg = {
     "config": {
         "settings": {
             "use_gpu": True,
-            "epoch_size": 512,
-            "test_size": 128,
+            "epoch_size": 10240000,
+            "test_size": 1280000,
             "batch_size": 16,
         },
         "model": VGG11Binary,
@@ -26,7 +26,7 @@ simple_vgg = {
     },
     "stop": {"mean_accuracy": 1.1, "training_iteration": 400},
     "resources_per_trial": {"cpu": 8, "gpu": 1},
-    "num_samples": 4,
-    "checkpoint_freq": 5,
+    "num_samples": 2,
+    "checkpoint_freq": 10,
     "keep_checkpoints_num": 5,
 }

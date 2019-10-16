@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -43,3 +44,36 @@ def get_data_loaders(batch_size, validation_split=0.1, data_dir=DATASET_ROOT):
     )
 
     return train_loader, validation_loader
+
+
+def _copy_images(source, target):
+    target.absolute().mkdir(parents=False, exist_ok=True)
+    print(target.absolute())
+    for folder in source.iterdir():
+        if folder.is_dir():
+            image_folders = folder / "raw" / "images"
+            if image_folders.exists():
+                print("processing", folder)
+                shutil.copytree(image_folders, target / folder.name)
+            else:
+                print("skipping", folder)
+
+
+def copy_all_images(source_dir, target_dir):
+    source_dir = Path(source_dir)
+    target_dir = Path(target_dir)
+
+    if not source_dir.exists():
+        raise FileNotFoundError(f"{source_dir} does not exist")
+
+    manipulated_sequences_source = source_dir / "manipulated_sequences"
+    manipulated_sequences_target = target_dir / "manipulated_sequences"
+    _copy_images(manipulated_sequences_source, manipulated_sequences_target)
+
+    original_sequences_source = source_dir / "original_sequences"
+    original_sequences_target = target_dir / "original_sequences"
+    _copy_images(original_sequences_source, original_sequences_target)
+
+
+if __name__ == "__main__":
+    copy_all_images("/media/sdb1/data_10", "/home/sebastian/Documents/data_10")

@@ -16,7 +16,7 @@ from forgery_detection.train.utils import SimpleTrainable
 
 @click.command()
 @click.option(
-    "--data_dir", default="~PycharmProjects/data_10", help="Path to data to train on"
+    "--data_dir", default="~/PycharmProjects/data_10", help="Path to data to train on"
 )
 def main(data_dir):
     np.random.seed(42)
@@ -53,7 +53,7 @@ def main(data_dir):
         time_attr="training_iteration",
         metric="mean_accuracy",
         mode="max",
-        perturbation_interval=2,
+        perturbation_interval=10,
         hyperparam_mutations={"hyper_parameter": hyper_parameter},
     )
     experiment_name = f"vgg_experiments/{datetime.now()}"
