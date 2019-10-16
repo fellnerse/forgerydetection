@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import click
 import numpy as np
 import ray
 import torch
@@ -13,7 +14,11 @@ from forgery_detection.train.utils import sample
 from forgery_detection.train.utils import SimpleTrainable
 
 
-def main():
+@click.command()
+@click.option(
+    "--data_dir", default="~PycharmProjects/data_10", help="Path to data to train on"
+)
+def main(data_dir):
     np.random.seed(42)
 
     ray.init()
@@ -23,7 +28,7 @@ def main():
     batch_size = train_spec["config"]["settings"]["batch_size"]
 
     train_loader, test_loader = get_data_loaders(
-        batch_size=batch_size
+        batch_size=batch_size, data_dir=data_dir
     )  # todo thin about what actually needs ot be pinned
     # X_id = pin_in_object_store(np.random.random(size=100000000))
     train_spec["config"]["settings"]["train_loader_id"] = ray.put(train_loader)

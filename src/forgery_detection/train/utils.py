@@ -10,7 +10,6 @@ class SimpleTrainable(Trainable):
     def _setup(self, config):
 
         self.settings = config["settings"]
-
         self.model = config["model"]().to(self.settings["device"])
         self.hyper_parameter = config["hyper_parameter"]
         self._initialize_optimizer(

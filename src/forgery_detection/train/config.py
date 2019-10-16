@@ -7,9 +7,9 @@ from forgery_detection.models.simple_vgg import VGG11Binary
 simple_vgg = {
     "config": {
         "settings": {
-            "use_gpu": False,
-            "epoch_size": 4,
-            "test_size": 1,
+            "use_gpu": True,
+            "epoch_size": 512,
+            "test_size": 128,
             "batch_size": 16,
         },
         "model": VGG11Binary,
@@ -25,8 +25,8 @@ simple_vgg = {
         },
     },
     "stop": {"mean_accuracy": 1.1, "training_iteration": 400},
-    "resources_per_trial": {"cpu": 2, "gpu": 0},
+    "resources_per_trial": {"cpu": 8, "gpu": 1},
     "num_samples": 4,
-    "checkpoint_freq": 0,
+    "checkpoint_freq": 5,
     "keep_checkpoints_num": 5,
 }

@@ -9,10 +9,10 @@ from torchvision.datasets import ImageFolder
 DATASET_ROOT = Path.home() / "PycharmProjects" / "data_10"
 
 
-def get_data() -> ImageFolder:
+def get_data(data_dir) -> ImageFolder:
     """Get initialized ImageFolder with faceforensics data"""
     return ImageFolder(
-        str(DATASET_ROOT),
+        str(data_dir),
         transform=transforms.Compose(
             [
                 transforms.CenterCrop(299),
@@ -25,10 +25,10 @@ def get_data() -> ImageFolder:
     )
 
 
-def get_data_loaders(batch_size, validation_split=0.1):
+def get_data_loaders(batch_size, validation_split=0.1, data_dir=DATASET_ROOT):
 
     # https://stackoverflow.com/questions/50544730/how-do-i-split-a-custom-dataset-into-training-and-test-datasets
-    dataset = get_data()
+    dataset = get_data(data_dir)
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
