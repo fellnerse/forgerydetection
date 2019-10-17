@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import pytorch_lightning as pl
 import torch
 from torch import optim
@@ -10,9 +8,9 @@ from forgery_detection.data.face_forensics.utils import get_data
 from forgery_detection.models.binary_classification import VGG11Binary
 
 
-class SupervisedSystem(pl.LightningModule):
+class Supervised(pl.LightningModule):
     def __init__(self, train_data_dir, val_data_dir, batch_size=128):
-        super(SupervisedSystem, self).__init__()
+        super(Supervised, self).__init__()
         self.batch_size = batch_size
         self.train_data = get_data(train_data_dir)
         self.val_data = get_data(val_data_dir)
@@ -34,10 +32,9 @@ class SupervisedSystem(pl.LightningModule):
         loss_val = self.loss(y_hat, y)
         train_acc = self.calculate_accuracy(y_hat, y)
 
-        tensorboard_dict = {"train_loss": loss_val, "train_acc": train_acc}
-        output = OrderedDict({"loss": loss_val, "log": tensorboard_dict})
+        tensorboard_dict = {"loss": loss_val, "acc": train_acc}
 
-        return output
+        return {"log": tensorboard_dict, **tensorboard_dict}
 
     def validation_step(self, batch, batch_nb):
         # OPTIONAL
@@ -46,19 +43,17 @@ class SupervisedSystem(pl.LightningModule):
 
         loss_val = self.loss(y_hat, y)
         val_acc = self.calculate_accuracy(y_hat, y)
-
         output = {"val_loss": loss_val, "val_acc": val_acc}
-        output["log"] = output
 
-        return output
+        return {"log": output, **output}
 
     def validation_end(self, outputs):
         # OPTIONAL
         val_loss_mean = torch.stack([x["val_loss"] for x in outputs]).mean()
         val_acc_mean = torch.stack([x["val_acc"] for x in outputs]).mean()
         tensorboard_dict = {"val_loss": val_loss_mean, "val_acc": val_acc_mean}
-        result = {"log": tensorboard_dict, "val_loss": val_loss_mean}
-        return result
+
+        return {"log": tensorboard_dict, **tensorboard_dict}
 
     def calculate_accuracy(self, y_hat, y):
         labels_hat = torch.argmax(y_hat, dim=1)
@@ -67,7 +62,7 @@ class SupervisedSystem(pl.LightningModule):
         return val_acc
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=10e-6)
+        optimizer = optim.Adam(self.parameters(), lr=10e-7)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, verbose=True, patience=2
         )
