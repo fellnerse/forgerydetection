@@ -36,6 +36,12 @@ from forgery_detection.train.lightning.system import Supervised
     help="How much of the data should be used for training, and validation."
     "Use 1.0 for 100%, 0.5 for 50% etc.",
 )
+@click.option(
+    "--val_check_interval",
+    default=1.0,
+    help="Run validation step after this percentage of training data. 1.0 corresponds to"
+    "running the validation after one complete epoch.",
+)
 def run_lightning(*args, **kwargs):
 
     model = Supervised(kwargs)
@@ -45,11 +51,11 @@ def run_lightning(*args, **kwargs):
         filepath=log_dir + "/checkpoints",
         save_best_only=True,
         verbose=True,
-        monitor="val_acc",
+        monitor="acc",
         mode="max",
         prefix="",
     )
-    gpus = 0 if kwargs["no_gpu"] else 1
+    gpus = None if kwargs["no_gpu"] else 1
 
     trainer = Trainer(
         gpus=gpus,
@@ -57,5 +63,6 @@ def run_lightning(*args, **kwargs):
         default_save_path=log_dir,
         train_percent_check=kwargs["data_percentage"],
         val_percent_check=kwargs["data_percentage"],
+        val_check_interval=kwargs["val_check_interval"],
     )
     trainer.fit(model)

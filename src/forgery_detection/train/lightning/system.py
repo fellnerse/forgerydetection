@@ -35,35 +35,41 @@ class Supervised(pl.LightningModule):
         cross_engropy = F.cross_entropy(logits, labels)
         return cross_engropy
 
+    def _make_lightning_log(self, log: dict, prefix: str = None):
+        if prefix:
+            prefixed_log = {prefix + "/" + key: value for key, value in log.items()}
+        else:
+            prefixed_log = log
+        return {"log": prefixed_log, **log}
+
     def training_step(self, batch, batch_nb):
-        # REQUIRED
         x, y = batch
         y_hat = self.forward(x)
+
         loss_val = self.loss(y_hat, y)
         train_acc = self.calculate_accuracy(y_hat, y)
 
-        tensorboard_dict = {"loss": loss_val, "acc": train_acc}
+        log = {"loss": loss_val, "acc": train_acc}
 
-        return {"log": tensorboard_dict, **tensorboard_dict}
+        return self._make_lightning_log(log, prefix="train")
 
     def validation_step(self, batch, batch_nb):
-        # OPTIONAL
         x, y = batch
         y_hat = self.forward(x)
 
         loss_val = self.loss(y_hat, y)
         val_acc = self.calculate_accuracy(y_hat, y)
-        output = {"val_loss": loss_val, "val_acc": val_acc}
 
-        return {"log": output, **output}
+        return {"loss": loss_val, "acc": val_acc}
 
     def validation_end(self, outputs):
-        # OPTIONAL
-        val_loss_mean = torch.stack([x["val_loss"] for x in outputs]).mean()
-        val_acc_mean = torch.stack([x["val_acc"] for x in outputs]).mean()
-        tensorboard_dict = {"val_loss": val_loss_mean, "val_acc": val_acc_mean}
+        # aggregate values from validation step
+        val_loss_mean = torch.stack([x["loss"] for x in outputs]).mean()
+        val_acc_mean = torch.stack([x["acc"] for x in outputs]).mean()
 
-        return {"log": tensorboard_dict, **tensorboard_dict}
+        log = {"loss": val_loss_mean, "acc": val_acc_mean}
+
+        return self._make_lightning_log(log, prefix="val")
 
     def calculate_accuracy(self, y_hat, y):
         labels_hat = torch.argmax(y_hat, dim=1)
