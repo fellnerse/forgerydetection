@@ -1,6 +1,6 @@
 import numpy as np
 
-from forgery_detection.train.utils import sample
+from forgery_detection.train.pbt.utils import sample
 
 
 def test_sampling():

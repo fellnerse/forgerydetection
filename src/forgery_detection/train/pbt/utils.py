@@ -1,11 +1,18 @@
 import os
+from datetime import datetime
 from types import LambdaType
 
+import click
+import numpy as np
 import ray
 import torch
+from ray import tune
 from ray.tune import Trainable
+from ray.tune.logger import DEFAULT_LOGGERS
+from ray.tune.schedulers import PopulationBasedTraining
 
 from forgery_detection.data.face_forensics.utils import get_data_loaders
+from forgery_detection.train.pbt.config import simple_vgg
 
 
 class SimpleTrainable(Trainable):
@@ -120,3 +127,36 @@ def process_config(data_dir, train_spec):
     hyper_parameter = train_spec["config"]["hyper_parameter"].copy()
     train_spec["config"]["hyper_parameter"] = sample(hyper_parameter)
     return hyper_parameter
+
+
+@click.command()
+@click.option(
+    "--data_dir", default="~/PycharmProjects/data_10", help="Path to data to train on"
+)
+def run_pbt(data_dir):
+    np.random.seed(42)
+
+    ray.init()
+
+    train_spec = simple_vgg.copy()
+    hyper_parameter = process_config(data_dir, train_spec)
+
+    pbt = PopulationBasedTraining(
+        time_attr="training_iteration",
+        metric="mean_accuracy",
+        mode="max",
+        perturbation_interval=10,
+        hyperparam_mutations={"hyper_parameter": hyper_parameter},
+    )
+    experiment_name = f"vgg_experiments/{datetime.now()}"
+    analysis = tune.run(
+        SimpleTrainable,
+        scheduler=pbt,
+        reuse_actors=True,
+        verbose=True,
+        loggers=DEFAULT_LOGGERS,
+        name=experiment_name,
+        local_dir="../log",
+        **train_spec,
+    )
+    print(analysis.trials)

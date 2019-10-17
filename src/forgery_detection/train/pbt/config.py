@@ -2,7 +2,7 @@ import numpy as np
 from torch import nn
 from torch.optim import Adam
 
-from forgery_detection.models.simple_vgg import VGG11Binary
+from forgery_detection.models.binary_classification import VGG11Binary
 
 simple_vgg = {
     "config": {

@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from forgery_detection.data.face_forensics.utils import get_data
-from forgery_detection.models.simple_vgg import VGG11Binary
+from forgery_detection.models.binary_classification import VGG11Binary
 
 
 class SupervisedSystem(pl.LightningModule):
