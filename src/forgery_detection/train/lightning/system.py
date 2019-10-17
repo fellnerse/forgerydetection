@@ -5,18 +5,28 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from forgery_detection.data.face_forensics.utils import get_data
+from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
 
 
 class Supervised(pl.LightningModule):
-    def __init__(self, train_data_dir, val_data_dir, batch_size=128):
-        super(Supervised, self).__init__()
-        self.batch_size = batch_size
-        self.train_data = get_data(train_data_dir)
-        self.val_data = get_data(val_data_dir)
+    MODEL_DICT = {"squeeze": SqueezeBinary, "vgg11": VGG11Binary}
 
-        # self.model = SqueezeBinary()
-        self.model = VGG11Binary()
+    class _DictHolder:
+        def __init__(self, hparams: dict):
+            self.__dict__ = hparams
+
+        def __getitem__(self, item):
+            return self.__dict__[item]
+
+    def __init__(self, hparams: dict):
+        super(Supervised, self).__init__()
+        self.hparams = self._DictHolder(hparams)
+        self.batch_size = hparams["batch_size"]
+        self.train_data = get_data(hparams["train_data_dir"])
+        self.val_data = get_data(hparams["val_data_dir"])
+
+        self.model = self.MODEL_DICT[self.hparams["model"]]()
 
     def forward(self, x):
         return self.model.forward(x)
@@ -62,9 +72,9 @@ class Supervised(pl.LightningModule):
         return val_acc
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=10e-7)
+        optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, verbose=True, patience=2
+            optimizer, verbose=True, patience=self.hparams["scheduler_patience"]
         )
         return [optimizer], [scheduler]
 
@@ -72,12 +82,18 @@ class Supervised(pl.LightningModule):
     def train_dataloader(self):
         # REQUIRED
         return DataLoader(
-            self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=8
+            self.train_data,
+            batch_size=self.hparams["batch_size"],
+            shuffle=True,
+            num_workers=8,
         )
 
     @pl.data_loader
     def val_dataloader(self):
         # OPTIONAL
         return DataLoader(
-            self.val_data, batch_size=self.batch_size, shuffle=True, num_workers=8
+            self.val_data,
+            batch_size=self.hparams["batch_size"],
+            shuffle=True,
+            num_workers=8,
         )
