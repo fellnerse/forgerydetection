@@ -4,12 +4,13 @@ import click
 import numpy as np
 import ray
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from ray import tune
 from ray.tune.logger import DEFAULT_LOGGERS
 from ray.tune.schedulers import PopulationBasedTraining
 
 from forgery_detection.train.config import simple_vgg
-from forgery_detection.train.lightning.mnist import CoolSystem
+from forgery_detection.train.lightning.mnist import SupervisedSystem
 from forgery_detection.train.utils import process_config
 from forgery_detection.train.utils import SimpleTrainable
 
@@ -46,7 +47,6 @@ def run_pbt(data_dir):
         **train_spec,
     )
     print(analysis.trials)
-    # print("Best config is:", analysis.get_best_config(metric="mean_accuracy"))
 
 
 @click.command()
@@ -63,10 +63,22 @@ def run_pbt(data_dir):
 @click.option("--batch_size", default=128, help="Path to data to validate on")
 def run_lightning(train_data_dir, val_data_dir, batch_size):
 
-    model = CoolSystem(train_data_dir, val_data_dir, batch_size)
+    model = SupervisedSystem(train_data_dir, val_data_dir, batch_size)
 
-    # most basic trainer, uses good defaults
-    trainer = Trainer(gpus=1)
+    # DEFAULTS used by the Trainer
+    log_dir = "/log"
+    checkpoint_callback = ModelCheckpoint(
+        filepath=log_dir,
+        save_best_only=True,
+        verbose=True,
+        monitor="val_loss",
+        mode="min",
+        prefix="",
+    )
+
+    trainer = Trainer(
+        gpus=1, checkpoint_callback=checkpoint_callback, default_save_path=log_dir
+    )
     trainer.fit(model)
 
 

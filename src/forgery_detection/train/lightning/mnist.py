@@ -7,18 +7,18 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from forgery_detection.data.face_forensics.utils import get_data
-from forgery_detection.models.simple_vgg import SqueezeBinary
+from forgery_detection.models.simple_vgg import VGG11Binary
 
 
-class CoolSystem(pl.LightningModule):
+class SupervisedSystem(pl.LightningModule):
     def __init__(self, train_data_dir, val_data_dir, batch_size=128):
-        super(CoolSystem, self).__init__()
+        super(SupervisedSystem, self).__init__()
         self.batch_size = batch_size
         self.train_data = get_data(train_data_dir)
         self.val_data = get_data(val_data_dir)
 
-        self.model = SqueezeBinary()
-        # self.model = VGG11Binary()
+        # self.model = SqueezeBinary()
+        self.model = VGG11Binary()
 
     def forward(self, x):
         return self.model.forward(x)
@@ -67,8 +67,10 @@ class CoolSystem(pl.LightningModule):
         return val_acc
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=0.00001)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
+        optimizer = optim.Adam(self.parameters(), lr=10e-6)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, verbose=True, patience=2
+        )
         return [optimizer], [scheduler]
 
     @pl.data_loader
