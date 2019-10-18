@@ -5,12 +5,17 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from forgery_detection.data.face_forensics.utils import get_data
+from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
 
 
 class Supervised(pl.LightningModule):
-    MODEL_DICT = {"squeeze": SqueezeBinary, "vgg11": VGG11Binary}
+    MODEL_DICT = {
+        "squeeze": SqueezeBinary,
+        "vgg11": VGG11Binary,
+        "resnet18": Resnet18Binary,
+    }
 
     def __init__(self, hparams: dict):
         super(Supervised, self).__init__()

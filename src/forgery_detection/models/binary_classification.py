@@ -26,3 +26,15 @@ class SqueezeBinary(nn.Module):
 
     def forward(self, x):
         return self.squeeze.forward(x)
+
+
+class Resnet18Binary(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resnet = models.resnet18(pretrained=True, num_classes=1000)
+
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Linear(256, 2)
+
+    def forward(self, x):
+        return self.resnet.forward(x)

@@ -27,7 +27,7 @@ from forgery_detection.train.lightning.system import Supervised
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
-    default="squeeze",
+    default="resnet18",
     help="Learning rate used by optimizer",
 )
 @click.option(
