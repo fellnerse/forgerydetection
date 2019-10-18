@@ -4,37 +4,10 @@ from pathlib import Path
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import SubsetRandomSampler
-from torchvision import transforms
-from torchvision.datasets import ImageFolder
+
+from forgery_detection.data.utils import get_data
 
 DATASET_ROOT = Path.home() / "PycharmProjects" / "data_10"
-
-
-class SaveImageFolder(ImageFolder):
-    def __getitem__(self, index):
-        try:
-            return super().__getitem__(index)
-        except OSError as e:
-            print("Some error with an image: ", e)
-            print("With path:", self.samples[index][0])
-            self.samples.pop(index)
-            return self.__getitem__(index)
-
-
-def get_data(data_dir) -> ImageFolder:
-    """Get initialized ImageFolder with faceforensics data"""
-    return SaveImageFolder(
-        str(data_dir),
-        transform=transforms.Compose(
-            [
-                transforms.CenterCrop(299),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        ),
-    )
 
 
 def get_data_loaders(batch_size, validation_split=0.1, data_dir=DATASET_ROOT):
@@ -55,6 +28,9 @@ def get_data_loaders(batch_size, validation_split=0.1, data_dir=DATASET_ROOT):
     )
 
     return train_loader, validation_loader
+
+
+# https://raw.githubusercontent.com/ufoym/imbalanced-dataset-sampler/master/sampler.py
 
 
 def _copy_images(source, target, target_val):

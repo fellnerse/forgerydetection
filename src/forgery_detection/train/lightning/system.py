@@ -3,8 +3,10 @@ import torch
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Dataset
 
-from forgery_detection.data.face_forensics.utils import get_data
+from forgery_detection.data.utils import get_data
+from forgery_detection.data.utils import ImbalancedDatasetSampler
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
@@ -20,9 +22,9 @@ class Supervised(pl.LightningModule):
     def __init__(self, hparams: dict):
         super(Supervised, self).__init__()
         self.hparams = self._DictHolder(hparams)
-        self.batch_size = hparams["batch_size"]
-        self.train_data = get_data(hparams["train_data_dir"])
-        self.val_data = get_data(hparams["val_data_dir"])
+
+        self.train_data = self._get_dataloader(get_data(hparams["train_data_dir"]))
+        self.val_data = self._get_dataloader(get_data(hparams["val_data_dir"]))
 
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
@@ -76,25 +78,27 @@ class Supervised(pl.LightningModule):
         )
         return [optimizer], [scheduler]
 
-    @pl.data_loader
-    def train_dataloader(self):
-        # REQUIRED
+    def _get_dataloader(self, dataset: Dataset):
+        if self.hparams["balance_data"]:
+            sampler = ImbalancedDatasetSampler(dataset)
+        else:
+            sampler = None
+
         return DataLoader(
-            self.train_data,
+            dataset,
             batch_size=self.hparams["batch_size"],
             shuffle=True,
             num_workers=8,
+            sampler=sampler,
         )
 
     @pl.data_loader
+    def train_dataloader(self):
+        return self.train_data
+
+    @pl.data_loader
     def val_dataloader(self):
-        # OPTIONAL
-        return DataLoader(
-            self.val_data,
-            batch_size=self.hparams["batch_size"],
-            shuffle=True,
-            num_workers=8,
-        )
+        return self.val_data
 
     @staticmethod
     def _calculate_accuracy(y_hat, y):
