@@ -12,13 +12,6 @@ from forgery_detection.models.binary_classification import VGG11Binary
 class Supervised(pl.LightningModule):
     MODEL_DICT = {"squeeze": SqueezeBinary, "vgg11": VGG11Binary}
 
-    class _DictHolder:
-        def __init__(self, hparams: dict):
-            self.__dict__ = hparams
-
-        def __getitem__(self, item):
-            return self.__dict__[item]
-
     def __init__(self, hparams: dict):
         super(Supervised, self).__init__()
         self.hparams = self._DictHolder(hparams)
@@ -47,7 +40,7 @@ class Supervised(pl.LightningModule):
         y_hat = self.forward(x)
 
         loss_val = self.loss(y_hat, y)
-        train_acc = self.calculate_accuracy(y_hat, y)
+        train_acc = self._calculate_accuracy(y_hat, y)
 
         log = {"loss": loss_val, "acc": train_acc}
 
@@ -58,7 +51,7 @@ class Supervised(pl.LightningModule):
         y_hat = self.forward(x)
 
         loss_val = self.loss(y_hat, y)
-        val_acc = self.calculate_accuracy(y_hat, y)
+        val_acc = self._calculate_accuracy(y_hat, y)
 
         return {"loss": loss_val, "acc": val_acc}
 
@@ -70,12 +63,6 @@ class Supervised(pl.LightningModule):
         log = {"loss": val_loss_mean, "acc": val_acc_mean}
 
         return self._make_lightning_log(log, prefix="val")
-
-    def calculate_accuracy(self, y_hat, y):
-        labels_hat = torch.argmax(y_hat, dim=1)
-        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
-        val_acc = torch.tensor(val_acc)
-        return val_acc
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
@@ -103,3 +90,17 @@ class Supervised(pl.LightningModule):
             shuffle=True,
             num_workers=8,
         )
+
+    @staticmethod
+    def _calculate_accuracy(y_hat, y):
+        labels_hat = torch.argmax(y_hat, dim=1)
+        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
+        val_acc = torch.tensor(val_acc)
+        return val_acc
+
+    class _DictHolder:
+        def __init__(self, hparams: dict):
+            self.__dict__ = hparams
+
+        def __getitem__(self, item):
+            return self.__dict__[item]
