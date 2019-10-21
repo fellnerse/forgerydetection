@@ -94,6 +94,5 @@ def run_lightning(*args, **kwargs):
         val_percent_check=kwargs["val_check_interval"]
         * kwargs["val_batch_nb_multiplier"],
         val_check_interval=kwargs["val_check_interval"],
-        max_nb_epochs=5,
     )
     trainer.fit(model)
