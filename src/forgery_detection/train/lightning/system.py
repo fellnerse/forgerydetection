@@ -49,7 +49,7 @@ class Supervised(pl.LightningModule):
 
         log = {"loss": loss_val, "acc": train_acc}
 
-        return self._construct_lightning_log(log, prefix="train")
+        return self._construct_lightning_log(log, train=True)
 
     def validation_step(self, batch, batch_nb):
         x, y = batch
@@ -67,7 +67,7 @@ class Supervised(pl.LightningModule):
 
         log = {"loss": val_loss_mean, "acc": val_acc_mean}
 
-        return self._construct_lightning_log(log, prefix="val")
+        return self._construct_lightning_log(log, train=False)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
@@ -93,7 +93,7 @@ class Supervised(pl.LightningModule):
         return DataLoader(
             dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=True,
+            shuffle=not sampler,
             num_workers=8,
             sampler=sampler,
         )
@@ -106,12 +106,12 @@ class Supervised(pl.LightningModule):
         return val_acc
 
     @staticmethod
-    def _construct_lightning_log(log: dict, prefix: str = None):
-        if prefix:
-            prefixed_log = {key: {prefix: value} for key, value in log.items()}
-        else:
-            prefixed_log = log
-        return {"log": prefixed_log, **log}
+    def _construct_lightning_log(log: dict, train=True, prefix: str = "metrics"):
+        suffix = "train" if train else "val"
+        fixed_log = {
+            f"{prefix}/" + metric: {suffix: value} for metric, value in log.items()
+        }
+        return {"log": fixed_log, **log}
 
     def _add_information_to_hparams(self):
         self.hparams["val_after_n_train_batches"] = (
