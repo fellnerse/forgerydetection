@@ -32,6 +32,7 @@ def get_data(data_dir) -> ImageFolder:
     )
 
 
+# https://github.com/ufoym/imbalanced-dataset-sampler
 class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     """Samples elements randomly from a given list of indices for imbalanced dataset
     Arguments:

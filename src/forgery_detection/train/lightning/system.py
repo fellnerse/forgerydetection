@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import torch
+from sklearn.metrics import confusion_matrix
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -10,6 +11,8 @@ from forgery_detection.data.utils import ImbalancedDatasetSampler
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
+from forgery_detection.train.lightning.utils import plot_confusion_matrix
+from forgery_detection.train.lightning.utils import plot_to_image
 
 
 class Supervised(pl.LightningModule):
@@ -41,22 +44,22 @@ class Supervised(pl.LightningModule):
         return cross_engropy
 
     def training_step(self, batch, batch_nb):
-        x, y = batch
-        y_hat = self.forward(x)
+        x, target = batch
+        pred = self.forward(x)
 
-        loss_val = self.loss(y_hat, y)
-        train_acc = self._calculate_accuracy(y_hat, y)
+        loss_val = self.loss(pred, target)
+        train_acc = self._calculate_accuracy(pred, target)
 
         log = {"loss": loss_val, "acc": train_acc}
 
         return self._construct_lightning_log(log, train=True)
 
     def validation_step(self, batch, batch_nb):
-        x, y = batch
-        y_hat = self.forward(x)
+        x, target = batch
+        pred = self.forward(x)
 
-        loss_val = self.loss(y_hat, y)
-        val_acc = self._calculate_accuracy(y_hat, y)
+        loss_val = self.loss(pred, target)
+        val_acc = self._calculate_accuracy(pred, target)
 
         return {"loss": loss_val, "acc": val_acc}
 
@@ -68,6 +71,10 @@ class Supervised(pl.LightningModule):
         log = {"loss": val_loss_mean, "acc": val_acc_mean}
 
         return self._construct_lightning_log(log, train=False)
+
+    def on_epoch_end(self):
+        # do confusion matrix stuff here
+        pass
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
@@ -84,6 +91,21 @@ class Supervised(pl.LightningModule):
     def val_dataloader(self):
         return self.val_data_loader
 
+    def _log_confusion_matrix_image(self, pred, target):
+        cm_image = self._generate_confusion_matrix_image(target, pred)
+        self.logger.experiment.add_image(
+            "confusion matrix",
+            cm_image,
+            dataformats="HWC",
+            global_step=self.global_step,
+        )
+
+    def _generate_confusion_matrix_image(self, pred, target):
+        cm = confusion_matrix(pred.cpu(), torch.argmax(target, dim=1).cpu())
+        figure = plot_confusion_matrix(cm, class_names=["fake", "real"])
+        cm_image = plot_to_image(figure)
+        return cm_image
+
     def _get_dataloader(self, dataset: Dataset):
         if self.hparams["balance_data"]:
             sampler = ImbalancedDatasetSampler(dataset)
@@ -93,7 +115,8 @@ class Supervised(pl.LightningModule):
         return DataLoader(
             dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=not sampler,
+            shuffle=sampler is None,
+            # todo verify that the sampler returns random items if shuffle is off
             num_workers=8,
             sampler=sampler,
         )
