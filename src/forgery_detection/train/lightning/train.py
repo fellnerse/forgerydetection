@@ -1,9 +1,19 @@
+import ast
+
 import click
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 
 from forgery_detection.train.lightning.system import Supervised
 from forgery_detection.train.lightning.utils import get_logger_and_checkpoint_callback
+
+
+class PythonLiteralOption(click.Option):
+    def type_cast_value(self, ctx, value):
+        try:
+            return ast.literal_eval(value)
+        except ValueError:
+            raise click.BadParameter(value)
 
 
 @click.command()
@@ -30,7 +40,7 @@ from forgery_detection.train.lightning.utils import get_logger_and_checkpoint_ca
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--no_gpu", is_flag=True)
+@click.option("--gpus", cls=PythonLiteralOption, default=[3])
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
@@ -44,7 +54,6 @@ from forgery_detection.train.lightning.utils import get_logger_and_checkpoint_ca
     help="Run validation step after this percentage of training data. 1.0 corresponds to"
     "running the validation after one complete epoch.",
 )
-@click.option("--val_batch_nb_multiplier", default=1.0, help="Do more batches.")
 @click.option("--balance_data", is_flag=True)
 def run_lightning(*args, **kwargs):
 
@@ -60,7 +69,7 @@ def run_lightning(*args, **kwargs):
         monitor="acc", patience=3, verbose=True, mode="max"
     )
 
-    gpus = None if kwargs["no_gpu"] else 1
+    gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
 
     trainer = Trainer(
         gpus=gpus,
@@ -68,8 +77,8 @@ def run_lightning(*args, **kwargs):
         checkpoint_callback=checkpoint_callback,
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
-        val_percent_check=kwargs["val_check_interval"]
-        * kwargs["val_batch_nb_multiplier"],
+        val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
+        distributed_backend="ddp" if len(gpus) > 0 else None,
     )
     trainer.fit(model)
