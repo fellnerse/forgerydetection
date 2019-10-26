@@ -37,9 +37,9 @@ DATASETS = {
 }
 ALL_DATASETS = [
     "original",
-    "DeepFakeDetection_original",
+    # "DeepFakeDetection_original",
     "Deepfakes",
-    "DeepFakeDetection",
+    # "DeepFakeDetection",
     "Face2Face",
     "FaceSwap",
     "NeuralTextures",
