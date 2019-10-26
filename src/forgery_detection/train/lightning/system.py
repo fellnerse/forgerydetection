@@ -65,6 +65,7 @@ class Supervised(pl.LightningModule):
 
     def validation_end(self, outputs):
         # aggregate values from validation step
+
         val_loss_mean = torch.stack([x["loss"] for x in outputs]).mean()
         val_acc_mean = torch.stack([x["acc"] for x in outputs]).mean()
 
@@ -106,7 +107,7 @@ class Supervised(pl.LightningModule):
         cm_image = plot_to_image(figure)
         return cm_image
 
-    def _get_dataloader(self, dataset: Dataset):
+    def _get_dataloader(self, dataset: Dataset, num_workers=6):
         if self.hparams["balance_data"]:
             sampler = ImbalancedDatasetSampler(dataset)
         else:
@@ -116,16 +117,14 @@ class Supervised(pl.LightningModule):
             dataset,
             batch_size=self.hparams["batch_size"],
             shuffle=sampler is None,
-            # todo verify that the sampler returns random items if shuffle is off
-            num_workers=8,
+            num_workers=num_workers,
             sampler=sampler,
         )
 
     @staticmethod
     def _calculate_accuracy(y_hat, y):
         labels_hat = torch.argmax(y_hat, dim=1)
-        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
-        val_acc = torch.tensor(val_acc)
+        val_acc = labels_hat.eq(y).float().mean()
         return val_acc
 
     @staticmethod
@@ -140,11 +139,9 @@ class Supervised(pl.LightningModule):
         self.hparams["val_after_n_train_batches"] = (
             len(self.train_data_loader)
         ) * self.hparams["val_check_interval"]
-        self.hparams["val_batches"] = (
-            (len(self.val_data_loader))
-            * self.hparams["val_check_interval"]
-            * self.hparams["val_batch_nb_multiplier"]
-        )
+        self.hparams["val_batches"] = (len(self.val_data_loader)) * self.hparams[
+            "val_check_interval"
+        ]
         self.hparams["train_samples"] = (
             len(self.train_data_loader) * self.hparams["batch_size"]
         )

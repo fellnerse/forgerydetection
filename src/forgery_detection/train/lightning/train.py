@@ -79,6 +79,6 @@ def run_lightning(*args, **kwargs):
         default_save_path=kwargs["log_dir"],
         val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
-        distributed_backend="ddp" if len(gpus) > 0 else None,
+        distributed_backend="ddp" if len(gpus) > 1 else None,
     )
     trainer.fit(model)
