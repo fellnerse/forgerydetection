@@ -76,7 +76,7 @@ def extract_method_videos(data_path, dataset, compression):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument("--data_path", type=str)
+    p.add_argument("data_path", type=str, help="Directory containing the videos.")
     p.add_argument(
         "--dataset",
         "-d",
