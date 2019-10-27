@@ -6,3 +6,4 @@
     1. make sure python3.7 is active
     2. run in root folder: `poetry install`
  - using pycharm: mark `src` as sources root directory
+- if running tensorboard raises an error about setuptools, run: `poetry run pip install -U setuptools`
