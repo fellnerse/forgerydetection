@@ -12,6 +12,8 @@ import subprocess
 from os.path import join
 
 import cv2
+from joblib import delayed
+from joblib import Parallel
 from tqdm import tqdm
 
 
@@ -57,9 +59,19 @@ def extract_method_videos(data_path, dataset, compression):
     FaceForensics++ file structure"""
     videos_path = join(data_path, DATASET_PATHS[dataset], compression, "videos")
     images_path = join(data_path, DATASET_PATHS[dataset], compression, "images")
-    for video in tqdm(os.listdir(videos_path)):
-        image_folder = video.split(".")[0]
-        extract_frames(join(videos_path, video), join(images_path, image_folder))
+
+    Parallel(n_jobs=10)(
+        delayed(
+            lambda _video: extract_frames(
+                join(videos_path, _video), join(images_path, _video.split(".")[0])
+            )
+        )(video)
+        for video in tqdm(os.listdir(videos_path))
+    )
+
+    # for video in tqdm(os.listdir(videos_path)):
+    #     image_folder = video.split(".")[0]
+    #     extract_frames(join(videos_path, video), join(images_path, image_folder))
 
 
 if __name__ == "__main__":
