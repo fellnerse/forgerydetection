@@ -40,7 +40,7 @@ class PythonLiteralOption(click.Option):
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--gpus", cls=PythonLiteralOption, default=[3])
+@click.option("--gpus", cls=PythonLiteralOption, default="[3]")
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
@@ -79,6 +79,6 @@ def run_lightning(*args, **kwargs):
         default_save_path=kwargs["log_dir"],
         val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
-        distributed_backend="ddp" if len(gpus) > 1 else None,
+        distributed_backend="ddp" if gpus and len(gpus) > 1 else None,
     )
     trainer.fit(model)

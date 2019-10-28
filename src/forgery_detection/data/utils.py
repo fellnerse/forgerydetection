@@ -1,3 +1,5 @@
+import os
+
 import torch.utils
 import torchvision
 from torchvision import transforms
@@ -5,6 +7,17 @@ from torchvision.datasets import ImageFolder
 
 
 class SafeImageFolder(ImageFolder):
+    def __init__(self, root, *args, **kwargs):
+        # make the imagefolder follow symlinks during initialization
+        _os_walk = os.walk
+
+        def _walk(dir, *args, **kwargs):
+            return _os_walk(dir, followlinks=True)
+
+        setattr(os, "walk", _walk)
+        super().__init__(root, *args, **kwargs)
+        setattr(os, "walk", _os_walk)
+
     def __getitem__(self, index):
         try:
             return super().__getitem__(index)

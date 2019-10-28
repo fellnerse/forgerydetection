@@ -34,7 +34,9 @@ class Supervised(pl.LightningModule):
 
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
-        self._add_information_to_hparams()
+        self.hparams.add_data_information_to_hparams(
+            len(self.train_data_loader), len(self.val_data_loader)
+        )
 
     def forward(self, x):
         return self.model.forward(x)
@@ -135,28 +137,27 @@ class Supervised(pl.LightningModule):
         }
         return {"log": fixed_log, **log}
 
-    def _add_information_to_hparams(self):
-        self.hparams["val_after_n_train_batches"] = (
-            len(self.train_data_loader)
-        ) * self.hparams["val_check_interval"]
-        self.hparams["val_batches"] = (len(self.val_data_loader)) * self.hparams[
-            "val_check_interval"
-        ]
-        self.hparams["train_samples"] = (
-            len(self.train_data_loader) * self.hparams["batch_size"]
-        )
-        self.hparams["val_samples"] = (
-            len(self.val_data_loader) * self.hparams["batch_size"]
-        )
-
-    class _DictHolder:
+    class _DictHolder(dict):
         """This just makes sure that the pytorch_lightning syntax works."""
 
         def __init__(self, hparams: dict):
-            self.__dict__ = hparams
+            hparams["cli"] = self._construct_cli_arguments_from_hparams(hparams)
+            super().__init__(**hparams)
+            self.__dict__: dict = self
 
-        def __getitem__(self, item):
-            return self.__dict__[item]
+        @staticmethod
+        def _construct_cli_arguments_from_hparams(hparams: dict):
+            cli_arguments = " ".join(
+                [f"--{key}={value}" for key, value in hparams.items()]
+            )
+            return cli_arguments
 
-        def __setitem__(self, key, value):
-            self.__dict__[key] = value
+        def add_data_information_to_hparams(
+            self, train_nb_batches: int, val_nb_batches: int
+        ):
+            self["val_after_n_train_batches"] = (
+                train_nb_batches * self["val_check_interval"]
+            )
+            self["val_batches"] = val_nb_batches * self["val_check_interval"]
+            self["train_samples"] = train_nb_batches * self["batch_size"]
+            self["val_samples"] = val_nb_batches * self["batch_size"]
