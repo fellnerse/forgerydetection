@@ -185,13 +185,6 @@ class Supervised(pl.LightningModule):
             super().__init__(**hparams)
             self.__dict__: dict = self
 
-        @staticmethod
-        def _construct_cli_arguments_from_hparams(hparams: dict):
-            cli_arguments = " ".join(
-                [f"--{key}={value}" for key, value in hparams.items()]
-            )
-            return cli_arguments
-
         def add_data_information_to_hparams(
             self, nb_train_samples: int, nb_val_samples: int
         ):
@@ -210,3 +203,10 @@ class Supervised(pl.LightningModule):
             self["class_weights"] = {
                 value[0]: value[1] for value in zip(labels, weights)
             }
+
+        @staticmethod
+        def _construct_cli_arguments_from_hparams(hparams: dict):
+            cli_arguments = " ".join(
+                [f"--{key}={value}" for key, value in hparams.items()]
+            )
+            return cli_arguments
