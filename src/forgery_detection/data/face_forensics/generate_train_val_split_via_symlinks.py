@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 
+from forgery_detection.data.face_forensics import FaceForensicsDataStructure
 from forgery_detection.data.face_forensics.splits import TEST
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN
@@ -24,28 +25,29 @@ def _symlink_split(source_dir_method, target_dir, split):
 @click.option("--compression", default="c40")
 def symlink_train_val_test_split(source_dir_root, target_dir_root, compression):
 
-    source_dir_root = Path(source_dir_root)
-    if not source_dir_root.exists():
-        raise FileNotFoundError(f"{source_dir_root} does not exist")
-
+    # use faceforensicsdatastructure to iterate elegantly over the correct image folders
+    source_dir_data_structure = FaceForensicsDataStructure(
+        source_dir_root, compression=compression, data_type="images"
+    )
+    # target_dir_root will contain a train, val and test folder
     target_dir_root = Path(target_dir_root)
 
-    sub_dirs = ["original_sequences/youtube"] + [
-        "manipulated_sequences/" + manipulated_sequence
-        for manipulated_sequence in [
-            "Deepfakes",
-            "Face2Face",
-            "FaceSwap",
-            "NeuralTextures",
-        ]
-    ]
+    # for each split and each subdirectory (aka. method, like deepfakes) we are
+    # collecting the correct videos and symlinking them
     for split, split_name in [(TRAIN, TRAIN_NAME), (VAL, VAL_NAME), (TEST, TEST_NAME)]:
-        for sub_dir in sub_dirs:
-            _symlink_split(
-                source_dir_root / sub_dir / compression / "images",
-                target_dir_root / split_name / sub_dir / compression / "images",
-                split,
-            )
+
+        target_dir_split = target_dir_root / split_name
+        target_dir_split.mkdir(parents=True)
+
+        target_dir_data_structure = FaceForensicsDataStructure(
+            target_dir_split, compression=compression, data_type="images"
+        )
+
+        for source_sub_dir, target_sub_dir in zip(
+            source_dir_data_structure.get_subdirs(),
+            target_dir_data_structure.get_subdirs(),
+        ):
+            _symlink_split(source_sub_dir, target_sub_dir, split)
 
 
 if __name__ == "__main__":
