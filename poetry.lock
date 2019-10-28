@@ -30,6 +30,14 @@ six = "*"
 
 [[package]]
 category = "main"
+description = "A toolkit for making real world machine learning and data analysis applications"
+name = "dlib"
+optional = false
+python-versions = "*"
+version = "19.18.0"
+
+[[package]]
+category = "main"
 description = "Clean single-source support for Python 3 and 2"
 name = "future"
 optional = false
@@ -206,6 +214,7 @@ tqdm = ">=4.35.0"
 reference = "b86d223889992cccbb4ca68537a464df88dbfef7"
 type = "git"
 url = "https://github.com/williamFalcon/pytorch-lightning.git"
+
 [[package]]
 category = "main"
 description = "World timezone definitions, modern and historical"
@@ -353,7 +362,7 @@ version = "0.33.6"
 test = ["pytest (>=3.0.0)", "pytest-cov"]
 
 [metadata]
-content-hash = "31b517d2552594ff74144a5b54be78dfa0ec50429c8c1525680cba46268e4a38"
+content-hash = "24d47478fc9a7dde666948633998a34160fdf4d6e8dffd645dd1faf07f2aa749"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -367,6 +376,9 @@ click = [
 cycler = [
     {file = "cycler-0.10.0-py2.py3-none-any.whl", hash = "sha256:1d8a5ae1ff6c5cf9b93e8811e581232ad8920aeec647c37316ceac982b08cb2d"},
     {file = "cycler-0.10.0.tar.gz", hash = "sha256:cd7b2d1018258d7247a71425e9f26463dfb444d411c39569972f4ce586b0c9d8"},
+]
+dlib = [
+    {file = "dlib-19.18.0.tar.gz", hash = "sha256:8ca127253a0ca82a3d847148515f82ff2c504ed77a6385ec4f38c7f8e5360860"},
 ]
 future = [
     {file = "future-0.18.1.tar.gz", hash = "sha256:858e38522e8fd0d3ce8f0c1feaf0603358e366d5403209674c7b617fa0c24093"},

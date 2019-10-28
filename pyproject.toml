@@ -16,6 +16,7 @@ pytorch-lightning = {git = "https://github.com/williamFalcon/pytorch-lightning.g
 matplotlib = "^3.1.1"
 scikit-learn = "^0.21.3"
 numpy = "<1.17.*" #because of tensorboard warnings
+dlib = "^19.18.0"
 
 [tool.poetry.dev-dependencies]
 
