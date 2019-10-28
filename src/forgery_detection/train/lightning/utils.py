@@ -1,9 +1,12 @@
 import itertools
+from typing import List
+from typing import Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
+from torchvision.datasets import DatasetFolder
 
 
 def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
@@ -26,6 +29,19 @@ def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
         period=1 / val_check_interval,
     )
     return checkpoint_callback, logger
+
+
+def calculate_class_weights(dataset: DatasetFolder) -> Tuple[List[str], List[float]]:
+    labels, counts = np.unique(dataset.targets, return_counts=True)
+    counts = 1 / counts
+    counts /= counts.sum()
+    return list(map(lambda idx: dataset.classes[idx], labels)), counts
+
+
+def class_weights_to_string(labels: np.array, class_weights: np.array) -> str:
+    return "\n".join(
+        map(lambda value: f"{value[0]}:\t{value[1]:.3g}", zip(labels, class_weights))
+    )
 
 
 # https://www.tensorflow.org/tensorboard/image_summaries

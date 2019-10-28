@@ -3,14 +3,16 @@ import torch
 from sklearn.metrics import confusion_matrix
 from torch import optim
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import BatchSampler
+from torch.utils.data import RandomSampler
 from torch.utils.data.dataset import Dataset
 
 from forgery_detection.data.utils import get_data
-from forgery_detection.data.utils import ImbalancedDatasetSampler
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
+from forgery_detection.train.lightning.utils import calculate_class_weights
+from forgery_detection.train.lightning.utils import class_weights_to_string
 from forgery_detection.train.lightning.utils import plot_confusion_matrix
 from forgery_detection.train.lightning.utils import plot_to_image
 
@@ -27,22 +29,27 @@ class Supervised(pl.LightningModule):
 
         self.hparams = self._DictHolder(hparams)
 
-        self.train_data_loader = self._get_dataloader(
-            get_data(hparams["train_data_dir"])
-        )
-        self.val_data_loader = self._get_dataloader(get_data(hparams["val_data_dir"]))
+        self.train_data = get_data(hparams["train_data_dir"])
+        self.val_data = get_data(hparams["val_data_dir"])
 
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
         self.hparams.add_data_information_to_hparams(
-            len(self.train_data_loader), len(self.val_data_loader)
+            len(self.train_data), len(self.val_data)
         )
+
+        if self.hparams["balance_data"]:
+            labels, weights = calculate_class_weights(self.val_data)
+            self.hparams.add_class_weights(labels, weights)
+            self.class_weights = torch.tensor(weights, dtype=torch.float)
+        else:
+            self.class_weights = None
 
     def forward(self, x):
         return self.model.forward(x)
 
     def loss(self, logits, labels):
-        cross_engropy = F.cross_entropy(logits, labels)
+        cross_engropy = F.cross_entropy(logits, labels, weight=self.class_weights)
         return cross_engropy
 
     def training_step(self, batch, batch_nb):
@@ -88,11 +95,11 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return self.train_data_loader
+        return self._get_dataloader(self.train_data)
 
     @pl.data_loader
     def val_dataloader(self):
-        return self.val_data_loader
+        return self._get_dataloader(self.val_data)
 
     def _log_confusion_matrix_image(self, pred, target):
         cm_image = self._generate_confusion_matrix_image(target, pred)
@@ -110,18 +117,51 @@ class Supervised(pl.LightningModule):
         return cm_image
 
     def _get_dataloader(self, dataset: Dataset, num_workers=6):
-        if self.hparams["balance_data"]:
-            sampler = ImbalancedDatasetSampler(dataset)
-        else:
-            sampler = None
 
-        return DataLoader(
-            dataset,
+        sampler = BatchSampler(
+            RandomSampler(dataset),
             batch_size=self.hparams["batch_size"],
-            shuffle=sampler is None,
-            num_workers=num_workers,
-            sampler=sampler,
+            drop_last=False,
         )
+
+        class _RepeatSampler(torch.utils.data.Sampler):
+            """ Sampler that repeats forever.
+
+            Args:
+                sampler (Sampler)
+            """
+
+            def __init__(self, sampler):
+                super().__init__(sampler)
+                self.sampler = sampler
+
+            def __iter__(self):
+                while True:
+                    yield from iter(self.sampler)
+
+            def __len__(self):
+                return len(self.sampler)
+
+        class _DataLoader(torch.utils.data.dataloader.DataLoader):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.iterator = super().__iter__()
+
+            def __len__(self):
+                return len(self.batch_sampler.sampler)
+
+            def __iter__(self):
+                for i in range(len(self)):
+                    yield next(self.iterator)
+
+        loader = _DataLoader(
+            dataset=dataset,
+            shuffle=False,
+            batch_sampler=_RepeatSampler(sampler),
+            num_workers=num_workers,
+        )
+
+        return loader
 
     @staticmethod
     def _calculate_accuracy(y_hat, y):
@@ -153,11 +193,20 @@ class Supervised(pl.LightningModule):
             return cli_arguments
 
         def add_data_information_to_hparams(
-            self, train_nb_batches: int, val_nb_batches: int
+            self, nb_train_samples: int, nb_val_samples: int
         ):
-            self["val_after_n_train_batches"] = (
-                train_nb_batches * self["val_check_interval"]
-            )
-            self["val_batches"] = val_nb_batches * self["val_check_interval"]
-            self["train_samples"] = train_nb_batches * self["batch_size"]
-            self["val_samples"] = val_nb_batches * self["batch_size"]
+            self["train_batches"] = (nb_train_samples // self["batch_size"]) * self[
+                "val_check_interval"
+            ]
+            self["val_batches"] = (nb_val_samples // self["batch_size"]) * self[
+                "val_check_interval"
+            ]
+            self["train_samples"] = nb_train_samples
+            self["val_samples"] = nb_val_samples
+
+        def add_class_weights(self, labels, weights):
+            print("Using class weights:")
+            print(class_weights_to_string(labels, weights))
+            self["class_weights"] = {
+                value[0]: value[1] for value in zip(labels, weights)
+            }
