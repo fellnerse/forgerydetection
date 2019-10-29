@@ -34,37 +34,7 @@ def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     return x1, y1, size_bb
 
 
-@click.command()
-@click.option("--data_dir_root", required=True, type=click.Path(exists=True))
-@click.option("--compression", default="raw")
-def extract_faces(data_dir_root, compression):
-    source_dir_data_structure = FaceForensicsDataStructure(
-        data_dir_root, compression=compression, data_type="images"
-    )
-
-    detector = dlib.get_frontal_face_detector()
-    for subdir in tqdm(
-        source_dir_data_structure.get_subdirs(), position=0, leave=False
-    ):
-        face_dir: Path = subdir.parent / "faces"
-        face_dir.mkdir(exist_ok=True)
-        # (face_dir / "faces.json").touch()
-        faces_dict = {}
-        for video_folder in tqdm(list(subdir.iterdir()), position=1, leave=False):
-            faces = Parallel(n_jobs=12)(
-                delayed(
-                    lambda img: _find_face(img, detector, faces_dict, video_folder)
-                )(img)
-                for img in tqdm(list(video_folder.iterdir()), position=2, leave=False)
-            )
-            faces_dict[video_folder.name] = {face[0]: face[1] for face in faces}
-            # for _img in tqdm(list(video_folder.iterdir()), position=2, leave=False):
-            #     _find_face(_img, detector, faces_dict, video_folder)
-        with open(face_dir / "faces.json", "w") as fb:
-            json.dump(faces_dict, fb)
-
-
-def _find_face(_img, detector, faces_dict, video_folder):
+def _find_face(_img, detector):
     img = cv2.imread(str(_img))
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = detector(gray_img, 1)
@@ -76,8 +46,53 @@ def _find_face(_img, detector, faces_dict, video_folder):
         # cv2.imwrite("cropped_face.png", cropped_face)
         return _img.name, [x, y, size]
     except IndexError:
-        print("didn't find anything")
         return _img.name, []
+
+
+def _extract_faces_from_video(video_folder, face_dir) -> bool:
+
+    video_face_dir = face_dir / video_folder.name
+    # if the folder already exists just continue
+    try:
+        video_face_dir.mkdir(exist_ok=False)
+    except FileExistsError:
+        tqdm.write(f"{video_face_dir} exists already.")
+        return False
+
+    # extract all faces and save it
+    detector = dlib.get_frontal_face_detector()
+    faces = dict(_find_face(img, detector) for img in video_folder.iterdir())
+
+    with open(video_face_dir / "faces.json", "w") as fb:
+        json.dump(faces, fb)
+
+    return True
+
+
+@click.command()
+@click.option("--data_dir_root", required=True, type=click.Path(exists=True))
+@click.option("--compression", default="raw")
+def extract_faces(data_dir_root, compression):
+    source_dir_data_structure = FaceForensicsDataStructure(
+        data_dir_root, compression=compression, data_type="images"
+    )
+    # iterate over all manipulation methods and original videos
+    methods = tqdm(source_dir_data_structure.get_subdirs(), position=0, leave=False)
+    for method in methods:
+        methods.set_description(f"Current method: {method.parents[1].name}")
+        # add a face folder next to images and videos
+        face_dir: Path = method.parent / "faces"
+        face_dir.mkdir(exist_ok=True)
+
+        # extract faces from videos in parallel
+        Parallel(n_jobs=6)(
+            delayed(
+                lambda _video_folder: _extract_faces_from_video(_video_folder, face_dir)
+            )(video_folder)
+            for video_folder in tqdm(
+                sorted(list(method.iterdir())), position=1, leave=False
+            )
+        )
 
 
 if __name__ == "__main__":
