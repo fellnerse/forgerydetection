@@ -4,8 +4,8 @@ import click
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 
-from forgery_detection.train.lightning.system import Supervised
-from forgery_detection.train.lightning.utils import get_logger_and_checkpoint_callback
+from forgery_detection.lightning.system import Supervised
+from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
 
 
 class PythonLiteralOption(click.Option):
@@ -18,16 +18,10 @@ class PythonLiteralOption(click.Option):
 
 @click.command()
 @click.option(
-    "--train_data_dir",
+    "--data_dir",
     required=True,
     type=click.Path(exists=True),
-    help="Path to data to train on",
-)
-@click.option(
-    "--val_data_dir",
-    required=True,
-    type=click.Path(exists=True),
-    help="Path to data to validate on",
+    help="Path to data dir containing, at least train and val data.",
 )
 @click.option(
     "--log_dir",
@@ -56,6 +50,10 @@ class PythonLiteralOption(click.Option):
 )
 @click.option("--balance_data", is_flag=True)
 def run_lightning(*args, **kwargs):
+    gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
+
+    kwargs["train"] = True
+    kwargs["gpus"] = gpus
 
     model = Supervised(kwargs)
 
@@ -68,8 +66,6 @@ def run_lightning(*args, **kwargs):
     early_stopping_callback = EarlyStopping(
         monitor="acc", patience=3, verbose=True, mode="max"
     )
-
-    gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
 
     trainer = Trainer(
         gpus=gpus,

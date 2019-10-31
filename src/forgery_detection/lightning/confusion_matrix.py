@@ -1,51 +1,14 @@
 import itertools
-from typing import List
-from typing import Tuple
 
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.logging import TestTubeLogger
-from torchvision.datasets import DatasetFolder
-
-
-def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
-    """Sets up a logger and a checkpointer.
-
-    The code is mostly copied from pl.trainer.py.
-    """
-
-    logger = TestTubeLogger(save_dir=log_dir, name="lightning_logs")
-    ckpt_path = "{}/{}/version_{}/{}".format(
-        log_dir, logger.experiment.name, logger.experiment.version, "checkpoints"
-    )  # todo maybe this is not necessary
-    checkpoint_callback = ModelCheckpoint(
-        filepath=ckpt_path,
-        save_best_only=True,
-        verbose=True,
-        monitor="acc",
-        mode="max",
-        prefix="",
-        period=1 / val_check_interval,
-    )
-    return checkpoint_callback, logger
-
-
-def calculate_class_weights(dataset: DatasetFolder) -> Tuple[List[str], List[float]]:
-    labels, counts = np.unique(dataset.targets, return_counts=True)
-    counts = 1 / counts
-    counts /= counts.sum()
-    return list(map(lambda idx: dataset.classes[idx], labels)), counts
-
-
-def class_weights_to_string(labels: np.array, class_weights: np.array) -> str:
-    return "\n".join(
-        map(lambda value: f"{value[0]}:\t{value[1]:.3g}", zip(labels, class_weights))
-    )
-
+from sklearn.metrics import confusion_matrix
 
 # https://www.tensorflow.org/tensorboard/image_summaries
-def plot_confusion_matrix(cm, class_names):
+
+
+def plot_cm(cm, class_names):
     """
   Returns a matplotlib figure containing the plotted confusion matrix.
 
@@ -99,3 +62,17 @@ def plot_to_image(fig):
         fig.canvas.get_width_height()[::-1] + (3,)
     )
     return image_from_plot
+
+
+def generate_confusion_matrix_image(pred, target):
+    cm = confusion_matrix(pred.cpu(), torch.argmax(target, dim=1).cpu())
+    figure = plot_cm(cm, class_names=["fake", "real"])
+    cm_image = plot_to_image(figure)
+    return cm_image
+
+
+def log_confusion_matrix_image(global_step, pred, target, logger):
+    cm_image = generate_confusion_matrix_image(target, pred)
+    logger.experiment.add_image(
+        "confusion matrix", cm_image, dataformats="HWC", global_step=global_step
+    )

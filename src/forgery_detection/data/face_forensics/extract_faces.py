@@ -56,7 +56,6 @@ def _extract_faces_from_video(video_folder, face_dir) -> bool:
     try:
         video_face_dir.mkdir(exist_ok=False)
     except FileExistsError:
-        tqdm.write(f"{video_face_dir} exists already.")
         return False
 
     # extract all faces and save it
@@ -85,7 +84,7 @@ def extract_faces(data_dir_root, compression):
         face_dir.mkdir(exist_ok=True)
 
         # extract faces from videos in parallel
-        Parallel(n_jobs=6)(
+        Parallel(n_jobs=12)(
             delayed(
                 lambda _video_folder: _extract_faces_from_video(_video_folder, face_dir)
             )(video_folder)
