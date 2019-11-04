@@ -36,6 +36,7 @@ class Supervised(pl.LightningModule):
         self.hparams = DictHolder(kwargs)
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
+        # todo add positive label
         # if we are training we have to log some stuff to hparams
         if self.hparams.pop("train", False):
 
@@ -75,11 +76,12 @@ class Supervised(pl.LightningModule):
         pred = self.forward(x)
 
         loss_val = self.loss(pred, target)
+
+        pred = F.softmax(pred, dim=1)
         train_acc = self._calculate_accuracy(pred, target)
 
-        y_scores = torch.gather(pred, 1, target.unsqueeze(-1))
         roc_auc = roc_auc_score(
-            target.squeeze().detach().cpu(), y_scores.detach().cpu()
+            target.squeeze().detach().cpu(), pred[:, 1].detach().cpu()
         )
 
         log = {"loss": loss_val, "acc": train_acc, "roc_auc": roc_auc}
@@ -107,14 +109,22 @@ class Supervised(pl.LightningModule):
         # aggregate values from validation step
         pred = torch.cat([x["pred"] for x in outputs], 0)
         target = torch.cat([x["target"] for x in outputs], 0)
+
         test_loss_mean = self.loss(pred, target)
+        pred = pred.cpu()
+        target = target.cpu()
+        pred = F.softmax(pred, dim=1)
         test_acc_mean = self._calculate_accuracy(pred, target)
 
         # confusion matrix
-        log_confusion_matrix(self.logger, self.global_step, pred, target)
+        log_confusion_matrix(
+            self.logger, self.global_step, target, torch.argmax(pred, dim=1)
+        )
 
         # roc_auc_score
-        roc_auc = log_roc_graph(self.logger, self.global_step, pred, target)
+        roc_auc = log_roc_graph(
+            self.logger, self.global_step, target.squeeze(), pred[:, 1]
+        )
 
         log = {"loss": test_loss_mean, "acc": test_acc_mean, "roc_auc": roc_auc}
         return log

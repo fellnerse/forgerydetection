@@ -1,4 +1,5 @@
 from argparse import Namespace
+from copy import deepcopy
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -76,8 +77,12 @@ class DictHolder(dict):
 
     @staticmethod
     def _construct_cli_arguments_from_hparams(hparams: dict):
-        # todo instead of adding to hparam log it
+        hparams_copy = deepcopy(hparams)
+        hparams_copy.pop("train")
+        balance_data = hparams_copy.pop("balance_data")
         cli_arguments = " ".join([f"--{key}={value}" for key, value in hparams.items()])
+        if balance_data:
+            cli_arguments += "--balance_data"
         return cli_arguments
 
     @staticmethod
@@ -135,8 +140,8 @@ def _get_fixed_dataloader(dataset: Dataset, batch_size: int, num_workers=6):
     return loader
 
 
-def log_confusion_matrix(logger, global_step, pred: torch.tensor, target: torch.tensor):
-    cm = confusion_matrix(target.cpu(), torch.argmax(pred, dim=1).cpu())
+def log_confusion_matrix(logger, global_step, target: torch.tensor, pred: torch.tensor):
+    cm = confusion_matrix(target, pred)
     figure = plot_cm(cm, class_names=["fake", "real"])
     cm_image = plot_to_image(figure)
     plt.close()
@@ -145,9 +150,8 @@ def log_confusion_matrix(logger, global_step, pred: torch.tensor, target: torch.
     )
 
 
-def log_roc_graph(logger, global_step, pred: torch.tensor, target: torch.tensor):
-    y_scores = torch.gather(pred, 1, target.unsqueeze(-1))
-    fpr, tpr, _ = metrics.roc_curve(target.squeeze().cpu(), y_scores.cpu())
+def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor):
+    fpr, tpr, _ = metrics.roc_curve(target, pred, pos_label=1)
     roc_auc = auc(fpr, tpr)
     figure = plt.figure(figsize=(8, 8))
     lw = 2
