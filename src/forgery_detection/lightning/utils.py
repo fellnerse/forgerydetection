@@ -5,13 +5,20 @@ from typing import Union
 
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
+from sklearn import metrics
+from sklearn.metrics import auc
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import BatchSampler
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torch.utils.data import RandomSampler
 from torchvision.datasets import DatasetFolder
+
+from forgery_detection.lightning.confusion_matrix import plot_cm
+from forgery_detection.lightning.confusion_matrix import plot_to_image
 
 
 def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
@@ -25,7 +32,11 @@ def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
         log_dir, logger.experiment.name, logger.experiment.version, "checkpoints"
     )  # todo maybe this is not necessary
     checkpoint_callback = ModelCheckpoint(
-        filepath=ckpt_path, save_best_only=True, monitor="acc", mode="max", prefix=""
+        filepath=ckpt_path,
+        save_best_only=True,
+        monitor="roc_auc",
+        mode="max",
+        prefix="",
     )
     return checkpoint_callback, logger
 
@@ -122,3 +133,37 @@ def _get_fixed_dataloader(dataset: Dataset, batch_size: int, num_workers=6):
     )
 
     return loader
+
+
+def log_confusion_matrix(logger, global_step, pred: torch.tensor, target: torch.tensor):
+    cm = confusion_matrix(target.cpu(), torch.argmax(pred, dim=1).cpu())
+    figure = plot_cm(cm, class_names=["fake", "real"])
+    cm_image = plot_to_image(figure)
+    plt.close()
+    logger.experiment.add_image(
+        "metrics/cm", cm_image, dataformats="HWC", global_step=global_step
+    )
+
+
+def log_roc_graph(logger, global_step, pred: torch.tensor, target: torch.tensor):
+    y_scores = torch.gather(pred, 1, target.unsqueeze(-1))
+    fpr, tpr, _ = metrics.roc_curve(target.squeeze().cpu(), y_scores.cpu())
+    roc_auc = auc(fpr, tpr)
+    figure = plt.figure(figsize=(8, 8))
+    lw = 2
+    plt.plot(
+        fpr, tpr, color="darkorange", lw=lw, label="ROC curve (area = %0.2f)" % roc_auc
+    )
+    plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Receiver operating characteristic curve")
+    plt.legend(loc="lower right")
+    cm_image = plot_to_image(figure)
+    plt.close()
+    logger.experiment.add_image(
+        "metrics/roc", cm_image, dataformats="HWC", global_step=global_step
+    )
+    return roc_auc

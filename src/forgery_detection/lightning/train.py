@@ -64,7 +64,7 @@ def run_lightning(*args, **kwargs):
 
     # early stopping
     early_stopping_callback = EarlyStopping(
-        monitor="acc", patience=3, verbose=True, mode="max"
+        monitor="roc_auc", patience=3, verbose=True, mode="max"
     )
 
     trainer = Trainer(

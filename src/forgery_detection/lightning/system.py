@@ -2,10 +2,9 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Union
 
-import numpy as np
 import pytorch_lightning as pl
 import torch
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -14,11 +13,11 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.utils import get_data
-from forgery_detection.lightning.confusion_matrix import plot_cm
-from forgery_detection.lightning.confusion_matrix import plot_to_image
 from forgery_detection.lightning.utils import _get_fixed_dataloader
 from forgery_detection.lightning.utils import calculate_class_weights
 from forgery_detection.lightning.utils import DictHolder
+from forgery_detection.lightning.utils import log_confusion_matrix
+from forgery_detection.lightning.utils import log_roc_graph
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
@@ -53,7 +52,7 @@ class Supervised(pl.LightningModule):
             else:
                 self.class_weights = None
         else:
-            self.train_dataloader()
+            self.test_dataloader()
             self.class_weights = None
 
     def forward(self, x):
@@ -78,7 +77,12 @@ class Supervised(pl.LightningModule):
         loss_val = self.loss(pred, target)
         train_acc = self._calculate_accuracy(pred, target)
 
-        log = {"loss": loss_val, "acc": train_acc}
+        y_scores = torch.gather(pred, 1, target.unsqueeze(-1))
+        roc_auc = roc_auc_score(
+            target.squeeze().detach().cpu(), y_scores.detach().cpu()
+        )
+
+        log = {"loss": loss_val, "acc": train_acc, "roc_auc": roc_auc}
 
         return self._construct_lightning_log(log, suffix="train")
 
@@ -86,57 +90,34 @@ class Supervised(pl.LightningModule):
         x, target = batch
         pred = self.forward(x)
 
-        loss_val = self.loss(pred, target)
-        val_acc = self._calculate_accuracy(pred, target)
-
-        return {"loss": loss_val, "acc": val_acc}
+        return {"pred": pred.squeeze(), "target": target.squeeze()}
 
     def validation_end(self, outputs):
-        # aggregate values from validation step
-
-        val_loss_mean = torch.stack([x["loss"] for x in outputs]).mean()
-        val_acc_mean = torch.stack([x["acc"] for x in outputs]).mean()
-
-        log = {"loss": val_loss_mean, "acc": val_acc_mean}
-
+        log = self._aggregate_outputs(outputs)
         return self._construct_lightning_log(log, suffix="val")
 
     def test_step(self, batch, batch_nb):
-        x, target = batch
-        pred = self.forward(x)
-
-        loss_val = self.loss(pred, target)
-        val_acc = self._calculate_accuracy(pred, target)
-
-        cm = confusion_matrix(target.cpu(), torch.argmax(pred, dim=1).cpu())
-
-        if cm.shape != (2, 2):
-            cm = [[0, 0], [0, 0]]
-
-        return {"loss": loss_val, "acc": val_acc, "cm": cm}
+        return self.validation_step(batch, batch_nb)
 
     def test_end(self, outputs):
-        # aggregate values from validation step
-
-        val_loss_mean = torch.stack([x["loss"] for x in outputs]).mean()
-        val_acc_mean = torch.stack([x["acc"] for x in outputs]).mean()
-        if len(outputs) > 1:
-            val_cm_sum = np.stack([x["cm"] for x in outputs]).sum(axis=0)
-        else:
-            val_cm_sum = outputs[0]["cm"]
-        figure = plot_cm(val_cm_sum, class_names=["fake", "real"])
-        cm_image = plot_to_image(figure)
-
-        self.logger.experiment.add_image(
-            "confusion matrix",
-            cm_image,
-            dataformats="HWC",
-            global_step=self.global_step,
-        )
-
-        log = {"loss": val_loss_mean, "acc": val_acc_mean}
-
+        log = self._aggregate_outputs(outputs)
         return self._construct_lightning_log(log, suffix="test")
+
+    def _aggregate_outputs(self, outputs):
+        # aggregate values from validation step
+        pred = torch.cat([x["pred"] for x in outputs], 0)
+        target = torch.cat([x["target"] for x in outputs], 0)
+        test_loss_mean = self.loss(pred, target)
+        test_acc_mean = self._calculate_accuracy(pred, target)
+
+        # confusion matrix
+        log_confusion_matrix(self.logger, self.global_step, pred, target)
+
+        # roc_auc_score
+        roc_auc = log_roc_graph(self.logger, self.global_step, pred, target)
+
+        log = {"loss": test_loss_mean, "acc": test_acc_mean, "roc_auc": roc_auc}
+        return log
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
