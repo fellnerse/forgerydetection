@@ -1,5 +1,6 @@
 from argparse import Namespace
 from copy import deepcopy
+from pathlib import Path
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -173,3 +174,18 @@ def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor)
         "metrics/roc", cm_image, dataformats="HWC", global_step=global_step
     )
     return roc_auc
+
+
+def get_latest_checkpoint(checkpoint_folder: Path) -> str:
+    """Returns the latest checkpoint in given path.
+
+    Raises FileNotFoundError if folder does not contain any .ckpt files."""
+
+    checkpoints = sorted(checkpoint_folder.glob("*.ckpt"))
+    if len(checkpoints) == 0:
+        raise FileNotFoundError(
+            f"Could not find any .ckpt files in {checkpoint_folder}"
+        )
+    latest_checkpoint = str(checkpoints[-1])
+    print(f"Using {latest_checkpoint} to load weights.")
+    return latest_checkpoint

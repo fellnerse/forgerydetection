@@ -5,6 +5,7 @@ import click
 from pytorch_lightning import Trainer
 
 from forgery_detection.lightning.system import Supervised
+from forgery_detection.lightning.utils import get_latest_checkpoint
 
 
 class PythonLiteralOption(click.Option):
@@ -32,10 +33,10 @@ class PythonLiteralOption(click.Option):
 def run_lightning_test(*args, **kwargs):
     gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
 
+    checkpoint_folder = Path(kwargs["checkpoint_dir"]) / "checkpoints"
+
     model = Supervised.load_from_metrics(
-        weights_path=Path(kwargs["checkpoint_dir"])
-        / "checkpoints"
-        / "_ckpt_epoch_1.ckpt",
+        weights_path=get_latest_checkpoint(checkpoint_folder),
         tags_csv=Path(kwargs["checkpoint_dir"]) / "meta_tags.csv",
     )
 
