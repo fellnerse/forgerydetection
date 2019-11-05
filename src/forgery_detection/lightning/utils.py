@@ -1,3 +1,4 @@
+import ast
 from argparse import Namespace
 from copy import deepcopy
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
+import click
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
@@ -189,3 +191,18 @@ def get_latest_checkpoint(checkpoint_folder: Path) -> str:
     latest_checkpoint = str(checkpoints[-1])
     print(f"Using {latest_checkpoint} to load weights.")
     return latest_checkpoint
+
+
+class PythonLiteralOption(click.Option):
+    def type_cast_value(self, ctx, value):
+        try:
+            return ast.literal_eval(value)
+        except ValueError:
+            raise click.BadParameter(value)
+
+
+def parse_gpus(kwargs: dict):
+    try:
+        return None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
+    except KeyError:
+        return None

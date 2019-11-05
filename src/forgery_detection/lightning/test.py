@@ -1,4 +1,3 @@
-import ast
 from pathlib import Path
 
 import click
@@ -6,14 +5,8 @@ from pytorch_lightning import Trainer
 
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_latest_checkpoint
-
-
-class PythonLiteralOption(click.Option):
-    def type_cast_value(self, ctx, value):
-        try:
-            return ast.literal_eval(value)
-        except ValueError:
-            raise click.BadParameter(value)
+from forgery_detection.lightning.utils import parse_gpus
+from forgery_detection.lightning.utils import PythonLiteralOption
 
 
 @click.command()
@@ -31,7 +24,7 @@ class PythonLiteralOption(click.Option):
 )
 @click.option("--gpus", cls=PythonLiteralOption, default="[3]")
 def run_lightning_test(*args, **kwargs):
-    gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
+    gpus = parse_gpus(kwargs)
 
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / "checkpoints"
 

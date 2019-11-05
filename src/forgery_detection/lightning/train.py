@@ -1,19 +1,11 @@
-import ast
-
 import click
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
-
-
-class PythonLiteralOption(click.Option):
-    def type_cast_value(self, ctx, value):
-        try:
-            return ast.literal_eval(value)
-        except ValueError:
-            raise click.BadParameter(value)
+from forgery_detection.lightning.utils import parse_gpus
+from forgery_detection.lightning.utils import PythonLiteralOption
 
 
 @click.command()
@@ -50,7 +42,7 @@ class PythonLiteralOption(click.Option):
 )
 @click.option("--balance_data", is_flag=True)
 def run_lightning(*args, **kwargs):
-    gpus = None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
+    gpus = parse_gpus(kwargs)
 
     kwargs["train"] = True
     kwargs["gpus"] = gpus
