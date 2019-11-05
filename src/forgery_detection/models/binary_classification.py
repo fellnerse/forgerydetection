@@ -38,3 +38,18 @@ class Resnet18Binary(nn.Module):
 
     def forward(self, x):
         return self.resnet.forward(x)
+
+
+class Resnet18BinaryDropout(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resnet = models.resnet18(pretrained=True, num_classes=1000)
+
+        self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
+        self.resnet.layer2 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer2)
+        self.resnet.layer3 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer3)
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(256, 2))
+
+    def forward(self, x):
+        return self.resnet.forward(x)

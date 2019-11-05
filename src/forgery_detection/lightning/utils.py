@@ -80,9 +80,11 @@ class DictHolder(dict):
         hparams_copy = deepcopy(hparams)
         hparams_copy.pop("train")
         balance_data = hparams_copy.pop("balance_data")
-        cli_arguments = " ".join([f"--{key}={value}" for key, value in hparams.items()])
+        cli_arguments = " ".join(
+            [f"--{key}={value}" for key, value in hparams_copy.items()]
+        )
         if balance_data:
-            cli_arguments += "--balance_data"
+            cli_arguments += " --balance_data"
         return cli_arguments
 
     @staticmethod

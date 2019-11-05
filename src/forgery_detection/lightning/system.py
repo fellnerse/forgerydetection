@@ -19,6 +19,7 @@ from forgery_detection.lightning.utils import DictHolder
 from forgery_detection.lightning.utils import log_confusion_matrix
 from forgery_detection.lightning.utils import log_roc_graph
 from forgery_detection.models.binary_classification import Resnet18Binary
+from forgery_detection.models.binary_classification import Resnet18BinaryDropout
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
 
@@ -28,6 +29,7 @@ class Supervised(pl.LightningModule):
         "squeeze": SqueezeBinary,
         "vgg11": VGG11Binary,
         "resnet18": Resnet18Binary,
+        "resnet18dropout": Resnet18BinaryDropout,
     }
 
     def __init__(self, kwargs: Union[dict, Namespace]):
