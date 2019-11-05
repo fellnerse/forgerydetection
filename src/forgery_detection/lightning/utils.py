@@ -156,7 +156,7 @@ def log_confusion_matrix(logger, global_step, target: torch.tensor, pred: torch.
 
 
 def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor):
-    fpr, tpr, _ = metrics.roc_curve(target, pred, pos_label=1)
+    fpr, tpr, thresholds = metrics.roc_curve(target, pred, pos_label=1)
     roc_auc = auc(fpr, tpr)
     figure = plt.figure(figsize=(8, 8))
     lw = 2
@@ -170,6 +170,13 @@ def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor)
     plt.ylabel("True Positive Rate")
     plt.title("Receiver operating characteristic curve")
     plt.legend(loc="lower right")
+
+    ax2 = plt.gca().twinx()
+    ax2.plot(fpr, thresholds, markeredgecolor="r", linestyle="dashed", color="r")
+    ax2.set_ylabel("Threshold", color="r")
+    ax2.set_ylim([thresholds[-1], thresholds[0]])
+    ax2.set_xlim([fpr[0], fpr[-1]])
+
     cm_image = plot_to_image(figure)
     plt.close()
     logger.experiment.add_image(
@@ -193,16 +200,13 @@ def get_latest_checkpoint(checkpoint_folder: Path) -> str:
     return latest_checkpoint
 
 
-class PythonLiteralOption(click.Option):
+class PythonLiteralOptionGPUs(click.Option):
     def type_cast_value(self, ctx, value):
         try:
-            return ast.literal_eval(value)
+            gpus = ast.literal_eval(value)
+            if not isinstance(gpus, list):
+                raise TypeError("gpus needs to be a list (i.e. [], [1], or [1,2].")
+            gpus = None if len(gpus) == 0 else gpus
+            return gpus
         except ValueError:
             raise click.BadParameter(value)
-
-
-def parse_gpus(kwargs: dict):
-    try:
-        return None if len(kwargs["gpus"]) == 0 else kwargs["gpus"]
-    except KeyError:
-        return None

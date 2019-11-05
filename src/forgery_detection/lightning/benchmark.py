@@ -1,7 +1,8 @@
+import json
 from pathlib import Path
 
 import click
-from pytorch_lightning import Trainer
+import torch
 
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_latest_checkpoint
@@ -21,20 +22,24 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     type=click.Path(exists=True),
     help="Folder used for logging.",
 )
+@click.option(
+    "--benchmark_dir",
+    required=True,
+    type=click.Path(exists=True),
+    help="Folder containing images.",
+)
 @click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
-def run_lightning_test(*args, **kwargs):
-
+def run_benchmark(*args, **kwargs):
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / "checkpoints"
 
     model = Supervised.load_from_metrics(
         weights_path=get_latest_checkpoint(checkpoint_folder),
         tags_csv=Path(kwargs["checkpoint_dir"]) / "meta_tags.csv",
     )
-    trainer = Trainer(
-        gpus=kwargs["gpus"],
-        default_save_path=kwargs["log_dir"],
-        distributed_backend="ddp"
-        if kwargs["gpus"] and len(kwargs["gpus"]) > 1
-        else None,
+    device = torch.device("cuda", kwargs["gpus"][0])
+
+    predictions_dict = model.benchmark(
+        benchmark_dir=kwargs["benchmark_dir"], device=device, threshold=0.05
     )
-    trainer.test(model)
+    with open(checkpoint_folder / "submission.json", "w") as f:
+        json.dump(predictions_dict, f)

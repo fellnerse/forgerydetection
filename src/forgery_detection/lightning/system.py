@@ -8,6 +8,7 @@ from sklearn.metrics import roc_auc_score
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
@@ -39,6 +40,7 @@ class Supervised(pl.LightningModule):
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
         # todo add positive label
+        # todo change train to mode (train, test, benchmark)
         # if we are training we have to log some stuff to hparams
         if self.hparams.pop("train", False):
 
@@ -153,7 +155,7 @@ class Supervised(pl.LightningModule):
     @pl.data_loader
     def test_dataloader(self):
         test_data = get_data(Path(self.hparams["data_dir"]) / TEST_NAME)
-        self.hparams.add_dataset_size(len(test_data), VAL_NAME)
+        self.hparams.add_dataset_size(len(test_data), TEST_NAME)
         loader = DataLoader(
             dataset=test_data,
             batch_size=self.hparams["batch_size"],
@@ -161,6 +163,28 @@ class Supervised(pl.LightningModule):
             num_workers=12,
         )
         return loader
+
+    def benchmark(self, benchmark_dir, device, threshold=0.5):
+        self.cuda(device)
+        self.eval()
+        data = get_data(benchmark_dir)
+        predictions_dict = {}
+        total = 0
+        real = 0
+        for i in tqdm(range(len(data))):
+            img, _ = data[i]
+            name = Path(data.samples[i][0]).name
+            pred = self(img.unsqueeze(0).cuda(device)).detach().cpu().squeeze()
+            pred = F.softmax(pred, dim=0).numpy()
+            pred -= threshold
+            if pred[1] > 0:
+                predictions_dict[name] = "real"
+                real += 1
+            else:
+                predictions_dict[name] = "fake"
+            total += 1
+        print(f"real %: {real/total}")
+        return predictions_dict
 
     @staticmethod
     def _calculate_accuracy(y_hat, y):

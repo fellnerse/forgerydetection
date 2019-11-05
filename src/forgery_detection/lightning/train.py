@@ -4,8 +4,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
-from forgery_detection.lightning.utils import parse_gpus
-from forgery_detection.lightning.utils import PythonLiteralOption
+from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 
 
 @click.command()
@@ -26,7 +25,7 @@ from forgery_detection.lightning.utils import PythonLiteralOption
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--gpus", cls=PythonLiteralOption, default="[3]")
+@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
@@ -42,10 +41,8 @@ from forgery_detection.lightning.utils import PythonLiteralOption
 )
 @click.option("--balance_data", is_flag=True)
 def run_lightning(*args, **kwargs):
-    gpus = parse_gpus(kwargs)
 
     kwargs["train"] = True
-    kwargs["gpus"] = gpus
 
     model = Supervised(kwargs)
 
@@ -60,13 +57,15 @@ def run_lightning(*args, **kwargs):
     )
 
     trainer = Trainer(
-        gpus=gpus,
+        gpus=kwargs["gpus"],
         logger=logger,
         checkpoint_callback=checkpoint_callback,
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
         val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
-        distributed_backend="ddp" if gpus and len(gpus) > 1 else None,
+        distributed_backend="ddp"
+        if kwargs["gpus"] and len(kwargs["gpus"]) > 1
+        else None,
     )
     trainer.fit(model)
