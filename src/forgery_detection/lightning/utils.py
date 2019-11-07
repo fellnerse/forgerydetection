@@ -115,12 +115,15 @@ class DictHolder(dict):
     def _construct_cli_arguments_from_hparams(hparams: dict):
         hparams_copy = deepcopy(hparams)
         hparams_copy.pop("mode")
-        balance_data = hparams_copy.pop("balance_data")
-        cli_arguments = " ".join(
-            [f"--{key}={value}" for key, value in hparams_copy.items()]
-        )
-        if balance_data:
-            cli_arguments += " --balance_data"
+
+        cli_arguments = ""
+        for key, value in hparams_copy.items():
+            if isinstance(value, bool):
+                if value:
+                    cli_arguments += f" --{key}"
+            else:
+                cli_arguments += f" --{key}={value}"
+
         return cli_arguments
 
     @staticmethod
