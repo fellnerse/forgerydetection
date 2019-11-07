@@ -53,6 +53,14 @@ def resized_crop():
     return [transforms.Resize(299), transforms.CenterCrop(299)]
 
 
+def resized_crop_flip():
+    return [
+        transforms.Resize(299),
+        transforms.CenterCrop(299),
+        transforms.RandomHorizontalFlip(),
+    ]
+
+
 def get_data(
     data_dir, custom_transforms: Callable[[], List[Callable]] = crop
 ) -> ImageFolder:
