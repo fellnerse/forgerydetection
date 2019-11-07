@@ -1,24 +1,31 @@
+import pickle
 from argparse import Namespace
 from pathlib import Path
 from typing import Union
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
 from sklearn.metrics import roc_auc_score
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import RandomSampler
 from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.utils import FiftyFiftySampler
 from forgery_detection.data.utils import get_data
-from forgery_detection.lightning.utils import _get_fixed_dataloader
 from forgery_detection.lightning.utils import calculate_class_weights
 from forgery_detection.lightning.utils import DictHolder
+from forgery_detection.lightning.utils import get_fixed_dataloader
+from forgery_detection.lightning.utils import get_labels_dict
+from forgery_detection.lightning.utils import get_logger_dir
 from forgery_detection.lightning.utils import log_confusion_matrix
 from forgery_detection.lightning.utils import log_roc_graph
+from forgery_detection.lightning.utils import SystemMode
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import Resnet18BinaryDropout
 from forgery_detection.models.binary_classification import SqueezeBinary
@@ -39,16 +46,17 @@ class Supervised(pl.LightningModule):
         self.hparams = DictHolder(kwargs)
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
-        # todo add positive label
-        # todo change train to mode (train, test, benchmark)
-        # if we are training we have to log some stuff to hparams
-        if self.hparams.pop("train", False):
+        self.idx_to_classes = get_labels_dict(self.hparams["data_dir"])
 
-            # lazily load dataloaders
-            self.train_dataloader()
-            self.val_dataloader()
+        if self.hparams["balance_data"]:
+            self.sampler_cls = FiftyFiftySampler
+        else:
+            self.sampler_cls = RandomSampler
 
-            if self.hparams["balance_data"]:
+        system_mode = self.hparams.pop("mode")
+        if system_mode is SystemMode.TRAIN:
+
+            if self.hparams["class_weights"]:
                 labels, weights = calculate_class_weights(
                     get_data(Path(self.hparams["data_dir"]) / VAL_NAME)
                 )
@@ -56,9 +64,17 @@ class Supervised(pl.LightningModule):
                 self.class_weights = torch.tensor(weights, dtype=torch.float)
             else:
                 self.class_weights = None
-        else:
+
+            # lazily load dataloaders
+            self.train_dataloader()
+            self.val_dataloader()
+
+        elif system_mode is SystemMode.TEST:
             self.test_dataloader()
             self.class_weights = None
+
+        elif system_mode is SystemMode.BENCHMARK:
+            pass
 
     def forward(self, x):
         return self.model.forward(x)
@@ -106,6 +122,8 @@ class Supervised(pl.LightningModule):
         return self.validation_step(batch, batch_nb)
 
     def test_end(self, outputs):
+        with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
+            pickle.dump(outputs, f)
         log = self._aggregate_outputs(outputs)
         return self._construct_lightning_log(log, suffix="test")
 
@@ -144,23 +162,29 @@ class Supervised(pl.LightningModule):
     def train_dataloader(self):
         train_data = get_data(Path(self.hparams["data_dir"]) / TRAIN_NAME)
         self.hparams.add_dataset_size(len(train_data), TRAIN_NAME)
-        return _get_fixed_dataloader(train_data, self.hparams["batch_size"])
+        return get_fixed_dataloader(
+            train_data, self.hparams["batch_size"], sampler=self.sampler_cls
+        )
 
     @pl.data_loader
     def val_dataloader(self):
         val_data = get_data(Path(self.hparams["data_dir"]) / VAL_NAME)
         self.hparams.add_dataset_size(len(val_data), VAL_NAME)
-        return _get_fixed_dataloader(val_data, self.hparams["batch_size"])
+        return get_fixed_dataloader(
+            val_data, self.hparams["batch_size"], sampler=self.sampler_cls
+        )
 
     @pl.data_loader
     def test_dataloader(self):
         test_data = get_data(Path(self.hparams["data_dir"]) / TEST_NAME)
         self.hparams.add_dataset_size(len(test_data), TEST_NAME)
+        # we want to make sure test data follows the same distribution like the benchmark
         loader = DataLoader(
             dataset=test_data,
             batch_size=self.hparams["batch_size"],
-            shuffle=True,
+            shuffle=False,
             num_workers=12,
+            sampler=self.sampler_cls(test_data, replacement=True),
         )
         return loader
 
@@ -201,3 +225,24 @@ class Supervised(pl.LightningModule):
             f"{prefix}/" + metric: {suffix: value} for metric, value in log.items()
         }
         return {"log": fixed_log, **log}
+
+    @classmethod
+    def load_from_metrics(cls, weights_path, tags_csv, overwrite_hparams=None):
+        overwrite_hparams = overwrite_hparams or {}
+
+        hparams = load_hparams_from_tags_csv(tags_csv)
+        hparams.__setattr__("on_gpu", False)
+        hparams.__dict__.update(overwrite_hparams)
+
+        # load on CPU only to avoid OOM issues
+        # then its up to user to put back on GPUs
+        checkpoint = torch.load(weights_path, map_location=lambda storage, loc: storage)
+
+        # load the state_dict on the model automatically
+        model = cls(hparams)
+        model.load_state_dict(checkpoint["state_dict"])
+
+        # give model a chance to load something
+        model.on_load_checkpoint(checkpoint)
+
+        return model

@@ -7,6 +7,7 @@ import torch
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_latest_checkpoint
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
+from forgery_detection.lightning.utils import SystemMode
 
 
 @click.command()
@@ -30,6 +31,8 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 )
 @click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
 def run_benchmark(*args, **kwargs):
+    kwargs["mode"] = SystemMode.BENCHMARK
+
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / "checkpoints"
 
     model = Supervised.load_from_metrics(

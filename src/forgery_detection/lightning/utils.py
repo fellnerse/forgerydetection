@@ -1,6 +1,8 @@
 import ast
 from argparse import Namespace
 from copy import deepcopy
+from enum import auto
+from enum import Enum
 from pathlib import Path
 from typing import List
 from typing import Tuple
@@ -21,28 +23,59 @@ from torch.utils.data import Dataset
 from torch.utils.data import RandomSampler
 from torchvision.datasets import DatasetFolder
 
+from forgery_detection.data.face_forensics.splits import TEST_NAME
+from forgery_detection.data.utils import get_data
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
 
+CHECKPOINTS = "checkpoints"
+RUNS = "runs"
 
-def get_logger_and_checkpoint_callback(log_dir, val_check_interval):
+
+class SystemMode(Enum):
+    TRAIN = auto()
+    TEST = auto()
+    BENCHMARK = auto()
+
+    def __str__(self):
+        return self.name
+
+
+def get_logger_and_checkpoint_callback(log_dir, mode: SystemMode, debug):
     """Sets up a logger and a checkpointer.
 
     The code is mostly copied from pl.trainer.py.
     """
+    if not debug:
+        # if the user provides a name create its own folder in the default folder
+        name = click.prompt("Name of run", type=str, default="default").replace(
+            " ", "_"
+        )
+        description = click.prompt("Description of run", type=str, default="")
+        log_dir = str(Path(log_dir) / RUNS / str(mode))
+    else:
+        name = "debug"
+        description = ""
 
-    logger = TestTubeLogger(save_dir=log_dir, name="lightning_logs")
-    ckpt_path = "{}/{}/version_{}/{}".format(
-        log_dir, logger.experiment.name, logger.experiment.version, "checkpoints"
-    )  # todo maybe this is not necessary
+    logger = TestTubeLogger(save_dir=log_dir, name=name, description=description)
+    logger_dir = get_logger_dir(logger)
+
     checkpoint_callback = ModelCheckpoint(
-        filepath=ckpt_path,
+        filepath=logger_dir / CHECKPOINTS,
         save_best_only=True,
         monitor="roc_auc",
         mode="max",
         prefix="",
     )
     return checkpoint_callback, logger
+
+
+def get_logger_dir(logger):
+    return (
+        Path(logger.save_dir)
+        / logger.experiment.name
+        / f"version_{logger.experiment.version}"
+    )
 
 
 def calculate_class_weights(dataset: DatasetFolder) -> Tuple[List[str], List[float]]:
@@ -81,7 +114,7 @@ class DictHolder(dict):
     @staticmethod
     def _construct_cli_arguments_from_hparams(hparams: dict):
         hparams_copy = deepcopy(hparams)
-        hparams_copy.pop("train")
+        hparams_copy.pop("mode")
         balance_data = hparams_copy.pop("balance_data")
         cli_arguments = " ".join(
             [f"--{key}={value}" for key, value in hparams_copy.items()]
@@ -99,11 +132,11 @@ class DictHolder(dict):
         )
 
 
-def _get_fixed_dataloader(dataset: Dataset, batch_size: int, num_workers=6):
+def get_fixed_dataloader(
+    dataset: Dataset, batch_size: int, num_workers=6, sampler=RandomSampler
+):
     # look https://github.com/williamFalcon/pytorch-lightning/issues/434
-    sampler = BatchSampler(
-        RandomSampler(dataset), batch_size=batch_size, drop_last=False
-    )
+    sampler = BatchSampler(sampler(dataset), batch_size=batch_size, drop_last=False)
 
     class _RepeatSampler(torch.utils.data.Sampler):
         """ Sampler that repeats forever.
@@ -175,7 +208,10 @@ def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor)
     ax2.plot(fpr, thresholds, markeredgecolor="r", linestyle="dashed", color="r")
     ax2.set_ylabel("Threshold", color="r")
     ax2.set_ylim([thresholds[-1], thresholds[0]])
-    ax2.set_xlim([fpr[0], fpr[-1]])
+    try:
+        ax2.set_xlim([fpr[0], fpr[-1]])
+    except ValueError:
+        del ax2
 
     cm_image = plot_to_image(figure)
     plt.close()
@@ -206,7 +242,14 @@ class PythonLiteralOptionGPUs(click.Option):
             gpus = ast.literal_eval(value)
             if not isinstance(gpus, list):
                 raise TypeError("gpus needs to be a list (i.e. [], [1], or [1,2].")
-            gpus = None if len(gpus) == 0 else gpus
+            gpus = 0 if len(gpus) == 0 else gpus
             return gpus
         except ValueError:
             raise click.BadParameter(value)
+
+
+def get_labels_dict(data_dir: str) -> dict:
+    dataset = get_data(Path(data_dir) / TEST_NAME)
+    idx_to_class = {val: key for key, val in dataset.class_to_idx.items()}
+    del dataset
+    return idx_to_class

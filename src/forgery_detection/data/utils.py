@@ -1,5 +1,7 @@
 import os
 
+import numpy as np
+from torch.utils.data.sampler import WeightedRandomSampler
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
@@ -27,6 +29,20 @@ class SafeImageFolder(ImageFolder):
             return self.__getitem__(index % len(self))
 
 
+class FiftyFiftySampler(WeightedRandomSampler):
+    def __init__(self, dataset: ImageFolder, replacement=True):
+
+        weights = np.array(dataset.targets, dtype=np.float)
+
+        weights_1 = 1 / weights.sum()
+        weights_0 = 1 / (len(weights) - weights.sum())
+
+        weights[weights == 1] = weights_1
+        weights[weights == 0] = weights_0
+
+        super().__init__(weights, num_samples=len(dataset), replacement=replacement)
+
+
 def get_data(data_dir) -> ImageFolder:
     """Get initialized ImageFolder with faceforensics data"""
     return SafeImageFolder(
@@ -41,3 +57,14 @@ def get_data(data_dir) -> ImageFolder:
             ]
         ),
     )
+
+
+if __name__ == "__main__":
+    data_set = get_data("/mnt/ssd1/sebastian/face_forensics_1000_c40_test/test")
+    ffs = FiftyFiftySampler(data_set)
+    counter = 0
+    for i in ffs:
+        if counter > 10:
+            break
+        print(i, data_set.targets[i])
+        counter += 1

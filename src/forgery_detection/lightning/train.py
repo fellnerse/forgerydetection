@@ -5,9 +5,10 @@ from pytorch_lightning.callbacks import EarlyStopping
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
+from forgery_detection.lightning.utils import SystemMode
 
 
-@click.command()
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option(
     "--data_dir",
     required=True,
@@ -19,13 +20,14 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     required=True,
     type=click.Path(exists=True),
     help="Folder used for logging.",
+    default="/log",
 )
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
 @click.option("--batch_size", default=128, help="Path to data to validate on")
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
+@click.option("--gpus", cls=PythonLiteralOptionGPUs, default=[3])
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
@@ -39,17 +41,28 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Run validation step after this percentage of training data. 1.0 corresponds to"
     "running the validation after one complete epoch.",
 )
-@click.option("--balance_data", is_flag=True)
+@click.option(
+    "--balance_data",
+    is_flag=True,
+    help="Indicates if the data distribution should be balanced/normalized."
+    "Each class will be sampled with the same probability",
+)
+@click.option(
+    "--class_weights",
+    is_flag=True,
+    help="Indicates if class weights should be used during loss calculation."
+    "Same values as in --balance_data are used for the classes.",
+)
+@click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
-
-    kwargs["train"] = True
-
-    model = Supervised(kwargs)
+    kwargs["mode"] = SystemMode.TRAIN
 
     # Logging and Checkpoints
     checkpoint_callback, logger = get_logger_and_checkpoint_callback(
-        kwargs["log_dir"], kwargs["val_check_interval"]
+        kwargs["log_dir"], kwargs["mode"], kwargs["debug"]
     )
+
+    model = Supervised(kwargs)
 
     # early stopping
     early_stopping_callback = EarlyStopping(
