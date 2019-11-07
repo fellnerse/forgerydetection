@@ -16,8 +16,10 @@ from tqdm import tqdm
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import FiftyFiftySampler
 from forgery_detection.data.utils import get_data
+from forgery_detection.data.utils import resized_crop
 from forgery_detection.lightning.utils import calculate_class_weights
 from forgery_detection.lightning.utils import DictHolder
 from forgery_detection.lightning.utils import get_fixed_dataloader
@@ -39,6 +41,8 @@ class Supervised(pl.LightningModule):
         "resnet18": Resnet18Binary,
         "resnet18dropout": Resnet18BinaryDropout,
     }
+
+    CUSTOM_TRANSFORMS = {"crop": crop, "resized_crop": resized_crop}
 
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()

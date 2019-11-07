@@ -1,4 +1,6 @@
 import os
+from typing import Callable
+from typing import List
 
 import numpy as np
 from torch.utils.data.sampler import WeightedRandomSampler
@@ -43,13 +45,23 @@ class FiftyFiftySampler(WeightedRandomSampler):
         super().__init__(weights, num_samples=len(dataset), replacement=replacement)
 
 
-def get_data(data_dir) -> ImageFolder:
+def crop():
+    return [transforms.CenterCrop(299)]
+
+
+def resized_crop():
+    return [transforms.Resize(299), transforms.CenterCrop(299)]
+
+
+def get_data(
+    data_dir, custom_transforms: Callable[[], List[Callable]] = crop
+) -> ImageFolder:
     """Get initialized ImageFolder with faceforensics data"""
     return SafeImageFolder(
         str(data_dir),
         transform=transforms.Compose(
-            [
-                transforms.CenterCrop(299),
+            custom_transforms()
+            + [
                 transforms.ToTensor(),
                 transforms.Normalize(
                     mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]

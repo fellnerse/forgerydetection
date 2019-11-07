@@ -23,7 +23,7 @@ from forgery_detection.lightning.utils import SystemMode
     default="/log",
 )
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
-@click.option("--batch_size", default=128, help="Path to data to validate on")
+@click.option("--batch_size", default=256, help="Path to data to validate on")
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
@@ -32,7 +32,13 @@ from forgery_detection.lightning.utils import SystemMode
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
     default="resnet18",
-    help="Learning rate used by optimizer",
+    help="Model that should be trained",
+)
+@click.option(
+    "--transforms",
+    type=click.Choice(Supervised.CUSTOM_TRANSFORMS.keys()),
+    default="resized_crop",
+    help="Transforms used for data preprocessing.",
 )
 # todo convert to absolute batches
 @click.option(
