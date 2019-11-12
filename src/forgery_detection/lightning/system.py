@@ -149,16 +149,25 @@ class Supervised(pl.LightningModule):
         test_acc_mean = self._calculate_accuracy(pred, target)
 
         # confusion matrix
-        log_confusion_matrix(
+        cm = log_confusion_matrix(
             self.logger, self.global_step, target, torch.argmax(pred, dim=1)
         )
+        class_accuracies = cm.diagonal() / cm.sum(axis=1)
+        class_accuracies_dict = {}
+        for key, value in self.idx_to_classes.items():
+            class_accuracies_dict[value] = class_accuracies[key]
 
         # roc_auc_score
         roc_auc = log_roc_graph(
             self.logger, self.global_step, target.squeeze(), pred[:, 1]
         )
 
-        log = {"loss": test_loss_mean, "acc": test_acc_mean, "roc_auc": roc_auc}
+        log = {
+            "loss": test_loss_mean,
+            "acc": test_acc_mean,
+            "roc_auc": roc_auc,
+            "class_acc": class_accuracies_dict,
+        }
         return log
 
     def configure_optimizers(self):
@@ -232,10 +241,17 @@ class Supervised(pl.LightningModule):
     def _construct_lightning_log(
         log: dict, suffix: str = "train", prefix: str = "metrics"
     ):
-        fixed_log = {
-            f"{prefix}/" + metric: {suffix: value} for metric, value in log.items()
-        }
-        return {"log": fixed_log, **log}
+        fixed_log = {}
+        safe_log = {}
+        for metric, value in log.items():
+            if isinstance(value, dict):
+                fixed_log[f"{prefix}/{metric}"] = value
+            else:
+                fixed_log[f"{prefix}/{metric}"] = {suffix: value}
+                # dicts need to be removed from log, otherwise lightning tries to call
+                # .item() on it -> only add non dict values
+                safe_log[metric] = value
+        return {"log": fixed_log, **safe_log}
 
     @classmethod
     def load_from_metrics(cls, weights_path, tags_csv, overwrite_hparams=None):

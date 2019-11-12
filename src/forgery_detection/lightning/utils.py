@@ -188,7 +188,9 @@ def get_fixed_dataloader(
     return loader
 
 
-def log_confusion_matrix(logger, global_step, target: torch.tensor, pred: torch.tensor):
+def log_confusion_matrix(
+    logger, global_step, target: torch.tensor, pred: torch.tensor
+) -> np.ndarray:
     cm = confusion_matrix(target, pred)
     figure = plot_cm(cm, class_names=["fake", "real"])
     cm_image = plot_to_image(figure)
@@ -196,9 +198,12 @@ def log_confusion_matrix(logger, global_step, target: torch.tensor, pred: torch.
     logger.experiment.add_image(
         "metrics/cm", cm_image, dataformats="HWC", global_step=global_step
     )
+    return cm
 
 
-def log_roc_graph(logger, global_step, target: torch.tensor, pred: torch.tensor):
+def log_roc_graph(
+    logger, global_step, target: torch.tensor, pred: torch.tensor
+) -> float:
     fpr, tpr, thresholds = metrics.roc_curve(target, pred, pos_label=1)
     roc_auc = auc(fpr, tpr)
     figure = plt.figure(figsize=(8, 8))

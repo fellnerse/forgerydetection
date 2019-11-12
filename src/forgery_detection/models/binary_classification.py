@@ -1,4 +1,3 @@
-import numpy as np
 from torch import nn
 from torchvision import models
 
@@ -77,10 +76,6 @@ class Resnet18BinaryDropoutFrozen(nn.Module):
         self._set_requires_grad_for_module(self.resnet.layer3[1][1].bn1, False)
         self._set_requires_grad_for_module(self.resnet.layer3[1][1].relu, False)
 
-        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f"Parameters left: " f"{params}")
-
     def _set_requires_grad_for_module(self, module, requires_grad=False):
         for param in module.parameters():
             param.requires_grad = requires_grad
@@ -105,10 +100,6 @@ class Resnet18BinaryFrozen(nn.Module):
         self._set_requires_grad_for_module(self.resnet.layer3[1].conv1, False)
         self._set_requires_grad_for_module(self.resnet.layer3[1].bn1, False)
         self._set_requires_grad_for_module(self.resnet.layer3[1].relu, False)
-
-        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f"Parameters left: " f"{params}")
 
     def _set_requires_grad_for_module(self, module, requires_grad=False):
         for param in module.parameters():
