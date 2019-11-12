@@ -17,6 +17,7 @@ from pytorch_lightning.logging import TestTubeLogger
 from sklearn import metrics
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
+from torch import nn
 from torch.utils.data import BatchSampler
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
@@ -110,6 +111,12 @@ class DictHolder(dict):
         print("Using class weights:")
         print(self._class_weights_to_string(labels, weights))
         self["class_weights"] = {value[0]: value[1] for value in zip(labels, weights)}
+
+    def add_nb_trainable_params(self, model: nn.Module):
+        model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+        params = sum([np.prod(p.size()) for p in model_parameters])
+        print(f"Trainable params: " f"{params}")
+        self["nb_trainable_params"] = params
 
     @staticmethod
     def _construct_cli_arguments_from_hparams(hparams: dict):

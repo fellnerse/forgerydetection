@@ -30,6 +30,8 @@ from forgery_detection.lightning.utils import log_roc_graph
 from forgery_detection.lightning.utils import SystemMode
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import Resnet18BinaryDropout
+from forgery_detection.models.binary_classification import Resnet18BinaryDropoutFrozen
+from forgery_detection.models.binary_classification import Resnet18BinaryFrozen
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
 
@@ -40,6 +42,8 @@ class Supervised(pl.LightningModule):
         "vgg11": VGG11Binary,
         "resnet18": Resnet18Binary,
         "resnet18dropout": Resnet18BinaryDropout,
+        "resnet18dropoutfrozen": Resnet18BinaryDropoutFrozen,
+        "resnet18frozen": Resnet18BinaryFrozen,
     }
 
     CUSTOM_TRANSFORMS = {"crop": crop, "resized_crop": resized_crop}
@@ -59,6 +63,8 @@ class Supervised(pl.LightningModule):
 
         system_mode = self.hparams.pop("mode")
         if system_mode is SystemMode.TRAIN:
+
+            self.hparams.add_nb_trainable_params(self.model)
 
             if self.hparams["class_weights"]:
                 labels, weights = calculate_class_weights(
@@ -156,7 +162,9 @@ class Supervised(pl.LightningModule):
         return log
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.hparams["lr"])
+        optimizer = optim.Adam(
+            filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams["lr"]
+        )
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, verbose=True, patience=self.hparams["scheduler_patience"]
         )
@@ -216,7 +224,6 @@ class Supervised(pl.LightningModule):
 
     @staticmethod
     def _calculate_accuracy(y_hat, y):
-        # todo apply class weights here as well
         labels_hat = torch.argmax(y_hat, dim=1)
         val_acc = labels_hat.eq(y).float().mean()
         return val_acc

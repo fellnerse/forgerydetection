@@ -1,3 +1,4 @@
+import numpy as np
 from torch import nn
 from torchvision import models
 
@@ -50,6 +51,68 @@ class Resnet18BinaryDropout(nn.Module):
         self.resnet.layer3 = nn.Sequential(nn.Dropout2d(0.3), self.resnet.layer3)
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(256, 2))
+
+    def forward(self, x):
+        return self.resnet.forward(x)
+
+
+class Resnet18BinaryDropoutFrozen(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resnet = models.resnet18(pretrained=True, num_classes=1000)
+
+        self.resnet.layer3 = nn.Sequential(nn.Dropout2d(0.3), self.resnet.layer3)
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Sequential(nn.Dropout(0.5), nn.Linear(256, 2))
+
+        # freeze everything besides 2. half of last layer
+        self._set_requires_grad_for_module(self.resnet.layer1, False)
+        self._set_requires_grad_for_module(self.resnet.layer2, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[0], False)  # dropout
+        self._set_requires_grad_for_module(
+            self.resnet.layer3[1][0], False
+        )  # 1. resblock
+        # 2. resblock only second half
+        self._set_requires_grad_for_module(self.resnet.layer3[1][1].conv1, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[1][1].bn1, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[1][1].relu, False)
+
+        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
+        params = sum([np.prod(p.size()) for p in model_parameters])
+        print(f"Parameters left: " f"{params}")
+
+    def _set_requires_grad_for_module(self, module, requires_grad=False):
+        for param in module.parameters():
+            param.requires_grad = requires_grad
+
+    def forward(self, x):
+        return self.resnet.forward(x)
+
+
+class Resnet18BinaryFrozen(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resnet = models.resnet18(pretrained=True, num_classes=1000)
+
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Linear(256, 2)
+
+        # freeze everything besides 2. half of last layer
+        self._set_requires_grad_for_module(self.resnet.layer1, False)
+        self._set_requires_grad_for_module(self.resnet.layer2, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[0], False)  # 1. resblock
+        # 2. resblock only first half
+        self._set_requires_grad_for_module(self.resnet.layer3[1].conv1, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[1].bn1, False)
+        self._set_requires_grad_for_module(self.resnet.layer3[1].relu, False)
+
+        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
+        params = sum([np.prod(p.size()) for p in model_parameters])
+        print(f"Parameters left: " f"{params}")
+
+    def _set_requires_grad_for_module(self, module, requires_grad=False):
+        for param in module.parameters():
+            param.requires_grad = requires_grad
 
     def forward(self, x):
         return self.resnet.forward(x)

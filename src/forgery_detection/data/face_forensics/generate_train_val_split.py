@@ -22,7 +22,12 @@ def _symlink_or_copy_folder(copy, split, target_dir, video):
             if not copy:
                 (target_dir / video.name).symlink_to(video, target_is_directory=True)
             else:
-                shutil.copytree(str(video), str(target_dir / video.name), symlinks=True)
+                try:
+                    shutil.copytree(
+                        str(video), str(target_dir / video.name), symlinks=True
+                    )
+                except FileExistsError:
+                    pass
 
 
 def _symlink_or_copy_split(source_dir_method, target_dir, split, copy=True):
@@ -58,7 +63,10 @@ def symlink_or_copy_train_val_test_split(
     for split, split_name in [(TRAIN, TRAIN_NAME), (VAL, VAL_NAME), (TEST, TEST_NAME)]:
 
         target_dir_split = target_dir_root / split_name
-        target_dir_split.mkdir(parents=True)
+        try:
+            target_dir_split.mkdir(parents=True)
+        except FileExistsError:
+            print(f"Warning: {target_dir_split} already exists!!")
 
         target_dir_data_structure = FaceForensicsDataStructure(
             target_dir_split, compression=compression, data_type=data_type
