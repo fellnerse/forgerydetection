@@ -4,6 +4,7 @@ from copy import deepcopy
 from enum import auto
 from enum import Enum
 from pathlib import Path
+from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -17,12 +18,15 @@ from pytorch_lightning.logging import TestTubeLogger
 from sklearn import metrics
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score
 from torch import nn
 from torch.utils.data import BatchSampler
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torch.utils.data import RandomSampler
+from torch.utils.data import WeightedRandomSampler
 from torchvision.datasets import DatasetFolder
+from torchvision.datasets import ImageFolder
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.utils import get_data
@@ -189,22 +193,28 @@ def get_fixed_dataloader(
 
 
 def log_confusion_matrix(
-    logger, global_step, target: torch.tensor, pred: torch.tensor
-) -> np.ndarray:
-    cm = confusion_matrix(target, pred)
-    figure = plot_cm(cm, class_names=["fake", "real"])
+    logger, global_step, target: torch.tensor, pred: torch.tensor, class_names
+) -> Dict[str, np.float]:
+    cm = confusion_matrix(target, pred, labels=list(class_names.keys()))
+    figure = plot_cm(cm, class_names=class_names.values())
     cm_image = plot_to_image(figure)
     plt.close()
     logger.experiment.add_image(
         "metrics/cm", cm_image, dataformats="HWC", global_step=global_step
     )
-    return cm
+
+    # use cm to calculate class accuracies
+    class_accuracies = cm.diagonal() / cm.sum(axis=1)
+    class_accuracies_dict = {}
+    for key, value in class_names.items():
+        class_accuracies_dict[value] = class_accuracies[key]
+    return class_accuracies_dict
 
 
 def log_roc_graph(
-    logger, global_step, target: torch.tensor, pred: torch.tensor
+    logger, global_step, target: torch.tensor, pred: torch.tensor, pos_label
 ) -> float:
-    fpr, tpr, thresholds = metrics.roc_curve(target, pred, pos_label=1)
+    fpr, tpr, thresholds = metrics.roc_curve(target, pred, pos_label=pos_label)
     roc_auc = auc(fpr, tpr)
     figure = plt.figure(figsize=(8, 8))
     lw = 2
@@ -216,7 +226,7 @@ def log_roc_graph(
     plt.ylim([0.0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title("Receiver operating characteristic curve")
+    plt.title(f"Receiver operating characteristic curve for label {pos_label}")
     plt.legend(loc="lower right")
 
     ax2 = plt.gca().twinx()
@@ -268,3 +278,30 @@ def get_labels_dict(data_dir: str) -> dict:
     idx_to_class = {val: key for key, val in dataset.class_to_idx.items()}
     del dataset
     return idx_to_class
+
+
+class FiftyFiftySampler(WeightedRandomSampler):
+    def __init__(self, dataset: ImageFolder, replacement=True):
+
+        targets = np.array(dataset.targets, dtype=np.int)
+        _, class_weights = calculate_class_weights(dataset)
+        weights = class_weights[targets]
+
+        super().__init__(weights, num_samples=len(dataset), replacement=replacement)
+
+
+def multiclass_roc_auc_score(y_target, y_pred, label_binarizer):
+    y_target = label_binarizer.transform(y_target)
+    y_pred = label_binarizer.transform(y_pred)
+    return roc_auc_score(y_target, y_pred)
+
+
+if __name__ == "__main__":
+    data_set = get_data("/mnt/ssd1/sebastian/face_forensics_1000_c40_test/test")
+    ffs = FiftyFiftySampler(data_set)
+    counter = 0
+    for i in ffs:
+        if counter > 10:
+            break
+        print(i, data_set.targets[i])
+        counter += 1

@@ -30,10 +30,10 @@ def plot_cm(cm, class_names):
     # Use white text if squares are dark; otherwise black.
     threshold = cm.max() / 2.0
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        color = "white" if cm[i, j] > threshold else "black"
+        # first row always should be black
+        color = "white" if i > 0 and cm[i, j] > threshold else "black"
         plt.text(j, i, cm[i, j], horizontalalignment="center", color=color)
 
-    plt.tight_layout()
     plt.ylabel("True label")
     plt.xlabel("Predicted label")
     return figure

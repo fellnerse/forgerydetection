@@ -6,7 +6,7 @@ from typing import Union
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
-from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import LabelBinarizer
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -17,16 +17,17 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.utils import crop
-from forgery_detection.data.utils import FiftyFiftySampler
 from forgery_detection.data.utils import get_data
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.lightning.utils import calculate_class_weights
 from forgery_detection.lightning.utils import DictHolder
+from forgery_detection.lightning.utils import FiftyFiftySampler
 from forgery_detection.lightning.utils import get_fixed_dataloader
 from forgery_detection.lightning.utils import get_labels_dict
 from forgery_detection.lightning.utils import get_logger_dir
 from forgery_detection.lightning.utils import log_confusion_matrix
 from forgery_detection.lightning.utils import log_roc_graph
+from forgery_detection.lightning.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.utils import SystemMode
 from forgery_detection.models.binary_classification import Resnet18Binary
 from forgery_detection.models.binary_classification import Resnet18BinaryDropout
@@ -34,6 +35,8 @@ from forgery_detection.models.binary_classification import Resnet18BinaryDropout
 from forgery_detection.models.binary_classification import Resnet18BinaryFrozen
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
+from forgery_detection.models.multi_class_classification import Resnet18MultiClass
+from forgery_detection.models.multi_class_classification import Resnet18MultiClassFrozen
 
 
 class Supervised(pl.LightningModule):
@@ -44,6 +47,8 @@ class Supervised(pl.LightningModule):
         "resnet18dropout": Resnet18BinaryDropout,
         "resnet18dropoutfrozen": Resnet18BinaryDropoutFrozen,
         "resnet18frozen": Resnet18BinaryFrozen,
+        "resnet18multiclass": Resnet18MultiClass,
+        "resnet18multiclassfrozen": Resnet18MultiClassFrozen,
     }
 
     CUSTOM_TRANSFORMS = {"crop": crop, "resized_crop": resized_crop}
@@ -54,7 +59,15 @@ class Supervised(pl.LightningModule):
         self.hparams = DictHolder(kwargs)
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
+        # todo combine with class weights
+        # always calculate stats about classes, log them
+        # maybe there is a difference for test?
         self.idx_to_classes = get_labels_dict(self.hparams["data_dir"])
+        self.label_binarizer = LabelBinarizer()
+        self.label_binarizer.fit(list(self.idx_to_classes.keys()))
+
+        self.positive_class = list(self.idx_to_classes.keys())[-1]
+        self.hparams["positive_class"] = self.positive_class
 
         if self.hparams["balance_data"]:
             self.sampler_cls = FiftyFiftySampler
@@ -110,8 +123,10 @@ class Supervised(pl.LightningModule):
         pred = F.softmax(pred, dim=1)
         train_acc = self._calculate_accuracy(pred, target)
 
-        roc_auc = roc_auc_score(
-            target.squeeze().detach().cpu(), pred[:, 1].detach().cpu()
+        roc_auc = multiclass_roc_auc_score(
+            target.squeeze().detach().cpu(),
+            pred.detach().cpu().argmax(dim=1),
+            self.label_binarizer,
         )
 
         log = {"loss": loss_val, "acc": train_acc, "roc_auc": roc_auc}
@@ -149,24 +164,34 @@ class Supervised(pl.LightningModule):
         test_acc_mean = self._calculate_accuracy(pred, target)
 
         # confusion matrix
-        cm = log_confusion_matrix(
-            self.logger, self.global_step, target, torch.argmax(pred, dim=1)
+        class_accuracies = log_confusion_matrix(
+            self.logger,
+            self.global_step,
+            target,
+            torch.argmax(pred, dim=1),
+            self.idx_to_classes,
         )
-        class_accuracies = cm.diagonal() / cm.sum(axis=1)
-        class_accuracies_dict = {}
-        for key, value in self.idx_to_classes.items():
-            class_accuracies_dict[value] = class_accuracies[key]
 
         # roc_auc_score
-        roc_auc = log_roc_graph(
-            self.logger, self.global_step, target.squeeze(), pred[:, 1]
+        log_roc_graph(
+            self.logger,
+            self.global_step,
+            target.squeeze(),
+            pred[:, self.positive_class],
+            self.positive_class,
+        )
+
+        roc_auc = multiclass_roc_auc_score(
+            target.squeeze().detach().cpu(),
+            pred.detach().cpu().argmax(dim=1),
+            self.label_binarizer,
         )
 
         log = {
             "loss": test_loss_mean,
             "acc": test_acc_mean,
             "roc_auc": roc_auc,
-            "class_acc": class_accuracies_dict,
+            "class_acc": class_accuracies,
         }
         return log
 
