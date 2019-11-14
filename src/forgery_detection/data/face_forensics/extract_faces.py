@@ -45,11 +45,11 @@ def _extract_faces_from_video(video_folder, data_face_dir, face_locations_dir) -
 @click.option("--compression_data", default="c40")
 def extract_faces(data_dir_root, compression_face_locations, compression_data):
     data_dir_data_structure = FaceForensicsDataStructure(
-        data_dir_root, compression=compression_data, data_type="images"
+        data_dir_root, compressions=compression_data, data_types="images"
     )
 
     face_locations_dir_data_structure = FaceForensicsDataStructure(
-        data_dir_root, compression=compression_face_locations, data_type="faces"
+        data_dir_root, compressions=compression_face_locations, data_types="faces"
     )
 
     # iterate over all manipulation methods and original videos

@@ -73,7 +73,7 @@ def _extract_face_locations_from_video(video_folder, face_dir) -> bool:
 @click.option("--compression", default="raw")
 def extract_face_locations(data_dir_root, compression):
     source_dir_data_structure = FaceForensicsDataStructure(
-        data_dir_root, compression=compression, data_type="images"
+        data_dir_root, compressions=compression, data_types="images"
     )
     # iterate over all manipulation methods and original videos
     methods = tqdm(source_dir_data_structure.get_subdirs(), position=0, leave=False)

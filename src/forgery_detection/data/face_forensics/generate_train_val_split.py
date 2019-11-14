@@ -53,7 +53,7 @@ def symlink_or_copy_train_val_test_split(
 
     # use faceforensicsdatastructure to iterate elegantly over the correct image folders
     source_dir_data_structure = FaceForensicsDataStructure(
-        source_dir_root, compression=compression, data_type=data_type
+        source_dir_root, compressions=compression, data_types=data_type
     )
     # target_dir_root will contain a train, val and test folder
     target_dir_root = Path(target_dir_root)
@@ -69,7 +69,7 @@ def symlink_or_copy_train_val_test_split(
             print(f"Warning: {target_dir_split} already exists!!")
 
         target_dir_data_structure = FaceForensicsDataStructure(
-            target_dir_split, compression=compression, data_type=data_type
+            target_dir_split, compressions=compression, data_types=data_type
         )
 
         for source_sub_dir, target_sub_dir in zip(
