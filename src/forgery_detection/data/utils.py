@@ -87,14 +87,35 @@ class FileList:
         self.root = str(new_root)
         return self
 
-    def get_dataset(self, split) -> Dataset:
+    def binarize(self):
+        num_old_classes = len(self.classes)
+        negative = "_".join(self.classes[:-1])
+        positive = self.classes[-1]
+        self.classes = [negative, positive]
+        self.class_to_idx = {negative: 0, positive: 1}
+
+        for data_points in self.samples.values():
+            for datapoint in data_points:
+                datapoint[1] = 1 if datapoint[1] == num_old_classes - 1 else 0
+
+    def get_dataset(self, split, transform=None) -> Dataset:
         """Get dataset by using this instance."""
-        return FileListDataset(self, split)
+        transform = transform or []
+        transform = transforms.Compose(
+            transform
+            + [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
+        )
+        return FileListDataset(file_list=self, split=split, transform=transform)
 
     @classmethod
-    def get_dataset_form_file(cls, path, split) -> Dataset:
+    def get_dataset_form_file(cls, path, split, transform=None) -> Dataset:
         """Get dataset by loading a FileList and calling get_dataset on it."""
-        return cls.load(path).get_dataset(split)
+        return cls.load(path).get_dataset(split, transform)
 
     def __str__(self):
         return pformat(self.class_to_idx, indent=4)

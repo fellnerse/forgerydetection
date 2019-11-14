@@ -17,13 +17,14 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.utils import crop
+from forgery_detection.data.utils import FileList
 from forgery_detection.data.utils import get_data
 from forgery_detection.data.utils import resized_crop
+from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.utils import calculate_class_weights
 from forgery_detection.lightning.utils import DictHolder
 from forgery_detection.lightning.utils import FiftyFiftySampler
 from forgery_detection.lightning.utils import get_fixed_dataloader
-from forgery_detection.lightning.utils import get_labels_dict
 from forgery_detection.lightning.utils import get_logger_dir
 from forgery_detection.lightning.utils import log_confusion_matrix
 from forgery_detection.lightning.utils import log_roc_graph
@@ -51,7 +52,11 @@ class Supervised(pl.LightningModule):
         "resnet18multiclassfrozen": Resnet18MultiClassFrozen,
     }
 
-    CUSTOM_TRANSFORMS = {"crop": crop, "resized_crop": resized_crop}
+    CUSTOM_TRANSFORMS = {
+        "crop": crop,
+        "resized_crop": resized_crop,
+        "resized_crop_flip": resized_crop_flip,
+    }
 
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()
@@ -59,14 +64,17 @@ class Supervised(pl.LightningModule):
         self.hparams = DictHolder(kwargs)
         self.model = self.MODEL_DICT[self.hparams["model"]]()
 
-        # todo combine with class weights
-        # always calculate stats about classes, log them
-        # maybe there is a difference for test?
-        self.idx_to_classes = get_labels_dict(self.hparams["data_dir"])
-        self.label_binarizer = LabelBinarizer()
-        self.label_binarizer.fit(list(self.idx_to_classes.keys()))
+        # load data-sets
+        self.file_list = FileList.load(self.hparams["data_dir"])
+        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]()
+        self.train_data = self.file_list.get_dataset(TRAIN_NAME, transform)
+        self.val_data = self.file_list.get_dataset(VAL_NAME, transform)
+        self.test_data = self.file_list.get_dataset(TEST_NAME, transform)
 
-        self.positive_class = list(self.idx_to_classes.keys())[-1]
+        # label_binarizer and positive class is needed for roc_auc-multiclass
+        self.label_binarizer = LabelBinarizer()
+        self.label_binarizer.fit(list(self.file_list.class_to_idx.values()))
+        self.positive_class = list(self.file_list.class_to_idx.values())[-1]
         self.hparams["positive_class"] = self.positive_class
 
         if self.hparams["balance_data"]:
@@ -75,25 +83,17 @@ class Supervised(pl.LightningModule):
             self.sampler_cls = RandomSampler
 
         system_mode = self.hparams.pop("mode")
+
         if system_mode is SystemMode.TRAIN:
-
             self.hparams.add_nb_trainable_params(self.model)
-
             if self.hparams["class_weights"]:
-                labels, weights = calculate_class_weights(
-                    get_data(Path(self.hparams["data_dir"]) / VAL_NAME)
-                )
+                labels, weights = calculate_class_weights(self.val_data)
                 self.hparams.add_class_weights(labels, weights)
                 self.class_weights = torch.tensor(weights, dtype=torch.float)
             else:
                 self.class_weights = None
 
-            # lazily load dataloaders
-            self.train_dataloader()
-            self.val_dataloader()
-
         elif system_mode is SystemMode.TEST:
-            self.test_dataloader()
             self.class_weights = None
 
         elif system_mode is SystemMode.BENCHMARK:
@@ -108,6 +108,7 @@ class Supervised(pl.LightningModule):
             #               -> sum result up and divide by sum of these weights
             cross_engropy = F.cross_entropy(logits, labels, weight=self.class_weights)
         except RuntimeError:
+            print(logits, labels, self.class_weights)
             device_index = logits.device.index
             print(f"switching device for class_weights to {device_index}")
             self.class_weights = self.class_weights.cuda(device_index)
@@ -169,7 +170,7 @@ class Supervised(pl.LightningModule):
             self.global_step,
             target,
             torch.argmax(pred, dim=1),
-            self.idx_to_classes,
+            self.file_list.class_to_idx,
         )
 
         # roc_auc_score
@@ -206,31 +207,28 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        train_data = get_data(Path(self.hparams["data_dir"]) / TRAIN_NAME)
-        self.hparams.add_dataset_size(len(train_data), TRAIN_NAME)
+        self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         return get_fixed_dataloader(
-            train_data, self.hparams["batch_size"], sampler=self.sampler_cls
+            self.train_data, self.hparams["batch_size"], sampler=self.sampler_cls
         )
 
     @pl.data_loader
     def val_dataloader(self):
-        val_data = get_data(Path(self.hparams["data_dir"]) / VAL_NAME)
-        self.hparams.add_dataset_size(len(val_data), VAL_NAME)
+        self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
         return get_fixed_dataloader(
-            val_data, self.hparams["batch_size"], sampler=self.sampler_cls
+            self.val_data, self.hparams["batch_size"], sampler=self.sampler_cls
         )
 
     @pl.data_loader
     def test_dataloader(self):
-        test_data = get_data(Path(self.hparams["data_dir"]) / TEST_NAME)
-        self.hparams.add_dataset_size(len(test_data), TEST_NAME)
+        self.hparams.add_dataset_size(len(self.test_data), TEST_NAME)
         # we want to make sure test data follows the same distribution like the benchmark
         loader = DataLoader(
-            dataset=test_data,
+            dataset=self.test_data,
             batch_size=self.hparams["batch_size"],
             shuffle=False,
             num_workers=12,
-            sampler=self.sampler_cls(test_data, replacement=True),
+            sampler=self.sampler_cls(self.test_data, replacement=True),
         )
         return loader
 

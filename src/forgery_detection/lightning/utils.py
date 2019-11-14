@@ -105,7 +105,6 @@ class DictHolder(dict):
         self.__dict__: dict = self
 
     def add_dataset_size(self, nb_samples: int, name: str):
-        # todo instead of adding to hparams log it
         self[f"{name}_batches"] = (nb_samples // self["batch_size"]) * self[
             "val_check_interval"
         ]
@@ -193,10 +192,10 @@ def get_fixed_dataloader(
 
 
 def log_confusion_matrix(
-    logger, global_step, target: torch.tensor, pred: torch.tensor, class_names
+    logger, global_step, target: torch.tensor, pred: torch.tensor, class_to_idx
 ) -> Dict[str, np.float]:
-    cm = confusion_matrix(target, pred, labels=list(class_names.keys()))
-    figure = plot_cm(cm, class_names=class_names.values())
+    cm = confusion_matrix(target, pred, labels=list(class_to_idx.values()))
+    figure = plot_cm(cm, class_names=class_to_idx.keys())
     cm_image = plot_to_image(figure)
     plt.close()
     logger.experiment.add_image(
@@ -206,8 +205,8 @@ def log_confusion_matrix(
     # use cm to calculate class accuracies
     class_accuracies = cm.diagonal() / cm.sum(axis=1)
     class_accuracies_dict = {}
-    for key, value in class_names.items():
-        class_accuracies_dict[value] = class_accuracies[key]
+    for key, value in class_to_idx.items():
+        class_accuracies_dict[key] = class_accuracies[value]
     return class_accuracies_dict
 
 
