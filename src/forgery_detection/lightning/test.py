@@ -30,8 +30,10 @@ from forgery_detection.lightning.utils import SystemMode
 def run_lightning_test(*args, **kwargs):
     kwargs["mode"] = SystemMode.TEST
 
+    logger_info = kwargs.get("logger", None)
+
     _, logger = get_logger_and_checkpoint_callback(
-        kwargs["log_dir"], kwargs["mode"], kwargs["debug"]
+        kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
     )
 
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / CHECKPOINTS

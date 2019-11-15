@@ -67,6 +67,8 @@ def run_lightning(*args, **kwargs):
     checkpoint_callback, logger = get_logger_and_checkpoint_callback(
         kwargs["log_dir"], kwargs["mode"], kwargs["debug"]
     )
+    kwargs["logger"]["name"] = logger.name
+    kwargs["logger"]["description"] = logger.description
 
     model = Supervised(kwargs)
 

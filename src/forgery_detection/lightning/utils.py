@@ -46,21 +46,27 @@ class SystemMode(Enum):
         return self.name
 
 
-def get_logger_and_checkpoint_callback(log_dir, mode: SystemMode, debug):
+def get_logger_and_checkpoint_callback(
+    log_dir, mode: SystemMode, debug, logger_info=None
+):
     """Sets up a logger and a checkpointer.
 
     The code is mostly copied from pl.trainer.py.
     """
-    if not debug:
-        # if the user provides a name create its own folder in the default folder
-        name = click.prompt("Name of run", type=str, default="default").replace(
-            " ", "_"
-        )
-        description = click.prompt("Description of run", type=str, default="")
-        log_dir = str(Path(log_dir) / RUNS / str(mode))
-    else:
+    if debug:
         name = "debug"
         description = ""
+    else:
+        log_dir = str(Path(log_dir) / RUNS / str(mode))
+        if logger_info:
+            name = logger_info["name"]
+            description = logger_info["description"]
+        else:
+            # if the user provides a name create its own folder in the default folder
+            name = click.prompt("Name of run", type=str, default="default").replace(
+                " ", "_"
+            )
+            description = click.prompt("Description of run", type=str, default="")
 
     logger = TestTubeLogger(save_dir=log_dir, name=name, description=description)
     logger_dir = get_logger_dir(logger)
