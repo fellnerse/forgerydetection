@@ -30,18 +30,18 @@ from forgery_detection.lightning.utils import SystemMode
 def run_lightning_test(*args, **kwargs):
     kwargs["mode"] = SystemMode.TEST
 
-    logger_info = kwargs.get("logger", None)
-
-    _, logger = get_logger_and_checkpoint_callback(
-        kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
-    )
-
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / CHECKPOINTS
 
-    model = Supervised.load_from_metrics(
+    model: Supervised = Supervised.load_from_metrics(
         weights_path=get_latest_checkpoint(checkpoint_folder),
         tags_csv=Path(kwargs["checkpoint_dir"]) / "meta_tags.csv",
         overwrite_hparams=kwargs,
+    )
+
+    logger_info = model.hparams.get("logger", None)
+
+    _, logger = get_logger_and_checkpoint_callback(
+        kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
     )
 
     trainer = Trainer(
