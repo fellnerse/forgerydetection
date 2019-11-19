@@ -73,8 +73,9 @@ def run_lightning(*args, **kwargs):
     model = Supervised(kwargs)
 
     # early stopping
+    # todo do i neee to have a filter for early stopping? or only for saving checkpoints
     early_stopping_callback = EarlyStopping(
-        monitor="roc_auc", patience=3, verbose=True, mode="max"
+        monitor="acc", patience=10, verbose=True, mode="max"
     )
 
     trainer = Trainer(

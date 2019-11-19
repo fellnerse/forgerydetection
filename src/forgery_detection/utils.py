@@ -6,4 +6,4 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-log = logging.getLogger()
+cl_logger = logging.getLogger()

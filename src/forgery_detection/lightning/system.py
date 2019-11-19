@@ -37,7 +37,18 @@ from forgery_detection.models.binary_classification import Resnet18BinaryFrozen
 from forgery_detection.models.binary_classification import SqueezeBinary
 from forgery_detection.models.binary_classification import VGG11Binary
 from forgery_detection.models.multi_class_classification import Resnet18MultiClass
+from forgery_detection.models.multi_class_classification import (
+    Resnet18MultiClassDropout,
+)
+from forgery_detection.models.multi_class_classification import (
+    Resnet18MultiClassDropoutFrozen,
+)
 from forgery_detection.models.multi_class_classification import Resnet18MultiClassFrozen
+from forgery_detection.models.multi_class_classification import (
+    Resnet18MultiClassFrozen2,
+)
+from forgery_detection.models.multi_class_classification import Resnet18MultiClassSmall
+from forgery_detection.utils import cl_logger
 
 
 class Supervised(pl.LightningModule):
@@ -49,7 +60,11 @@ class Supervised(pl.LightningModule):
         "resnet18dropoutfrozen": Resnet18BinaryDropoutFrozen,
         "resnet18frozen": Resnet18BinaryFrozen,
         "resnet18multiclass": Resnet18MultiClass,
+        "resnet18multiclasssmall": Resnet18MultiClassSmall,
+        "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18multiclassfrozen": Resnet18MultiClassFrozen,
+        "resnet18multiclassfrozen2": Resnet18MultiClassFrozen2,
+        "resnet18multiclassdropoutfrozen": Resnet18MultiClassDropoutFrozen,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -151,6 +166,7 @@ class Supervised(pl.LightningModule):
         with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
             pickle.dump(outputs, f)
         log = self._aggregate_outputs(outputs)
+        cl_logger.info(f"Test accuracy is: {log['acc']}")
         return self._construct_lightning_log(log, suffix="test")
 
     def _aggregate_outputs(self, outputs):
