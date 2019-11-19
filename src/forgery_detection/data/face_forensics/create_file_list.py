@@ -90,7 +90,11 @@ def create_file_list(
 
                     images = sorted(video_folder.glob("*.png"))
 
-                    selected_frames = _select_frames(len(images), samples_per_video)
+                    # for the test-set all frames are going to be taken
+                    selected_frames = _select_frames(
+                        len(images),
+                        -1 if split_name == TEST_NAME else samples_per_video,
+                    )
 
                     for idx in selected_frames:
                         file_list.add_data_point(
