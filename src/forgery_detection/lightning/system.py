@@ -281,6 +281,8 @@ class Supervised(pl.LightningModule):
         overwrite_hparams = overwrite_hparams or {}
 
         hparams = load_hparams_from_tags_csv(tags_csv)
+        hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", None))
+
         hparams.__setattr__("on_gpu", False)
         hparams.__dict__.update(overwrite_hparams)
 
