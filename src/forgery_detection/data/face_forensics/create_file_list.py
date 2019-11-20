@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 import click
@@ -46,6 +47,10 @@ def _select_frames(nb_images: int, samples_per_video: int) -> List[int]:
     return selected_frames
 
 
+def _img_name_to_int(img: Path):
+    return int(img.name.split(".")[0])
+
+
 @click.command()
 @click.option("--source_dir_root", required=True, type=click.Path(exists=True))
 @click.option("--output_file", required=True, type=click.Path())
@@ -59,8 +64,19 @@ def _select_frames(nb_images: int, samples_per_video: int) -> List[int]:
     "number, only these are selected. If samples_per_video is -1 all frames for each"
     "video is selected.",
 )
+@click.option(
+    "--min_sequence_length",
+    default=1,
+    help="Indicates how many preceeded consecutive frames make a frame eligible (i.e."
+    "if set to 5 frame 0004 is eligible if frames 0000-0003 are present as well.",
+)
 def create_file_list(
-    source_dir_root, output_file, compressions, data_types, samples_per_video
+    source_dir_root,
+    output_file,
+    compressions,
+    data_types,
+    samples_per_video,
+    min_sequence_length,
 ):
     file_list = FileList(
         root=source_dir_root, classes=FaceForensicsDataStructure.METHODS
@@ -72,13 +88,13 @@ def create_file_list(
         source_dir_root, compressions=compressions, data_types=data_types
     )
 
-    min_sequence_length = _get_min_sequence_length(source_dir_data_structure)
+    _min_sequence_length = _get_min_sequence_length(source_dir_data_structure)
 
-    if min_sequence_length < samples_per_video:
+    if _min_sequence_length < samples_per_video:
         cl_logger.warning(
             f"There is a sequence that is sequence that has less frames "
             f"then you would like to sample: "
-            f"{min_sequence_length}<{samples_per_video}"
+            f"{_min_sequence_length}<{samples_per_video}"
         )
 
     for split, split_name in [(TRAIN, TRAIN_NAME), (VAL, VAL_NAME), (TEST, TEST_NAME)]:
@@ -89,16 +105,30 @@ def create_file_list(
                 if video_folder.name.split("_")[0] in split:
 
                     images = sorted(video_folder.glob("*.png"))
+                    filtered_images = []
+
+                    sequence_start = _img_name_to_int(images[0])
+                    last_idx = sequence_start
+
+                    for image in images:
+                        image_idx = _img_name_to_int(image)
+                        if last_idx + 1 != image_idx:
+                            sequence_start = image_idx
+                        elif image_idx - sequence_start >= min_sequence_length - 1:
+                            filtered_images.append(image)
+                        last_idx = image_idx
 
                     # for the test-set all frames are going to be taken
                     selected_frames = _select_frames(
-                        len(images),
+                        len(filtered_images),
                         -1 if split_name == TEST_NAME else samples_per_video,
                     )
 
                     for idx in selected_frames:
                         file_list.add_data_point(
-                            path=images[idx], target_label=target, split=split_name
+                            path=filtered_images[idx],
+                            target_label=target,
+                            split=split_name,
                         )
 
     file_list.save(output_file)
