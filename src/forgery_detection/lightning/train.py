@@ -2,10 +2,10 @@ import click
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 
+from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
+from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
-from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
-from forgery_detection.lightning.utils import SystemMode
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -31,7 +31,7 @@ from forgery_detection.lightning.utils import SystemMode
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
-    default="resnet18",
+    default="resnet18multiclassdropout",
     help="Model that should be trained",
 )
 @click.option(
@@ -43,13 +43,13 @@ from forgery_detection.lightning.utils import SystemMode
 # todo convert to absolute batches
 @click.option(
     "--val_check_interval",
-    default=1.0,
-    help="Run validation step after this percentage of training data. 1.0 corresponds to"
-    "running the validation after one complete epoch.",
+    default=0.02,
+    help="If float, % of tng epoch. If int, check every n batch",
 )
 @click.option(
     "--balance_data",
     is_flag=True,
+    default=True,
     help="Indicates if the data distribution should be balanced/normalized."
     "Each class will be sampled with the same probability",
 )
