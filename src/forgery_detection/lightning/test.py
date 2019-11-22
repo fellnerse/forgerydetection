@@ -3,12 +3,12 @@ from pathlib import Path
 import click
 from pytorch_lightning import Trainer
 
+from forgery_detection.lightning.logging.utils import CHECKPOINTS
+from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
+from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
-from forgery_detection.lightning.utils import CHECKPOINTS
 from forgery_detection.lightning.utils import get_latest_checkpoint
-from forgery_detection.lightning.utils import get_logger_and_checkpoint_callback
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
-from forgery_detection.lightning.utils import SystemMode
 
 
 @click.command()

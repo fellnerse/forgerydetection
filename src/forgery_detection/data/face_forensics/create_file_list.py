@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 import click
@@ -12,7 +13,8 @@ from forgery_detection.data.face_forensics.splits import TRAIN
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL
 from forgery_detection.data.face_forensics.splits import VAL_NAME
-from forgery_detection.data.utils import FileList
+from forgery_detection.data.set import FileList
+from forgery_detection.data.utils import _img_name_to_int
 from forgery_detection.utils import cl_logger
 
 
@@ -46,8 +48,84 @@ def _select_frames(nb_images: int, samples_per_video: int) -> List[int]:
     return selected_frames
 
 
+def _create_file_list(
+    compressions,
+    data_types,
+    min_sequence_length,
+    output_file,
+    samples_per_video,
+    source_dir_root,
+):
+    file_list = FileList(
+        root=source_dir_root,
+        classes=FaceForensicsDataStructure.METHODS,
+        min_sequence_length=min_sequence_length,
+    )
+    # use faceforensicsdatastructure to iterate elegantly over the correct
+    # image folders
+    source_dir_data_structure = FaceForensicsDataStructure(
+        source_dir_root, compressions=compressions, data_types=data_types
+    )
+
+    _min_sequence_length = _get_min_sequence_length(source_dir_data_structure)
+    if _min_sequence_length < samples_per_video:
+        cl_logger.warning(
+            f"There is a sequence that is sequence that has less frames "
+            f"then you would like to sample: "
+            f"{_min_sequence_length}<{samples_per_video}"
+        )
+
+    for split, split_name in [(TRAIN, TRAIN_NAME), (VAL, VAL_NAME), (TEST, TEST_NAME)]:
+        for source_sub_dir, target in zip(
+            source_dir_data_structure.get_subdirs(), file_list.classes
+        ):
+            for video_folder in sorted(source_sub_dir.iterdir()):
+                if video_folder.name.split("_")[0] in split:
+
+                    images = sorted(video_folder.glob("*.png"))
+                    filtered_images_idx = []
+
+                    # find all frames that have at least min_sequence_length-1 preceeding
+                    # frames
+                    sequence_start = _img_name_to_int(images[0])
+                    last_idx = sequence_start
+                    for list_idx, image in enumerate(images):
+                        image_idx = _img_name_to_int(image)
+                        if last_idx + 1 != image_idx:
+                            sequence_start = image_idx
+                        elif image_idx - sequence_start >= min_sequence_length - 1:
+                            filtered_images_idx.append(list_idx)
+                        last_idx = image_idx
+
+                    # for the test-set all frames are going to be taken
+                    # otherwise distribute uniformly
+                    selected_frames = _select_frames(
+                        len(filtered_images_idx),
+                        -1 if split_name == TEST_NAME else samples_per_video,
+                    )
+
+                    sampled_images_idx = np.asarray(filtered_images_idx)[
+                        selected_frames
+                    ]
+                    file_list.add_data_points(
+                        path_list=images,
+                        target_label=target,
+                        split=split_name,
+                        sampled_images_idx=sampled_images_idx,
+                    )
+
+    file_list.save(output_file)
+    cl_logger.info(f"{output_file} created.")
+    return file_list
+
+
 @click.command()
 @click.option("--source_dir_root", required=True, type=click.Path(exists=True))
+@click.option(
+    "--target_dir_root",
+    default=None,
+    help="If specified, all files in the filelist are copied over to this location",
+)
 @click.option("--output_file", required=True, type=click.Path())
 @click.option("--compressions", "-c", multiple=True, default=[Compression.c40])
 @click.option("--data_types", "-d", multiple=True, default=[DataType.face_images])
@@ -59,50 +137,39 @@ def _select_frames(nb_images: int, samples_per_video: int) -> List[int]:
     "number, only these are selected. If samples_per_video is -1 all frames for each"
     "video is selected.",
 )
+@click.option(
+    "--min_sequence_length",
+    default=1,
+    help="Indicates how many preceeded consecutive frames make a frame eligible (i.e."
+    "if set to 5 frame 0004 is eligible if frames 0000-0003 are present as well.",
+)
 def create_file_list(
-    source_dir_root, output_file, compressions, data_types, samples_per_video
+    source_dir_root,
+    target_dir_root,
+    output_file,
+    compressions,
+    data_types,
+    samples_per_video,
+    min_sequence_length,
 ):
-    file_list = FileList(
-        root=source_dir_root, classes=FaceForensicsDataStructure.METHODS
-    )
 
-    # use faceforensicsdatastructure to iterate elegantly over the correct
-    # image folders
-    source_dir_data_structure = FaceForensicsDataStructure(
-        source_dir_root, compressions=compressions, data_types=data_types
-    )
-
-    min_sequence_length = _get_min_sequence_length(source_dir_data_structure)
-
-    if min_sequence_length < samples_per_video:
-        cl_logger.warning(
-            f"There is a sequence that is sequence that has less frames "
-            f"then you would like to sample: "
-            f"{min_sequence_length}<{samples_per_video}"
+    try:
+        # if file exists, we don't have to create it again
+        file_list = FileList.load(output_file)
+    except FileNotFoundError:
+        file_list = _create_file_list(
+            compressions,
+            data_types,
+            min_sequence_length,
+            output_file,
+            samples_per_video,
+            source_dir_root,
         )
 
-    for split, split_name in [(TRAIN, TRAIN_NAME), (VAL, VAL_NAME), (TEST, TEST_NAME)]:
-        for source_sub_dir, target in zip(
-            source_dir_data_structure.get_subdirs(), file_list.classes
-        ):
-            for video_folder in sorted(source_sub_dir.iterdir()):
-                if video_folder.name.split("_")[0] in split:
+    if target_dir_root:
+        file_list.copy_to(Path(target_dir_root))
+        file_list.save(output_file)
 
-                    images = sorted(video_folder.glob("*.png"))
-
-                    # for the test-set all frames are going to be taken
-                    selected_frames = _select_frames(
-                        len(images),
-                        -1 if split_name == TEST_NAME else samples_per_video,
-                    )
-
-                    for idx in selected_frames:
-                        file_list.add_data_point(
-                            path=images[idx], target_label=target, split=split_name
-                        )
-
-    file_list.save(output_file)
-    cl_logger.info(f"{output_file} created.")
     for split in [TRAIN_NAME, VAL_NAME, TEST_NAME]:
         data_set = FileList.get_dataset_form_file(output_file, split)
         cl_logger.info(f"{split}-data-set: {data_set}")

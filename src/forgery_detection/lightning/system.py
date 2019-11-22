@@ -16,55 +16,32 @@ from tqdm import tqdm
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.loading import calculate_class_weights
+from forgery_detection.data.loading import FiftyFiftySampler
+from forgery_detection.data.loading import get_fixed_dataloader
+from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import crop
-from forgery_detection.data.utils import FileList
 from forgery_detection.data.utils import get_data
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
-from forgery_detection.lightning.utils import calculate_class_weights
-from forgery_detection.lightning.utils import DictHolder
-from forgery_detection.lightning.utils import FiftyFiftySampler
-from forgery_detection.lightning.utils import get_fixed_dataloader
-from forgery_detection.lightning.utils import get_logger_dir
-from forgery_detection.lightning.utils import log_confusion_matrix
-from forgery_detection.lightning.utils import log_roc_graph
-from forgery_detection.lightning.utils import multiclass_roc_auc_score
-from forgery_detection.lightning.utils import SystemMode
-from forgery_detection.models.binary_classification import Resnet18Binary
-from forgery_detection.models.binary_classification import Resnet18BinaryDropout
-from forgery_detection.models.binary_classification import Resnet18BinaryDropoutFrozen
-from forgery_detection.models.binary_classification import Resnet18BinaryFrozen
-from forgery_detection.models.binary_classification import SqueezeBinary
-from forgery_detection.models.binary_classification import VGG11Binary
-from forgery_detection.models.multi_class_classification import Resnet18MultiClass
-from forgery_detection.models.multi_class_classification import (
+from forgery_detection.lightning.logging.utils import DictHolder
+from forgery_detection.lightning.logging.utils import get_logger_dir
+from forgery_detection.lightning.logging.utils import log_confusion_matrix
+from forgery_detection.lightning.logging.utils import log_roc_graph
+from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
+from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
-from forgery_detection.models.multi_class_classification import (
-    Resnet18MultiClassDropoutFrozen,
-)
-from forgery_detection.models.multi_class_classification import Resnet18MultiClassFrozen
-from forgery_detection.models.multi_class_classification import (
-    Resnet18MultiClassFrozen2,
-)
-from forgery_detection.models.multi_class_classification import Resnet18MultiClassSmall
+from forgery_detection.models.utils import SequenceClassificationModel
+from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.utils import cl_logger
 
 
 class Supervised(pl.LightningModule):
     MODEL_DICT = {
-        "squeeze": SqueezeBinary,
-        "vgg11": VGG11Binary,
-        "resnet18": Resnet18Binary,
-        "resnet18dropout": Resnet18BinaryDropout,
-        "resnet18dropoutfrozen": Resnet18BinaryDropoutFrozen,
-        "resnet18frozen": Resnet18BinaryFrozen,
-        "resnet18multiclass": Resnet18MultiClass,
-        "resnet18multiclasssmall": Resnet18MultiClassSmall,
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
-        "resnet18multiclassfrozen": Resnet18MultiClassFrozen,
-        "resnet18multiclassfrozen2": Resnet18MultiClassFrozen2,
-        "resnet18multiclassdropoutfrozen": Resnet18MultiClassDropoutFrozen,
+        "resnet183d": Resnet183D,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -77,14 +54,31 @@ class Supervised(pl.LightningModule):
         super(Supervised, self).__init__()
 
         self.hparams = DictHolder(kwargs)
-        self.model = self.MODEL_DICT[self.hparams["model"]]()
+        self.model: SequenceClassificationModel = self.MODEL_DICT[
+            self.hparams["model"]
+        ]()
 
         # load data-sets
         self.file_list = FileList.load(self.hparams["data_dir"])
+        if len(self.file_list.classes) != self.model.num_classes:
+            cl_logger.error(
+                f"Classes of model ({self.model.num_classes}) != classes of dataset"
+                f" ({len(self.file_list.cl)})"
+            )
+
         transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]()
-        self.train_data = self.file_list.get_dataset(TRAIN_NAME, transform)
-        self.val_data = self.file_list.get_dataset(VAL_NAME, transform)
-        self.test_data = self.file_list.get_dataset(TEST_NAME, transform)
+        self.train_data = self.file_list.get_dataset(
+            TRAIN_NAME, transform, sequence_length=self.model.sequence_length
+        )
+        self.val_data = self.file_list.get_dataset(
+            VAL_NAME, transform, sequence_length=self.model.sequence_length
+        )
+        self.test_data = self.file_list.get_dataset(
+            TEST_NAME, transform, sequence_length=self.model.sequence_length
+        )
+        self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
+        self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
+        self.hparams.add_dataset_size(len(self.test_data), TEST_NAME)
 
         # label_binarizer and positive class is needed for roc_auc-multiclass
         self.label_binarizer = LabelBinarizer()
@@ -132,18 +126,30 @@ class Supervised(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         x, target = batch
-        pred = self.forward(x)
 
+        # if the model uses dropout we want to calculate the metrics on predictions done
+        # in eval mode before training no the samples
+        if self.model.contains_dropout:
+            with torch.no_grad():
+                self.model.eval()
+                pred_ = self.forward(x)
+                self.model.train()
+
+        pred = self.forward(x)
         loss_val = self.loss(pred, target)
 
-        pred = F.softmax(pred, dim=1)
-        train_acc = self._calculate_accuracy(pred, target)
+        if self.model.contains_dropout:
+            pred = pred_
 
-        roc_auc = multiclass_roc_auc_score(
-            target.squeeze().detach().cpu(),
-            pred.detach().cpu().argmax(dim=1),
-            self.label_binarizer,
-        )
+        with torch.no_grad():
+            pred = F.softmax(pred, dim=1)
+            train_acc = self._calculate_accuracy(pred, target)
+
+            roc_auc = multiclass_roc_auc_score(
+                target.squeeze().detach().cpu(),
+                pred.detach().cpu().argmax(dim=1),
+                self.label_binarizer,
+            )
 
         log = {"loss": loss_val, "acc": train_acc, "roc_auc": roc_auc}
 
@@ -223,21 +229,24 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         return get_fixed_dataloader(
-            self.train_data, self.hparams["batch_size"], sampler=self.sampler_cls
+            self.train_data,
+            self.hparams["batch_size"],
+            sampler=self.sampler_cls,
+            num_workers=12,
         )
 
     @pl.data_loader
     def val_dataloader(self):
-        self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
         return get_fixed_dataloader(
-            self.val_data, self.hparams["batch_size"], sampler=self.sampler_cls
+            self.val_data,
+            self.hparams["batch_size"],
+            sampler=self.sampler_cls,
+            num_workers=12,
         )
 
     @pl.data_loader
     def test_dataloader(self):
-        self.hparams.add_dataset_size(len(self.test_data), TEST_NAME)
         # we want to make sure test data follows the same distribution like the benchmark
         loader = DataLoader(
             dataset=self.test_data,
