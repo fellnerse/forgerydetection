@@ -140,6 +140,8 @@ class Supervised(pl.LightningModule):
 
         if self.model.contains_dropout:
             pred = pred_
+            with torch.no_grad():
+                loss_val = self.loss(pred, target)
 
         with torch.no_grad():
             pred = F.softmax(pred, dim=1)
