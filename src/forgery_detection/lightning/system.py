@@ -61,7 +61,7 @@ class Supervised(pl.LightningModule):
         # load data-sets
         self.file_list = FileList.load(self.hparams["data_dir"])
         if len(self.file_list.classes) != self.model.num_classes:
-            cl_logger.error(
+            raise ValueError(
                 f"Classes of model ({self.model.num_classes}) != classes of dataset"
                 f" ({len(self.file_list.cl)})"
             )
@@ -111,51 +111,8 @@ class Supervised(pl.LightningModule):
     def forward(self, x):
         return self.model.forward(x)
 
-    def loss(self, logits, labels):
-        try:
-            # classweights  -> multiply each output with weight of target
-            #               -> sum result up and divide by sum of these weights
-            cross_engropy = F.cross_entropy(logits, labels, weight=self.class_weights)
-        except RuntimeError:
-            print(logits, labels, self.class_weights)
-            device_index = logits.device.index
-            print(f"switching device for class_weights to {device_index}")
-            self.class_weights = self.class_weights.cuda(device_index)
-            cross_engropy = F.cross_entropy(logits, labels, weight=self.class_weights)
-        return cross_engropy
-
     def training_step(self, batch, batch_nb):
-        x, target = batch
-
-        # if the model uses dropout we want to calculate the metrics on predictions done
-        # in eval mode before training no the samples
-        if self.model.contains_dropout:
-            with torch.no_grad():
-                self.model.eval()
-                pred_ = self.forward(x)
-                self.model.train()
-
-        pred = self.forward(x)
-        loss = self.loss(pred, target)
-        lightning_log = {"loss": loss}
-
-        with torch.no_grad():
-            train_acc = self._calculate_accuracy(pred, target)
-            tensorboard_log = {"loss": {"train": loss}, "acc": {"train": train_acc}}
-
-            if self.model.contains_dropout:
-                pred = pred_
-                loss_eval = self.loss(pred, target)
-                acc_eval = self._calculate_accuracy(pred, target)
-                tensorboard_log["loss"]["train_eval"] = loss_eval
-                tensorboard_log["acc"]["train_eval"] = acc_eval
-
-            tensorboard_log["roc_auc"] = multiclass_roc_auc_score(
-                target.squeeze().detach().cpu(),
-                pred.detach().cpu().argmax(dim=1),
-                self.label_binarizer,
-            )
-
+        tensorboard_log, lightning_log = self.model.training_step(batch, batch_nb, self)
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="train"
         )
@@ -167,7 +124,7 @@ class Supervised(pl.LightningModule):
         return {"pred": pred.squeeze(), "target": target.squeeze()}
 
     def validation_end(self, outputs):
-        tensorboard_log, lightning_log = self._aggregate_outputs(outputs)
+        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
         )
@@ -179,55 +136,11 @@ class Supervised(pl.LightningModule):
         with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
             pickle.dump(outputs, f)
 
-        tensorboard_log, lightning_log = self._aggregate_outputs(outputs)
+        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
         cl_logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="test"
         )
-
-    def _aggregate_outputs(self, outputs):
-        # aggregate values from validation step
-        pred = torch.cat([x["pred"] for x in outputs], 0)
-        target = torch.cat([x["target"] for x in outputs], 0)
-
-        loss_mean = self.loss(pred, target)
-        pred = pred.cpu()
-        target = target.cpu()
-        pred = F.softmax(pred, dim=1)
-        acc_mean = self._calculate_accuracy(pred, target)
-
-        # confusion matrix
-        class_accuracies = log_confusion_matrix(
-            self.logger,
-            self.global_step,
-            target,
-            torch.argmax(pred, dim=1),
-            self.file_list.class_to_idx,
-        )
-
-        # roc_auc_score
-        log_roc_graph(
-            self.logger,
-            self.global_step,
-            target.squeeze(),
-            pred[:, self.positive_class],
-            self.positive_class,
-        )
-
-        roc_auc = multiclass_roc_auc_score(
-            target.squeeze().detach().cpu(),
-            pred.detach().cpu().argmax(dim=1),
-            self.label_binarizer,
-        )
-
-        tensorboard_log = {
-            "loss": loss_mean,
-            "acc": acc_mean,
-            "roc_auc": roc_auc,
-            "class_acc": class_accuracies,
-        }
-        lightning_log = {"acc": acc_mean}
-        return tensorboard_log, lightning_log
 
     def configure_optimizers(self):
         optimizer = optim.Adam(
@@ -290,11 +203,30 @@ class Supervised(pl.LightningModule):
         print(f"real %: {real/total}")
         return predictions_dict
 
-    @staticmethod
-    def _calculate_accuracy(y_hat, y):
-        labels_hat = torch.argmax(y_hat, dim=1)
-        val_acc = labels_hat.eq(y).float().mean()
-        return val_acc
+    def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
+        return multiclass_roc_auc_score(
+            target.squeeze().detach().cpu(),
+            pred.detach().cpu().argmax(dim=1),
+            self.label_binarizer,
+        )
+
+    def log_confusion_matrix(self, target: torch.Tensor, pred: torch.Tensor):
+        return log_confusion_matrix(
+            self.logger,
+            self.global_step,
+            target,
+            torch.argmax(pred, dim=1),
+            self.file_list.class_to_idx,
+        )
+
+    def log_roc_graph(self, target: torch.Tensor, pred: torch.Tensor):
+        log_roc_graph(
+            self.logger,
+            self.global_step,
+            target.squeeze(),
+            pred[:, self.positive_class],
+            self.positive_class,
+        )
 
     @staticmethod
     def _construct_lightning_log(

@@ -4,7 +4,7 @@ from forgery_detection.models.utils import PretrainedResnet18
 
 
 class Resnet18MultiClassDropout(PretrainedResnet18):
-    def __init__(self):
+    def __init__(self,):
         super().__init__(num_classes=5, sequence_length=1, contains_dropout=True)
 
         self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
