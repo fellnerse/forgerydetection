@@ -100,8 +100,7 @@ def _create_file_list(
                     # for the test-set all frames are going to be taken
                     # otherwise distribute uniformly
                     selected_frames = _select_frames(
-                        len(filtered_images_idx),
-                        -1 if split_name == TEST_NAME else samples_per_video,
+                        len(filtered_images_idx), samples_per_video
                     )
 
                     sampled_images_idx = np.asarray(filtered_images_idx)[
