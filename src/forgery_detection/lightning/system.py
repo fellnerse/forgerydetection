@@ -136,26 +136,29 @@ class Supervised(pl.LightningModule):
                 self.model.train()
 
         pred = self.forward(x)
-        loss_val = self.loss(pred, target)
-
-        if self.model.contains_dropout:
-            pred = pred_
-            with torch.no_grad():
-                loss_val = self.loss(pred, target)
+        loss = self.loss(pred, target)
+        lightning_log = {"loss": loss}
 
         with torch.no_grad():
-            pred = F.softmax(pred, dim=1)
             train_acc = self._calculate_accuracy(pred, target)
+            tensorboard_log = {"loss": {"train": loss}, "acc": {"train": train_acc}}
 
-            roc_auc = multiclass_roc_auc_score(
+            if self.model.contains_dropout:
+                pred = pred_
+                loss_eval = self.loss(pred, target)
+                acc_eval = self._calculate_accuracy(pred, target)
+                tensorboard_log["loss"]["train_eval"] = loss_eval
+                tensorboard_log["acc"]["train_eval"] = acc_eval
+
+            tensorboard_log["roc_auc"] = multiclass_roc_auc_score(
                 target.squeeze().detach().cpu(),
                 pred.detach().cpu().argmax(dim=1),
                 self.label_binarizer,
             )
 
-        log = {"loss": loss_val, "acc": train_acc, "roc_auc": roc_auc}
-
-        return self._construct_lightning_log(log, suffix="train")
+        return self._construct_lightning_log(
+            tensorboard_log, lightning_log, suffix="train"
+        )
 
     def validation_step(self, batch, batch_nb):
         x, target = batch
@@ -164,8 +167,10 @@ class Supervised(pl.LightningModule):
         return {"pred": pred.squeeze(), "target": target.squeeze()}
 
     def validation_end(self, outputs):
-        log = self._aggregate_outputs(outputs)
-        return self._construct_lightning_log(log, suffix="val")
+        tensorboard_log, lightning_log = self._aggregate_outputs(outputs)
+        return self._construct_lightning_log(
+            tensorboard_log, lightning_log, suffix="val"
+        )
 
     def test_step(self, batch, batch_nb):
         return self.validation_step(batch, batch_nb)
@@ -173,20 +178,23 @@ class Supervised(pl.LightningModule):
     def test_end(self, outputs):
         with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
             pickle.dump(outputs, f)
-        log = self._aggregate_outputs(outputs)
-        cl_logger.info(f"Test accuracy is: {log['acc']}")
-        return self._construct_lightning_log(log, suffix="test")
+
+        tensorboard_log, lightning_log = self._aggregate_outputs(outputs)
+        cl_logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
+        return self._construct_lightning_log(
+            tensorboard_log, lightning_log, suffix="test"
+        )
 
     def _aggregate_outputs(self, outputs):
         # aggregate values from validation step
         pred = torch.cat([x["pred"] for x in outputs], 0)
         target = torch.cat([x["target"] for x in outputs], 0)
 
-        test_loss_mean = self.loss(pred, target)
+        loss_mean = self.loss(pred, target)
         pred = pred.cpu()
         target = target.cpu()
         pred = F.softmax(pred, dim=1)
-        test_acc_mean = self._calculate_accuracy(pred, target)
+        acc_mean = self._calculate_accuracy(pred, target)
 
         # confusion matrix
         class_accuracies = log_confusion_matrix(
@@ -212,13 +220,14 @@ class Supervised(pl.LightningModule):
             self.label_binarizer,
         )
 
-        log = {
-            "loss": test_loss_mean,
-            "acc": test_acc_mean,
+        tensorboard_log = {
+            "loss": loss_mean,
+            "acc": acc_mean,
             "roc_auc": roc_auc,
             "class_acc": class_accuracies,
         }
-        return log
+        lightning_log = {"acc": acc_mean}
+        return tensorboard_log, lightning_log
 
     def configure_optimizers(self):
         optimizer = optim.Adam(
@@ -289,19 +298,22 @@ class Supervised(pl.LightningModule):
 
     @staticmethod
     def _construct_lightning_log(
-        log: dict, suffix: str = "train", prefix: str = "metrics"
+        tensorboard_log: dict,
+        lightning_log: dict = None,
+        suffix: str = "train",
+        prefix: str = "metrics",
     ):
+        lightning_log = lightning_log or {}
         fixed_log = {}
-        safe_log = {}
-        for metric, value in log.items():
+
+        for metric, value in tensorboard_log.items():
             if isinstance(value, dict):
                 fixed_log[f"{prefix}/{metric}"] = value
             else:
                 fixed_log[f"{prefix}/{metric}"] = {suffix: value}
                 # dicts need to be removed from log, otherwise lightning tries to call
                 # .item() on it -> only add non dict values
-                safe_log[metric] = value
-        return {"log": fixed_log, **safe_log}
+        return {"log": fixed_log, **lightning_log}
 
     @classmethod
     def load_from_metrics(cls, weights_path, tags_csv, overwrite_hparams=None):
