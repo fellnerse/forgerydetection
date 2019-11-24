@@ -33,6 +33,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
+from forgery_detection.models.image.multi_class_classification import Resnet18MultiHead
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.utils import cl_logger
@@ -42,6 +43,7 @@ class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet183d": Resnet183D,
+        "resnet18heads": Resnet18MultiHead,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -121,7 +123,7 @@ class Supervised(pl.LightningModule):
         x, target = batch
         pred = self.forward(x)
 
-        return {"pred": pred.squeeze(), "target": target.squeeze()}
+        return {"pred": pred, "target": target}
 
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)

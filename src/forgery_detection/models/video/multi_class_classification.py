@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torchvision.models import resnet18
 
 from forgery_detection.models.utils import PretrainedResnet18
@@ -36,6 +35,3 @@ class Resnet183D(PretrainedResnet18):
         x = self.resnet.fc(x)
 
         return x
-
-    def loss(self, logits, labels):
-        return F.cross_entropy(logits, labels)
