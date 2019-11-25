@@ -20,6 +20,7 @@ from torch import nn
 
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
+from forgery_detection.lightning.utils import VAL_ACC
 
 CHECKPOINTS = "checkpoints"
 RUNS = "runs"
@@ -62,7 +63,7 @@ def get_logger_and_checkpoint_callback(
     checkpoint_callback = ModelCheckpoint(
         filepath=logger_dir / CHECKPOINTS,
         save_best_only=True,
-        monitor="acc",
+        monitor=VAL_ACC,
         mode="max",
         prefix="",
     )

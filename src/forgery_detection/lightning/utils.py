@@ -6,6 +6,8 @@ import click
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.utils import get_data
 
+VAL_ACC = "val_acc"
+
 
 def get_latest_checkpoint(checkpoint_folder: Path) -> str:
     """Returns the latest checkpoint in given path.

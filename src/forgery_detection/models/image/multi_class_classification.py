@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.utils import PretrainedResnet18
 
 
@@ -27,7 +28,7 @@ class Resnet18MultiHead(Resnet18MultiClassDropout):
         self.resnet.layer4_out = nn.Linear(5 * 2, 256)
 
     def forward(self, x):
-        x = self.resnet.conv1(x).squeeze(2)
+        x = self.resnet.conv1(x)
         x = self.resnet.bn1(x)
         x = self.resnet.relu(x)
         x = self.resnet.maxpool(x)
@@ -124,6 +125,6 @@ class Resnet18MultiHead(Resnet18MultiClassDropout):
             "roc_auc": roc_auc,
             "class_acc": class_accuracies,
         }
-        lightning_log = {"acc": acc_mean}
+        lightning_log = {VAL_ACC: acc_mean}
 
         return tensorboard_log, lightning_log

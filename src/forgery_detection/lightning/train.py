@@ -6,6 +6,7 @@ from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
+from forgery_detection.lightning.utils import VAL_ACC
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -75,7 +76,7 @@ def run_lightning(*args, **kwargs):
     # early stopping
     # todo do i neee to have a filter for early stopping? or only for saving checkpoints
     early_stopping_callback = EarlyStopping(
-        monitor="acc", patience=10, verbose=True, mode="max"
+        monitor=VAL_ACC, patience=10, verbose=True, mode="max"
     )
 
     trainer = Trainer(

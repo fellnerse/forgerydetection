@@ -3,6 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.models import resnet18
 
+from forgery_detection.lightning.utils import VAL_ACC
+
 
 class SequenceClassificationModel(nn.Module):
     def __init__(self, num_classes, sequence_length, contains_dropout=False):
@@ -105,6 +107,6 @@ class PretrainedResnet18(SequenceClassificationModel):
             "roc_auc": roc_auc,
             "class_acc": class_accuracies,
         }
-        lightning_log = {"acc": acc_mean}
+        lightning_log = {VAL_ACC: acc_mean}
 
         return tensorboard_log, lightning_log
