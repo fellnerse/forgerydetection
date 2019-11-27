@@ -46,9 +46,9 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="If float, % of tng epoch. If int, check every n batch",
 )
 @click.option(
-    "--balance_data",
+    "--dont_balance_data",
     is_flag=True,
-    default=True,
+    default=False,
     help="Indicates if the data distribution should be balanced/normalized."
     "Each class will be sampled with the same probability",
 )

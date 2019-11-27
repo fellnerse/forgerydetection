@@ -92,7 +92,7 @@ class Supervised(pl.LightningModule):
         self.positive_class = list(self.file_list.class_to_idx.values())[-1]
         self.hparams["positive_class"] = self.positive_class
 
-        if self.hparams["balance_data"]:
+        if self.hparams["dont_balance_data"]:
             self.sampler_cls = FiftyFiftySampler
         else:
             self.sampler_cls = RandomSampler
