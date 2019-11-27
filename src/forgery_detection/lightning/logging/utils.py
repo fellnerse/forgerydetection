@@ -1,3 +1,4 @@
+import logging
 from argparse import Namespace
 from copy import deepcopy
 from enum import auto
@@ -22,6 +23,8 @@ from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
+
+logger = logging.getLogger(__file__)
 
 CHECKPOINTS = "checkpoints"
 RUNS = "runs"
@@ -100,14 +103,14 @@ class DictHolder(dict):
         self[f"{name}_samples"] = nb_samples
 
     def add_class_weights(self, labels, weights):
-        print("Using class weights:")
-        print(self._class_weights_to_string(labels, weights))
+        logger.info("Using class weights:")
+        logger.info(self._class_weights_to_string(labels, weights))
         self["class_weights"] = {value[0]: value[1] for value in zip(labels, weights)}
 
     def add_nb_trainable_params(self, model: nn.Module):
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f"Trainable params: " f"{params}")
+        logger.info(f"Trainable params: " f"{params}")
         self["nb_trainable_params"] = params
 
     @staticmethod

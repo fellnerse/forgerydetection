@@ -1,3 +1,4 @@
+import logging
 import pickle
 from argparse import Namespace
 from pathlib import Path
@@ -40,7 +41,8 @@ from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
 )
-from forgery_detection.utils import cl_logger
+
+logger = logging.getLogger(__file__)
 
 
 class Supervised(pl.LightningModule):
@@ -144,7 +146,7 @@ class Supervised(pl.LightningModule):
             pickle.dump(outputs, f)
 
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-        cl_logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
+        logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="test"
         )
@@ -207,7 +209,7 @@ class Supervised(pl.LightningModule):
             else:
                 predictions_dict[name] = "fake"
             total += 1
-        print(f"real %: {real/total}")
+        logger.info(f"real %: {real/total}")
         return predictions_dict
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):

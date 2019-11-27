@@ -1,4 +1,5 @@
 import ast
+import logging
 from pathlib import Path
 
 import click
@@ -8,6 +9,8 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.utils import get_data
 
 VAL_ACC = "val_acc"
+
+logger = logging.getLogger(__file__)
 
 
 def get_latest_checkpoint(checkpoint_folder: Path) -> str:
@@ -21,7 +24,7 @@ def get_latest_checkpoint(checkpoint_folder: Path) -> str:
             f"Could not find any .ckpt files in {checkpoint_folder}"
         )
     latest_checkpoint = str(checkpoints[-1])
-    print(f"Using {latest_checkpoint} to load weights.")
+    logger.info(f"Using {latest_checkpoint} to load weights.")
     return latest_checkpoint
 
 
