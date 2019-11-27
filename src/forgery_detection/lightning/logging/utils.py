@@ -20,6 +20,7 @@ from torch import nn
 
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
 
 CHECKPOINTS = "checkpoints"
@@ -195,4 +196,4 @@ def multiclass_roc_auc_score(y_target, y_pred, label_binarizer):
     except ValueError:
         # if the batch size is quite small it can happen that there is only one class
         # present
-        return torch.Tensor([float("NaN")])
+        return NAN_TENSOR

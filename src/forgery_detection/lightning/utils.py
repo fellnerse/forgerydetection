@@ -2,6 +2,7 @@ import ast
 from pathlib import Path
 
 import click
+import torch
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.utils import get_data
@@ -41,3 +42,6 @@ def get_labels_dict(data_dir: str) -> dict:
     idx_to_class = {val: key for key, val in dataset.class_to_idx.items()}
     del dataset
     return idx_to_class
+
+
+NAN_TENSOR = torch.Tensor([float("NaN")])

@@ -58,6 +58,13 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Indicates if class weights should be used during loss calculation."
     "Same values as in --balance_data are used for the classes.",
 )
+@click.option(
+    "--log_roc_values",
+    is_flag=True,
+    default=False,
+    help="Indicates if roc values should be calculated and logged. Can slow down"
+    "training immensely.",
+)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN

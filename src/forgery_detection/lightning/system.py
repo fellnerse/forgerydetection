@@ -30,6 +30,7 @@ from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -210,11 +211,14 @@ class Supervised(pl.LightningModule):
         return predictions_dict
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
-        return multiclass_roc_auc_score(
-            target.squeeze().detach().cpu(),
-            pred.detach().cpu().argmax(dim=1),
-            self.label_binarizer,
-        )
+        if self.hparams["log_roc_values"]:
+            return multiclass_roc_auc_score(
+                target.squeeze().detach().cpu(),
+                pred.detach().cpu().argmax(dim=1),
+                self.label_binarizer,
+            )
+        else:
+            return NAN_TENSOR
 
     def log_confusion_matrix(self, target: torch.Tensor, pred: torch.Tensor):
         return log_confusion_matrix(
@@ -226,13 +230,14 @@ class Supervised(pl.LightningModule):
         )
 
     def log_roc_graph(self, target: torch.Tensor, pred: torch.Tensor):
-        log_roc_graph(
-            self.logger,
-            self.global_step,
-            target.squeeze(),
-            pred[:, self.positive_class],
-            self.positive_class,
-        )
+        if self.hparams["log_roc_values"]:
+            log_roc_graph(
+                self.logger,
+                self.global_step,
+                target.squeeze(),
+                pred[:, self.positive_class],
+                self.positive_class,
+            )
 
     @staticmethod
     def _construct_lightning_log(
