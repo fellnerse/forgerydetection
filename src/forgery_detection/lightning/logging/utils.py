@@ -18,7 +18,9 @@ from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_auc_score
 from torch import nn
+from torchvision.utils import make_grid
 
+from forgery_detection.data.set import FileListDataset
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
 from forgery_detection.lightning.utils import NAN_TENSOR
@@ -200,3 +202,25 @@ def multiclass_roc_auc_score(y_target, y_pred, label_binarizer):
         # if the batch size is quite small it can happen that there is only one class
         # present
         return NAN_TENSOR
+
+
+def log_dataset_preview(
+    dataset: FileListDataset, name: str, _logger: TestTubeLogger, nb_images=32, nrow=8
+):
+    np.random.seed(len(dataset))
+    nb_datapoints = nb_images // dataset.sequence_length
+    datapoints_idx = np.random.uniform(0, len(dataset), nb_datapoints).astype(int)
+    np.random.seed()
+
+    datapoints, labels = list(zip(*(dataset[idx] for idx in datapoints_idx)))
+
+    # log labels
+    labels = torch.tensor(labels, dtype=torch.float).reshape(
+        (nb_images // nrow, nrow)
+    ).unsqueeze(0) / (len(dataset.classes) - 1)
+    _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
+
+    # log images
+    datapoints = torch.stack(datapoints, dim=0)
+    datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
+    _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)

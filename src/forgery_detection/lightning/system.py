@@ -28,6 +28,7 @@ from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
+from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
@@ -116,6 +117,11 @@ class Supervised(pl.LightningModule):
 
         elif system_mode is SystemMode.BENCHMARK:
             pass
+
+    def on_sanity_check_start(self):
+        log_dataset_preview(self.train_data, "preview/train_data", self.logger)
+        log_dataset_preview(self.val_data, "preview/val_data", self.logger)
+        log_dataset_preview(self.test_data, "preview/test_data", self.logger)
 
     def forward(self, x):
         return self.model.forward(x)
