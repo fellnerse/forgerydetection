@@ -20,7 +20,11 @@ def calculate_class_weights(dataset: FileListDataset) -> Tuple[List[str], List[f
 
 
 def get_fixed_dataloader(
-    dataset: Dataset, batch_size: int, num_workers=6, sampler=RandomSampler
+    dataset: Dataset,
+    batch_size: int,
+    num_workers=6,
+    sampler=RandomSampler,
+    worker_init_fn=None,
 ):
     # look https://github.com/williamFalcon/pytorch-lightning/issues/434
     sampler = BatchSampler(sampler(dataset), batch_size=batch_size, drop_last=False)
@@ -60,6 +64,7 @@ def get_fixed_dataloader(
         shuffle=False,
         batch_sampler=_RepeatSampler(sampler),
         num_workers=num_workers,
+        worker_init_fn=worker_init_fn,
     )
 
     return loader

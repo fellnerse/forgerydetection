@@ -4,6 +4,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
@@ -182,6 +183,7 @@ class Supervised(pl.LightningModule):
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
             num_workers=12,
+            worker_init_fn=lambda _: np.random.seed(12),
         )
 
     @pl.data_loader
