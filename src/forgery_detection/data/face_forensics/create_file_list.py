@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import List
 
@@ -15,7 +16,8 @@ from forgery_detection.data.face_forensics.splits import VAL
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import _img_name_to_int
-from forgery_detection.utils import cl_logger
+
+logger = logging.getLogger(__file__)
 
 
 def _get_min_sequence_length(source_dir_data_structure):
@@ -69,7 +71,7 @@ def _create_file_list(
 
     _min_sequence_length = _get_min_sequence_length(source_dir_data_structure)
     if _min_sequence_length < samples_per_video:
-        cl_logger.warning(
+        logger.warning(
             f"There is a sequence that is sequence that has less frames "
             f"then you would like to sample: "
             f"{_min_sequence_length}<{samples_per_video}"
@@ -114,7 +116,7 @@ def _create_file_list(
                     )
 
     file_list.save(output_file)
-    cl_logger.info(f"{output_file} created.")
+    logger.info(f"{output_file} created.")
     return file_list
 
 
@@ -171,7 +173,7 @@ def create_file_list(
 
     for split in [TRAIN_NAME, VAL_NAME, TEST_NAME]:
         data_set = FileList.get_dataset_form_file(output_file, split)
-        cl_logger.info(f"{split}-data-set: {data_set}")
+        logger.info(f"{split}-data-set: {data_set}")
 
 
 if __name__ == "__main__":
