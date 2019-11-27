@@ -18,8 +18,8 @@ from tqdm import tqdm
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
-from forgery_detection.data.loading import FiftyFiftySampler
 from forgery_detection.data.loading import get_fixed_dataloader
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import crop
@@ -98,9 +98,9 @@ class Supervised(pl.LightningModule):
         self.hparams["positive_class"] = self.positive_class
 
         if self.hparams["dont_balance_data"]:
-            self.sampler_cls = FiftyFiftySampler
-        else:
             self.sampler_cls = RandomSampler
+        else:
+            self.sampler_cls = BalancedSampler
 
         system_mode = self.hparams.pop("mode")
 

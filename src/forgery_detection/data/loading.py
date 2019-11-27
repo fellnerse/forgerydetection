@@ -70,7 +70,7 @@ def get_fixed_dataloader(
     return loader
 
 
-class FiftyFiftySampler(WeightedRandomSampler):
+class BalancedSampler(WeightedRandomSampler):
     def __init__(self, dataset: FileListDataset, replacement=True):
 
         targets = np.array(dataset.targets, dtype=np.int)[dataset.samples_idx]
