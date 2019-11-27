@@ -183,7 +183,7 @@ class Supervised(pl.LightningModule):
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
             num_workers=12,
-            worker_init_fn=lambda _: np.random.seed(12),
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
 
     @pl.data_loader
