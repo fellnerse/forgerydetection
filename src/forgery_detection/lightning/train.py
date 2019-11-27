@@ -46,9 +46,9 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="If float, % of tng epoch. If int, check every n batch",
 )
 @click.option(
-    "--balance_data",
+    "--dont_balance_data",
     is_flag=True,
-    default=True,
+    default=False,
     help="Indicates if the data distribution should be balanced/normalized."
     "Each class will be sampled with the same probability",
 )
@@ -57,6 +57,13 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     is_flag=True,
     help="Indicates if class weights should be used during loss calculation."
     "Same values as in --balance_data are used for the classes.",
+)
+@click.option(
+    "--log_roc_values",
+    is_flag=True,
+    default=False,
+    help="Indicates if roc values should be calculated and logged. Can slow down"
+    "training immensely.",
 )
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
@@ -90,5 +97,6 @@ def run_lightning(*args, **kwargs):
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
+        weights_summary="top",
     )
     trainer.fit(model)

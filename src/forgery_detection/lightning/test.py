@@ -29,6 +29,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 @click.option("--debug", is_flag=True)
 def run_lightning_test(*args, **kwargs):
     kwargs["mode"] = SystemMode.TEST
+    kwargs["log_roc_values"] = True
 
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / CHECKPOINTS
 

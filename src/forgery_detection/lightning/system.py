@@ -1,8 +1,10 @@
+import logging
 import pickle
 from argparse import Namespace
 from pathlib import Path
 from typing import Union
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
@@ -16,8 +18,8 @@ from tqdm import tqdm
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
-from forgery_detection.data.loading import FiftyFiftySampler
 from forgery_detection.data.loading import get_fixed_dataloader
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import crop
@@ -27,9 +29,11 @@ from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
+from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -39,7 +43,8 @@ from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
 )
-from forgery_detection.utils import cl_logger
+
+logger = logging.getLogger(__file__)
 
 
 class Supervised(pl.LightningModule):
@@ -92,10 +97,10 @@ class Supervised(pl.LightningModule):
         self.positive_class = list(self.file_list.class_to_idx.values())[-1]
         self.hparams["positive_class"] = self.positive_class
 
-        if self.hparams["balance_data"]:
-            self.sampler_cls = FiftyFiftySampler
-        else:
+        if self.hparams["dont_balance_data"]:
             self.sampler_cls = RandomSampler
+        else:
+            self.sampler_cls = BalancedSampler
 
         system_mode = self.hparams.pop("mode")
 
@@ -113,6 +118,11 @@ class Supervised(pl.LightningModule):
 
         elif system_mode is SystemMode.BENCHMARK:
             pass
+
+    def on_sanity_check_start(self):
+        log_dataset_preview(self.train_data, "preview/train_data", self.logger)
+        log_dataset_preview(self.val_data, "preview/val_data", self.logger)
+        log_dataset_preview(self.test_data, "preview/test_data", self.logger)
 
     def forward(self, x):
         return self.model.forward(x)
@@ -143,7 +153,7 @@ class Supervised(pl.LightningModule):
             pickle.dump(outputs, f)
 
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-        cl_logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
+        logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="test"
         )
@@ -173,6 +183,7 @@ class Supervised(pl.LightningModule):
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
             num_workers=12,
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
 
     @pl.data_loader
@@ -206,15 +217,18 @@ class Supervised(pl.LightningModule):
             else:
                 predictions_dict[name] = "fake"
             total += 1
-        print(f"real %: {real/total}")
+        logger.info(f"real %: {real/total}")
         return predictions_dict
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
-        return multiclass_roc_auc_score(
-            target.squeeze().detach().cpu(),
-            pred.detach().cpu().argmax(dim=1),
-            self.label_binarizer,
-        )
+        if self.hparams["log_roc_values"]:
+            return multiclass_roc_auc_score(
+                target.squeeze().detach().cpu(),
+                pred.detach().cpu().argmax(dim=1),
+                self.label_binarizer,
+            )
+        else:
+            return NAN_TENSOR
 
     def log_confusion_matrix(self, target: torch.Tensor, pred: torch.Tensor):
         return log_confusion_matrix(
@@ -226,13 +240,14 @@ class Supervised(pl.LightningModule):
         )
 
     def log_roc_graph(self, target: torch.Tensor, pred: torch.Tensor):
-        log_roc_graph(
-            self.logger,
-            self.global_step,
-            target.squeeze(),
-            pred[:, self.positive_class],
-            self.positive_class,
-        )
+        if self.hparams["log_roc_values"]:
+            log_roc_graph(
+                self.logger,
+                self.global_step,
+                target.squeeze(),
+                pred[:, self.positive_class],
+                self.positive_class,
+            )
 
     @staticmethod
     def _construct_lightning_log(

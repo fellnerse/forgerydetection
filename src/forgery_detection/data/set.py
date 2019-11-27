@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 from pprint import pformat
@@ -17,7 +18,8 @@ from tqdm import tqdm
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
-from forgery_detection.utils import cl_logger
+
+logger = logging.getLogger(__file__)
 
 
 class FileList:
@@ -87,7 +89,7 @@ class FileList:
     def get_dataset(self, split, transform=None, sequence_length: int = 1) -> Dataset:
         """Get dataset by using this instance."""
         if sequence_length > self.min_sequence_length:
-            cl_logger.warning(
+            logger.warning(
                 f"{sequence_length}>{self.min_sequence_length}. Trying to load data that"
                 f"does not exist might raise an error in the FileListDataset."
             )
@@ -135,9 +137,9 @@ class SafeImageFolder(ImageFolder):
         try:
             return super().__getitem__(index)
         except OSError as e:
-            print("Some error with an image: ", e)
-            print("With path:", self.samples[index][0])
-            print("called with index:", index)
+            logger.info("Some error with an image: ", e)
+            logger.info("With path:", self.samples[index][0])
+            logger.info("called with index:", index)
             self.samples.pop(index)
             return self.__getitem__(index % len(self))
 
@@ -179,7 +181,7 @@ class FileListDataset(VisionDataset):
         try:
             index = self.samples_idx[index]
         except IndexError:
-            cl_logger.error(f"{index} is out of range {len(self.samples_idx)}")
+            logger.error(f"{index} is out of range {len(self.samples_idx)}")
         samples = self._samples[
             index - self.sequence_length + 1 : index + 1  # noqa: 203
         ]

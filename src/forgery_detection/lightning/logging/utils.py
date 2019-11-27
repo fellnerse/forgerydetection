@@ -1,3 +1,4 @@
+import logging
 from argparse import Namespace
 from copy import deepcopy
 from enum import auto
@@ -17,10 +18,15 @@ from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_auc_score
 from torch import nn
+from torchvision.utils import make_grid
 
+from forgery_detection.data.set import FileListDataset
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
+
+logger = logging.getLogger(__file__)
 
 CHECKPOINTS = "checkpoints"
 RUNS = "runs"
@@ -99,14 +105,14 @@ class DictHolder(dict):
         self[f"{name}_samples"] = nb_samples
 
     def add_class_weights(self, labels, weights):
-        print("Using class weights:")
-        print(self._class_weights_to_string(labels, weights))
+        logger.info("Using class weights:")
+        logger.info(self._class_weights_to_string(labels, weights))
         self["class_weights"] = {value[0]: value[1] for value in zip(labels, weights)}
 
     def add_nb_trainable_params(self, model: nn.Module):
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f"Trainable params: " f"{params}")
+        logger.info(f"Trainable params: " f"{params}")
         self["nb_trainable_params"] = params
 
     @staticmethod
@@ -195,4 +201,26 @@ def multiclass_roc_auc_score(y_target, y_pred, label_binarizer):
     except ValueError:
         # if the batch size is quite small it can happen that there is only one class
         # present
-        return torch.Tensor([float("NaN")])
+        return NAN_TENSOR
+
+
+def log_dataset_preview(
+    dataset: FileListDataset, name: str, _logger: TestTubeLogger, nb_images=32, nrow=8
+):
+    np.random.seed(len(dataset))
+    nb_datapoints = nb_images // dataset.sequence_length
+    datapoints_idx = np.random.uniform(0, len(dataset), nb_datapoints).astype(int)
+    np.random.seed()
+
+    datapoints, labels = list(zip(*(dataset[idx] for idx in datapoints_idx)))
+
+    # log labels
+    labels = torch.tensor(labels, dtype=torch.float).reshape(
+        (nb_images // nrow, nrow)
+    ).unsqueeze(0) / (len(dataset.classes) - 1)
+    _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
+
+    # log images
+    datapoints = torch.stack(datapoints, dim=0)
+    datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
+    _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)
