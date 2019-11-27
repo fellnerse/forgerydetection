@@ -36,6 +36,9 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.multi_class_classification import Resnet18MultiHead
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video.multi_class_classification import Resnet183D
+from forgery_detection.models.video.multi_class_classification import (
+    Resnet183DNoDropout,
+)
 from forgery_detection.utils import cl_logger
 
 
@@ -43,6 +46,7 @@ class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet183d": Resnet183D,
+        "resnet183dnodropout": Resnet183DNoDropout,
         "resnet18heads": Resnet18MultiHead,
     }
 
