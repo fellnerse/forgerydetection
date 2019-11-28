@@ -215,12 +215,16 @@ def log_dataset_preview(
     datapoints, labels = list(zip(*(dataset[idx] for idx in datapoints_idx)))
 
     # log labels
+    labels = np.repeat(labels, dataset.sequence_length)
     labels = torch.tensor(labels, dtype=torch.float).reshape(
         (nb_images // nrow, nrow)
     ).unsqueeze(0) / (len(dataset.classes) - 1)
     _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
 
     # log images
-    datapoints = torch.stack(datapoints, dim=0)
+    if dataset.sequence_length == 1:
+        datapoints = torch.stack(datapoints, dim=0)
+    else:
+        datapoints = torch.cat(datapoints, dim=0)
     datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
     _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)
