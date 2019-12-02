@@ -164,10 +164,7 @@ class Supervised(pl.LightningModule):
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams["lr"]
         )
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, verbose=True, patience=self.hparams["scheduler_patience"]
-        )
-        return [optimizer], [scheduler]
+        return optimizer
 
     @pl.data_loader
     def train_dataloader(self):
