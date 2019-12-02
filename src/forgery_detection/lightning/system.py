@@ -122,9 +122,10 @@ class Supervised(pl.LightningModule):
             pass
 
     def on_sanity_check_start(self):
-        log_dataset_preview(self.train_data, "preview/train_data", self.logger)
-        log_dataset_preview(self.val_data, "preview/val_data", self.logger)
-        log_dataset_preview(self.test_data, "preview/test_data", self.logger)
+        if not self.hparams["debug"]:
+            log_dataset_preview(self.train_data, "preview/train_data", self.logger)
+            log_dataset_preview(self.val_data, "preview/val_data", self.logger)
+            log_dataset_preview(self.test_data, "preview/test_data", self.logger)
 
     def forward(self, x):
         return self.model.forward(x)

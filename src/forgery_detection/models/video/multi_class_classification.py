@@ -15,12 +15,21 @@ class Resnet183DNoDropout(Resnet18):
         )
         self.resnet = resnet18(pretrained=True, num_classes=1000)
 
-        self.resnet.conv1 = nn.Conv3d(8, 64, kernel_size=(3, 7, 7), bias=False)
+        self.resnet.conv1 = nn.Conv3d(
+            3,
+            64,
+            kernel_size=(8, 7, 7),
+            stride=(1, 2, 2),
+            padding=(0, 3, 3),
+            bias=False,
+        )
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Linear(256, self.num_classes)
 
     def forward(self, x):
-        x = self.resnet.conv1(x).squeeze(2)
+        x = x.transpose(1, 2)
+        x = self.resnet.conv1(x)
+        x = x.squeeze(2)
         x = self.resnet.bn1(x)
         x = self.resnet.relu(x)
         x = self.resnet.maxpool(x)
