@@ -52,5 +52,6 @@ def run_lightning_test(*args, **kwargs):
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
+        weights_summary="top",
     )
     trainer.test(model)
