@@ -31,17 +31,18 @@ class SequenceClassificationModel(nn.Module):
             param.requires_grad = requires_grad
 
 
-class PretrainedResnet18(SequenceClassificationModel):
-    def __init__(self, num_classes, sequence_length, contains_dropout=False):
+class Resnet18(SequenceClassificationModel):
+    def __init__(
+        self, num_classes, sequence_length, contains_dropout=False, pretrained=False
+    ):
         super().__init__(
             num_classes, sequence_length, contains_dropout=contains_dropout
         )
 
-        self.resnet = resnet18(pretrained=True, num_classes=1000)
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
 
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Linear(256, num_classes)
-        self.eval()
 
     def forward(self, x):
         return self.resnet.forward(x)

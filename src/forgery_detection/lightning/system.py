@@ -37,7 +37,9 @@ from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
-from forgery_detection.models.image.multi_class_classification import Resnet18MultiHead
+from forgery_detection.models.image.multi_class_classification import (
+    Resnet18UntrainedMultiClassDropout,
+)
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
@@ -50,9 +52,9 @@ logger = logging.getLogger(__file__)
 class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
+        "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
         "resnet183dnodropout": Resnet183DNoDropout,
-        "resnet18heads": Resnet18MultiHead,
     }
 
     CUSTOM_TRANSFORMS = {
