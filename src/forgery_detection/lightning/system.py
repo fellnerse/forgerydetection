@@ -21,6 +21,8 @@ from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
 from forgery_detection.data.loading import get_fixed_dataloader
+from forgery_detection.data.loading import get_sequence_collate_fn
+from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import get_data
@@ -188,13 +190,21 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def test_dataloader(self):
+        sampler = SequenceBatchSampler(
+            self.sampler_cls(self.test_data, replacement=True),
+            batch_size=self.hparams["batch_size"],
+            drop_last=False,
+            sequence_length=self.test_data.sequence_length,
+            samples_idx=self.test_data.samples_idx,
+        )
         # we want to make sure test data follows the same distribution like the benchmark
         loader = DataLoader(
             dataset=self.test_data,
-            batch_size=self.hparams["batch_size"],
-            shuffle=False,
+            batch_sampler=sampler,
             num_workers=12,
-            sampler=self.sampler_cls(self.test_data, replacement=True),
+            collate_fn=get_sequence_collate_fn(
+                sequence_length=self.test_data.sequence_length
+            ),
         )
         return loader
 

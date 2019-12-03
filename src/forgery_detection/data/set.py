@@ -7,7 +7,6 @@ from shutil import copy2
 from typing import List
 
 import numpy as np
-import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
@@ -178,28 +177,14 @@ class FileListDataset(VisionDataset):
         Returns:
             tuple: (sample, target) where target is class_index of the target class.
         """
-        try:
-            index = self.samples_idx[index]
-        except IndexError:
-            logger.error(f"{index} is out of range {len(self.samples_idx)}")
-        samples = self._samples[
-            index - self.sequence_length + 1 : index + 1  # noqa: 203
-        ]
-        target = samples[0][1]
-        samples = [self.loader(f"{self.root}/{sample[0]}") for sample in samples]
-
+        path, target = self._samples[index]
+        sample = self.loader(f"{self.root}/{path}")
         if self.transform is not None:
-            samples = list(map(self.transform, samples))
-
-        if self.sequence_length == 1:
-            samples = samples[0]
-        else:
-            samples = torch.stack(samples, dim=0)
-
+            sample = self.transform(sample)
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return samples, target
+        return sample, target
 
     def __len__(self):
         return len(self.samples_idx)
