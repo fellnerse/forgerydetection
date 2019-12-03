@@ -56,10 +56,14 @@ class Resnet183D(Resnet183DNoDropout):
 
 
 class Resnet18Fully3D(SequenceClassificationModel):
-    def __init__(self):
+    def __init__(self, pretrained=False):
         super().__init__(num_classes=5, sequence_length=8, contains_dropout=True)
-        self.resnet = resnet_fully_3d.resnet10(
-            sample_size=224 * 2 * 2, sample_duration=self.sequence_length
+        self.resnet = resnet_fully_3d.resnet18(
+            pretrained=pretrained,
+            sample_size=224 * 2 * 2,
+            shortcut_type="A",
+            sample_duration=self.sequence_length,
+            num_classes=101,
         )
         self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
         self.resnet.layer2 = nn.Sequential(nn.Dropout2d(0.2), self.resnet.layer2)
@@ -72,3 +76,8 @@ class Resnet18Fully3D(SequenceClassificationModel):
     def forward(self, x):
         x = x.transpose(1, 2)
         return self.resnet(x)
+
+
+class Resnet18Fully3DPretrained(Resnet18Fully3D):
+    def __init__(self):
+        super().__init__(pretrained=True)

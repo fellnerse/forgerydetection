@@ -1,11 +1,15 @@
 # https://github.com/kenshohara/3D-ResNets-PyTorch
 import math
+import os
+from collections import OrderedDict
 from functools import partial
 
+import gdown
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.hub import _get_torch_home
 
 __all__ = [
     "ResNet",
@@ -221,10 +225,34 @@ def resnet10(**kwargs):
     return model
 
 
-def resnet18(**kwargs):
+def load_state_dict_from_url(url, name):
+    # moslty code from torch.hub
+    torch_home = _get_torch_home()
+    model_dir = os.path.join(torch_home, "checkpoints")
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    cached_file = os.path.join(model_dir, f"{name}.pth")
+    gdown.cached_download(url, path=cached_file, quiet=False)
+
+    state_dict = torch.load(cached_file)["state_dict"]
+    state_dict = OrderedDict({key[7:]: value for key, value in state_dict.items()})
+    # state_dict.popitem(last=True)
+    # state_dict.popitem(last=True)
+    return state_dict
+
+
+def resnet18(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    if pretrained:
+        state_dict = load_state_dict_from_url(
+            "https://drive.google.com/uc?id=1kDEtgOL9-hbhEono5a29NeFVh_"
+            "MMvaet&export=download",
+            name="resnet18fully3d",
+        )
+        model.load_state_dict(state_dict)
     return model
 
 
