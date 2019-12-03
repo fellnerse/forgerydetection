@@ -65,8 +65,8 @@ class Resnet18Fully3D(SequenceClassificationModel):
             sample_duration=self.sequence_length,
             num_classes=101,
         )
-        self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
-        self.resnet.layer2 = nn.Sequential(nn.Dropout2d(0.2), self.resnet.layer2)
+        self.resnet.layer1 = nn.Sequential(nn.Dropout3d(0.1), self.resnet.layer1)
+        self.resnet.layer2 = nn.Sequential(nn.Dropout3d(0.2), self.resnet.layer2)
         self.resnet.layer3 = nn.Identity()
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Sequential(

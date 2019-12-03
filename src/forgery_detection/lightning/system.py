@@ -48,6 +48,9 @@ from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
 )
 from forgery_detection.models.video.multi_class_classification import Resnet18Fully3D
+from forgery_detection.models.video.multi_class_classification import (
+    Resnet18Fully3DPretrained,
+)
 
 logger = logging.getLogger(__file__)
 
@@ -59,6 +62,7 @@ class Supervised(pl.LightningModule):
         "resnet183d": Resnet183D,
         "resnet183dnodropout": Resnet183DNoDropout,
         "resnet18fully3d": Resnet18Fully3D,
+        "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
     }
 
     CUSTOM_TRANSFORMS = {
