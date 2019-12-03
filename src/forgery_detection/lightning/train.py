@@ -36,7 +36,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 @click.option(
     "--transforms",
     type=click.Choice(Supervised.CUSTOM_TRANSFORMS.keys()),
-    default="resized_crop",
+    default="resized_crop_small",
     help="Transforms used for data preprocessing.",
 )
 # todo convert to absolute batches

@@ -2,17 +2,13 @@ import torch
 from torch import nn
 from torchvision.models import resnet18
 
-from forgery_detection.models.utils import Resnet18
+from forgery_detection.models.utils import SequenceClassificationModel
+from forgery_detection.models.video import resnet_fully_3d
 
 
-class Resnet183DNoDropout(Resnet18):
-    def __init__(self, pretrained=True):
-        super().__init__(
-            num_classes=5,
-            sequence_length=8,
-            contains_dropout=False,
-            pretrained=pretrained,
-        )
+class Resnet183DNoDropout(SequenceClassificationModel):
+    def __init__(self):
+        super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
         self.resnet = resnet18(pretrained=True, num_classes=1000)
 
         self.resnet.conv1 = nn.Conv3d(
@@ -47,8 +43,9 @@ class Resnet183DNoDropout(Resnet18):
 
 
 class Resnet183D(Resnet183DNoDropout):
-    def __init__(self, pretrained=True):
-        super().__init__(pretrained=pretrained)
+    def __init__(self,):
+        super().__init__()
+        self.contains_dropout = True
 
         self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
         self.resnet.layer2 = nn.Sequential(nn.Dropout2d(0.2), self.resnet.layer2)
@@ -56,3 +53,22 @@ class Resnet183D(Resnet183DNoDropout):
         self.resnet.fc = nn.Sequential(
             nn.Dropout(0.5), nn.Linear(256, self.num_classes)
         )
+
+
+class Resnet18Fully3D(SequenceClassificationModel):
+    def __init__(self):
+        super().__init__(num_classes=5, sequence_length=8, contains_dropout=True)
+        self.resnet = resnet_fully_3d.resnet10(
+            sample_size=224 * 2 * 2, sample_duration=self.sequence_length
+        )
+        self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
+        self.resnet.layer2 = nn.Sequential(nn.Dropout2d(0.2), self.resnet.layer2)
+        self.resnet.layer3 = nn.Identity()
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Sequential(
+            nn.Dropout(0.5), nn.Linear(256, self.num_classes)
+        )
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        return self.resnet(x)

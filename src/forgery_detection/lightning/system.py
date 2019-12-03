@@ -42,11 +42,12 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
-from forgery_detection.models.utils import SequenceClassificationModel
+from forgery_detection.models.utils import LightningModel
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
 )
+from forgery_detection.models.video.multi_class_classification import Resnet18Fully3D
 
 logger = logging.getLogger(__file__)
 
@@ -57,21 +58,21 @@ class Supervised(pl.LightningModule):
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
         "resnet183dnodropout": Resnet183DNoDropout,
+        "resnet18fully3d": Resnet18Fully3D,
     }
 
     CUSTOM_TRANSFORMS = {
-        "crop": crop,
-        "resized_crop": resized_crop,
-        "resized_crop_flip": resized_crop_flip,
+        "crop": crop(),
+        "resized_crop": resized_crop(),
+        "resized_crop_small": resized_crop(224),
+        "resized_crop_flip": resized_crop_flip(),
     }
 
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()
 
         self.hparams = DictHolder(kwargs)
-        self.model: SequenceClassificationModel = self.MODEL_DICT[
-            self.hparams["model"]
-        ]()
+        self.model: LightningModel = self.MODEL_DICT[self.hparams["model"]]()
 
         # load data-sets
         self.file_list = FileList.load(self.hparams["data_dir"])
@@ -81,7 +82,7 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.cl)})"
             )
 
-        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]()
+        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME, transform, sequence_length=self.model.sequence_length
         )

@@ -1,13 +1,12 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torchvision.models import resnet18
 
 from forgery_detection.lightning.utils import VAL_ACC
 
 
-class SequenceClassificationModel(nn.Module):
-    def __init__(self, num_classes, sequence_length, contains_dropout=False):
+class LightningModel(nn.Module):
+    def __init__(self, num_classes, sequence_length, contains_dropout):
         super().__init__()
         self.num_classes = num_classes
         self.sequence_length = sequence_length
@@ -31,21 +30,14 @@ class SequenceClassificationModel(nn.Module):
             param.requires_grad = requires_grad
 
 
-class Resnet18(SequenceClassificationModel):
-    def __init__(
-        self, num_classes, sequence_length, contains_dropout=False, pretrained=False
-    ):
+class SequenceClassificationModel(LightningModel):
+    def __init__(self, num_classes, sequence_length, contains_dropout):
         super().__init__(
             num_classes, sequence_length, contains_dropout=contains_dropout
         )
 
-        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
-
-        self.resnet.layer4 = nn.Identity()
-        self.resnet.fc = nn.Linear(256, num_classes)
-
     def forward(self, x):
-        return self.resnet.forward(x)
+        raise NotImplementedError()
 
     def loss(self, logits, labels):
         return F.cross_entropy(logits, labels)
