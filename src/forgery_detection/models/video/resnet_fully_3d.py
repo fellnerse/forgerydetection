@@ -237,8 +237,6 @@ def load_state_dict_from_url(url, name):
 
     state_dict = torch.load(cached_file)["state_dict"]
     state_dict = OrderedDict({key[7:]: value for key, value in state_dict.items()})
-    # state_dict.popitem(last=True)
-    # state_dict.popitem(last=True)
     return state_dict
 
 

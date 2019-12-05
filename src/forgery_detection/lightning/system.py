@@ -47,6 +47,9 @@ from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
 )
+from forgery_detection.models.video.multi_class_classification import (
+    Resnet183DUntrained,
+)
 from forgery_detection.models.video.multi_class_classification import Resnet18Fully3D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet18Fully3DPretrained,
@@ -60,6 +63,7 @@ class Supervised(pl.LightningModule):
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
+        "resnet183duntrained": Resnet183DUntrained,
         "resnet183dnodropout": Resnet183DNoDropout,
         "resnet18fully3d": Resnet18Fully3D,
         "resnet18fully3dpretrained": Resnet18Fully3DPretrained,

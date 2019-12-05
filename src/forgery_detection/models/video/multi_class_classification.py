@@ -7,9 +7,9 @@ from forgery_detection.models.video import resnet_fully_3d
 
 
 class Resnet183DNoDropout(SequenceClassificationModel):
-    def __init__(self):
+    def __init__(self, pretrained=True):
         super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
-        self.resnet = resnet18(pretrained=True, num_classes=1000)
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
 
         self.resnet.conv1 = nn.Conv3d(
             3,
@@ -43,8 +43,8 @@ class Resnet183DNoDropout(SequenceClassificationModel):
 
 
 class Resnet183D(Resnet183DNoDropout):
-    def __init__(self,):
-        super().__init__()
+    def __init__(self, pretrained=True):
+        super().__init__(pretrained=pretrained)
         self.contains_dropout = True
 
         self.resnet.layer1 = nn.Sequential(nn.Dropout2d(0.1), self.resnet.layer1)
@@ -53,6 +53,11 @@ class Resnet183D(Resnet183DNoDropout):
         self.resnet.fc = nn.Sequential(
             nn.Dropout(0.5), nn.Linear(256, self.num_classes)
         )
+
+
+class Resnet183DUntrained(Resnet183DNoDropout):
+    def __init__(self):
+        super().__init__(pretrained=False)
 
 
 class Resnet18Fully3D(SequenceClassificationModel):
