@@ -98,5 +98,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary="top",
+        max_nb_epochs=14,
     )
     trainer.fit(model)
