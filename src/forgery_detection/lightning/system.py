@@ -43,6 +43,7 @@ from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
 from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
@@ -67,12 +68,14 @@ class Supervised(pl.LightningModule):
         "resnet183dnodropout": Resnet183DNoDropout,
         "resnet18fully3d": Resnet18Fully3D,
         "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
+        "r2plus1": R2Plus1,
     }
 
     CUSTOM_TRANSFORMS = {
         "crop": crop(),
         "resized_crop": resized_crop(),
         "resized_crop_small": resized_crop(224),
+        "resized_crop_112": resized_crop(112),
         "resized_crop_flip": resized_crop_flip(),
     }
 

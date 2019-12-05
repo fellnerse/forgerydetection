@@ -86,3 +86,19 @@ class Resnet18Fully3D(SequenceClassificationModel):
 class Resnet18Fully3DPretrained(Resnet18Fully3D):
     def __init__(self):
         super().__init__(pretrained=True)
+
+
+class R2Plus1(SequenceClassificationModel):
+    def __init__(self,):
+        super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
+        self.r2plus1 = torch.hub.load(
+            "moabitcoin/ig65m-pytorch",
+            "r2plus1d_34_8_kinetics",
+            num_classes=400,
+            pretrained=True,
+        )
+        self.r2plus1.fc = nn.Linear(512, self.num_classes)
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        return self.r2plus1(x)
