@@ -55,7 +55,7 @@ class Resnet183D(Resnet183DNoDropout):
         )
 
 
-class Resnet183DUntrained(Resnet183DNoDropout):
+class Resnet183DUntrained(Resnet183D):
     def __init__(self):
         super().__init__(pretrained=False)
 
