@@ -36,7 +36,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 @click.option(
     "--transforms",
     type=click.Choice(Supervised.CUSTOM_TRANSFORMS.keys()),
-    default="resized_crop",
+    default="resized_crop_small",
     help="Transforms used for data preprocessing.",
 )
 # todo convert to absolute batches
@@ -98,5 +98,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary="top",
+        max_nb_epochs=14,
     )
     trainer.fit(model)

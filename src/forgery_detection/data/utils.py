@@ -8,18 +8,18 @@ from torchvision.datasets import ImageFolder
 from forgery_detection.data.set import SafeImageFolder
 
 
-def crop():
-    return [transforms.CenterCrop(299)]
+def crop(size=299):
+    return [transforms.CenterCrop(size)]
 
 
-def resized_crop():
-    return [transforms.Resize(299), transforms.CenterCrop(299)]
+def resized_crop(size=299):
+    return [transforms.Resize(size), transforms.CenterCrop(size)]
 
 
-def resized_crop_flip():
+def resized_crop_flip(size=299):
     return [
-        transforms.Resize(299),
-        transforms.CenterCrop(299),
+        transforms.Resize(size),
+        transforms.CenterCrop(size),
         transforms.RandomHorizontalFlip(),
     ]
 

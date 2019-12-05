@@ -1,3 +1,4 @@
+import itertools
 import logging
 from argparse import Namespace
 from copy import deepcopy
@@ -210,21 +211,27 @@ def log_dataset_preview(
     np.random.seed(len(dataset))
     nb_datapoints = nb_images // dataset.sequence_length
     datapoints_idx = np.random.uniform(0, len(dataset), nb_datapoints).astype(int)
+    # idx to sequence idxs
+    datapoints_idx = map(
+        lambda idx: range(
+            dataset.samples_idx[idx] + 1 - dataset.sequence_length,
+            dataset.samples_idx[idx] + 1,
+        ),
+        datapoints_idx,
+    )
+    # flatten
+    datapoints_idx = list(itertools.chain.from_iterable(datapoints_idx))
     np.random.seed()
 
     datapoints, labels = list(zip(*(dataset[idx] for idx in datapoints_idx)))
 
     # log labels
-    labels = np.repeat(labels, dataset.sequence_length)
     labels = torch.tensor(labels, dtype=torch.float).reshape(
         (nb_images // nrow, nrow)
     ).unsqueeze(0) / (len(dataset.classes) - 1)
     _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
 
     # log images
-    if dataset.sequence_length == 1:
-        datapoints = torch.stack(datapoints, dim=0)
-    else:
-        datapoints = torch.cat(datapoints, dim=0)
+    datapoints = torch.stack(datapoints, dim=0)
     datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
     _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)

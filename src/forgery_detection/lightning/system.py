@@ -21,6 +21,8 @@ from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
 from forgery_detection.data.loading import get_fixed_dataloader
+from forgery_detection.data.loading import get_sequence_collate_fn
+from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import get_data
@@ -40,10 +42,18 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
-from forgery_detection.models.utils import SequenceClassificationModel
+from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
+)
+from forgery_detection.models.video.multi_class_classification import (
+    Resnet183DUntrained,
+)
+from forgery_detection.models.video.multi_class_classification import Resnet18Fully3D
+from forgery_detection.models.video.multi_class_classification import (
+    Resnet18Fully3DPretrained,
 )
 
 logger = logging.getLogger(__file__)
@@ -54,22 +64,26 @@ class Supervised(pl.LightningModule):
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
+        "resnet183duntrained": Resnet183DUntrained,
         "resnet183dnodropout": Resnet183DNoDropout,
+        "resnet18fully3d": Resnet18Fully3D,
+        "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
+        "r2plus1": R2Plus1,
     }
 
     CUSTOM_TRANSFORMS = {
-        "crop": crop,
-        "resized_crop": resized_crop,
-        "resized_crop_flip": resized_crop_flip,
+        "crop": crop(),
+        "resized_crop": resized_crop(),
+        "resized_crop_small": resized_crop(224),
+        "resized_crop_112": resized_crop(112),
+        "resized_crop_flip": resized_crop_flip(),
     }
 
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()
 
         self.hparams = DictHolder(kwargs)
-        self.model: SequenceClassificationModel = self.MODEL_DICT[
-            self.hparams["model"]
-        ]()
+        self.model: LightningModel = self.MODEL_DICT[self.hparams["model"]]()
 
         # load data-sets
         self.file_list = FileList.load(self.hparams["data_dir"])
@@ -79,7 +93,7 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.cl)})"
             )
 
-        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]()
+        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME, transform, sequence_length=self.model.sequence_length
         )
@@ -122,9 +136,10 @@ class Supervised(pl.LightningModule):
             pass
 
     def on_sanity_check_start(self):
-        log_dataset_preview(self.train_data, "preview/train_data", self.logger)
-        log_dataset_preview(self.val_data, "preview/val_data", self.logger)
-        log_dataset_preview(self.test_data, "preview/test_data", self.logger)
+        if not self.hparams["debug"]:
+            log_dataset_preview(self.train_data, "preview/train_data", self.logger)
+            log_dataset_preview(self.val_data, "preview/val_data", self.logger)
+            log_dataset_preview(self.test_data, "preview/test_data", self.logger)
 
     def forward(self, x):
         return self.model.forward(x)
@@ -187,13 +202,21 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def test_dataloader(self):
+        sampler = SequenceBatchSampler(
+            self.sampler_cls(self.test_data, replacement=True),
+            batch_size=self.hparams["batch_size"],
+            drop_last=False,
+            sequence_length=self.test_data.sequence_length,
+            samples_idx=self.test_data.samples_idx,
+        )
         # we want to make sure test data follows the same distribution like the benchmark
         loader = DataLoader(
             dataset=self.test_data,
-            batch_size=self.hparams["batch_size"],
-            shuffle=False,
+            batch_sampler=sampler,
             num_workers=12,
-            sampler=self.sampler_cls(self.test_data, replacement=True),
+            collate_fn=get_sequence_collate_fn(
+                sequence_length=self.test_data.sequence_length
+            ),
         )
         return loader
 
