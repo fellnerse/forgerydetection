@@ -45,6 +45,7 @@ class FileList:
         self.samples[split].append(
             (str(path.relative_to(self.root)), self.class_to_idx[target_label])
         )
+        self.samples_idx[split].append(len(self.samples[split]))
 
     def add_data_points(
         self,
