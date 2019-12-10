@@ -109,3 +109,15 @@ class R2Plus1Frozen(R2Plus1):
         super().__init__()
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
         self._set_requires_grad_for_module(self.r2plus1.fc, requires_grad=True)
+
+
+class R2Plus1Small(R2Plus1):
+    def __init__(self):
+        super().__init__()
+        self.r2plus1.layer1 = nn.Sequential(nn.Dropout3d(0.1), self.r2plus1.layer1)
+        self.r2plus1.layer2 = nn.Sequential(nn.Dropout3d(0.2), self.r2plus1.layer2)
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Dropout(0.5), nn.Linear(128, self.num_classes)
+        )
