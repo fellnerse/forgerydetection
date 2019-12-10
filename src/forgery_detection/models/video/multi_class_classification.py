@@ -115,6 +115,7 @@ class R2Plus1Frozen(R2Plus1):
 class R2Plus1Small(R2Plus1):
     def __init__(self):
         super().__init__()
+        self.contains_dropout = True
         self.r2plus1.layer1 = nn.Sequential(nn.Dropout3d(0.1), self.r2plus1.layer1)
         self.r2plus1.layer2 = nn.Sequential(nn.Dropout3d(0.2), self.r2plus1.layer2)
         self.r2plus1.layer3 = nn.Identity()
