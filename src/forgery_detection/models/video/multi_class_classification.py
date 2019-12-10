@@ -102,3 +102,10 @@ class R2Plus1(SequenceClassificationModel):
     def forward(self, x):
         x = x.transpose(1, 2)
         return self.r2plus1(x)
+
+
+class R2Plus1Frozen(R2Plus1):
+    def __init__(self):
+        super().__init__()
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.r2plus1.fc, requires_grad=True)
