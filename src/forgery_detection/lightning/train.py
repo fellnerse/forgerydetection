@@ -97,7 +97,7 @@ def run_lightning(*args, **kwargs):
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
-        weights_summary="top",
+        weights_summary=None,
         max_nb_epochs=14,
     )
     trainer.fit(model)
