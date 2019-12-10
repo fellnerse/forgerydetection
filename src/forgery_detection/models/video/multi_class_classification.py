@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torchvision.models import resnet18
+from torchvision.models.video.resnet import mc3_18
 
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video import resnet_fully_3d
@@ -121,3 +122,13 @@ class R2Plus1Small(R2Plus1):
         self.r2plus1.fc = nn.Sequential(
             nn.Dropout(0.5), nn.Linear(128, self.num_classes)
         )
+
+
+class MC3(SequenceClassificationModel):
+    def __init__(self):
+        super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
+        self.mc3 = mc3_18(pretrained=True)
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        return self.mc3(x)
