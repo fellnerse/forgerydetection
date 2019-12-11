@@ -129,6 +129,7 @@ class MC3(SequenceClassificationModel):
     def __init__(self):
         super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
         self.mc3 = mc3_18(pretrained=True)
+        self.mc3.fc = nn.Linear(512, self.num_classes)
 
     def forward(self, x):
         x = x.transpose(1, 2)
