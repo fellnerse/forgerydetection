@@ -4,6 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterable
 from typing import List
+from typing import Tuple
 from typing import Union
 
 
@@ -20,6 +21,7 @@ class Compression(StrEnum):
 
 class DataType(StrEnum):
     videos = auto()
+    resampled_videos = auto()
     face_images_tracked = auto()
     face_images = auto()
     masks = auto()
@@ -46,14 +48,16 @@ class FaceForensicsDataStructure:
         self,
         root_dir: str,
         compressions: Iterable[Union[str, Compression]] = (Compression.raw,),
-        data_types: List[Union[str, DataType]] = (DataType.face_images,),
+        data_types: Iterable[Union[str, DataType]] = (DataType.face_images,),
     ):
         self.root_dir = Path(root_dir)
         if not self.root_dir.exists():
             raise FileNotFoundError(f"{self.root_dir} does not exist!")
-        self.data_types = data_types if isinstance(data_types, tuple) else (data_types,)
+        self.data_types = (
+            data_types if isinstance(data_types, (List, Tuple)) else (data_types,)
+        )
         self.compressions = (
-            compressions if isinstance(compressions, tuple) else (compressions,)
+            compressions if isinstance(compressions, (List, Tuple)) else (compressions,)
         )
 
     def get_subdirs(self) -> List[Path]:

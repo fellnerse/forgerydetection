@@ -20,6 +20,9 @@ dlib = "^19.18.0"
 gprof2dot = "^2017.9"
 torchsummary = "^1.5"
 gdown = "^3.8"
+python_speech_features = "^0.6.0"
+moviepy = "^1.0"
+pytube = "^9.5"
 
 [tool.poetry.dev-dependencies]
 
