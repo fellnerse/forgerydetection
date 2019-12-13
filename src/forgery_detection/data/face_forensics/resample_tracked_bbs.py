@@ -1,8 +1,10 @@
 import json
+import shutil
 
 import click
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from forgery_detection.data.face_forensics import Compression
 from forgery_detection.data.face_forensics import DataType
@@ -35,7 +37,12 @@ def resample_tracked_bbs(resampled_data_dir_root, bb_data_dir_root, compressions
         tracked_bb_data_structure.get_subdirs(),
         resampled_videos_face_images_data_structure.get_subdirs(),
     ):
-        for video in sorted(resampled_videos.iterdir()):
+        print(f"Current method: {resampled_videos.parents[1].name}")
+
+        for video in tqdm(sorted(resampled_videos.iterdir())):
+            if resampled_videos.parents[1].name != "Deepfakes":
+                continue
+
             tracked_bb = tracked_bbs / video.with_suffix("").name / "tracked_bb.json"
             resampled_tracked_bb = (
                 resampled_face_images / video.with_suffix("").name / "tracked_bb.json"
@@ -53,44 +60,42 @@ def resample_tracked_bbs(resampled_data_dir_root, bb_data_dir_root, compressions
                 # if there is no difference in frame_count, we do not need to do extr
                 # stuff
                 if tracked_bb_length == resampled_video_length:
-                    # shutil.copy(str(tracked_bb), str(resampled_tracked_bb))
-                    pass
+                    shutil.copy(str(tracked_bb), str(resampled_tracked_bb))
                 else:
-                    # can be removed, is just now the interesting part
-                    if None in tracked_bb_dict.values():
-                        # this means there is at least one frame without tracking
-                        # information
-                        # in this video
-                        tracked_bb_values = list(tracked_bb_dict.values())
-                        data_points_x = np.linspace(0, 100_000, tracked_bb_length)
-                        interpolated_x = np.linspace(0, 100_000, resampled_video_length)
-                        resampled_idx = []
-                        current_pos = 0
-                        for x in interpolated_x:
-                            while (
-                                x > data_points_x[current_pos]
-                                and current_pos < tracked_bb_length
-                            ):
-                                current_pos += 1
-                            resampled_idx.append(current_pos)
 
-                        # now we have the mappings and have to choose the values
-                        resampled_bbs = []
-                        for idx in resampled_idx:
-                            # make sure that we do not have discontinued sequences
-                            # aka a two sequences after another without a None in between
-                            next_val = tracked_bb_values[idx]
-                            if (
-                                idx != 0
-                                and resampled_bbs[-1] is not None
-                                and resampled_bbs[-1] != next_val
-                            ):
-                                resampled_bbs.append(None)
-                            else:
-                                resampled_bbs.append(next_val)
+                    # this means there is at least one frame without tracking
+                    # information
+                    # in this video
+                    tracked_bb_values = list(tracked_bb_dict.values())
+                    data_points_x = np.linspace(0, 100_000, tracked_bb_length)
+                    interpolated_x = np.linspace(0, 100_000, resampled_video_length)
+                    resampled_idx = []
+                    current_pos = 0
+                    for x in interpolated_x:
+                        while (
+                            x > data_points_x[current_pos]
+                            and current_pos < tracked_bb_length
+                        ):
+                            current_pos += 1
+                        resampled_idx.append(current_pos)
 
-                        with open(resampled_tracked_bb, "w") as f:
-                            json.dump(resampled_bbs, f)
+                    # now we have the mappings and have to choose the values
+                    resampled_bbs = {}
+                    for _i, idx in enumerate(resampled_idx):
+                        # make sure that we do not have discontinued sequences
+                        # aka a two sequences after another without a None in between
+                        next_val = tracked_bb_values[idx]
+                        if (
+                            idx != 0
+                            and resampled_bbs[f"{_i-1:04d}"] is not None
+                            and resampled_bbs[f"{_i-1:04d}"] != next_val
+                        ):
+                            resampled_bbs[f"{_i:04d}"] = None
+                        else:
+                            resampled_bbs[f"{_i:04d}"] = next_val
+
+                    with open(resampled_tracked_bb, "w") as f:
+                        json.dump(resampled_bbs, f)
 
 
 if __name__ == "__main__":

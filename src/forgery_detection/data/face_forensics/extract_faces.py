@@ -24,14 +24,14 @@ def _extract_face(img_path, face, face_images_dir):
 def _extract_faces_from_video(video_folder, face_locations_dir) -> bool:
     face_images_dir = face_locations_dir / video_folder.with_suffix("").name
     bb_file = face_images_dir / "tracked_bb.json"
+
     if not bb_file.exists():
-        return False
+        raise ValueError(f"{bb_file} does not exist")
+
     # 377
     with open(bb_file, "r") as f:
         tracked_bb = json.load(f)
-    print(video_folder)
-    if "Face2Face" in str(video_folder):
-        x = 0
+
     cap = cv2.VideoCapture(str(video_folder))
 
     frame_num = 0
@@ -40,8 +40,8 @@ def _extract_faces_from_video(video_folder, face_locations_dir) -> bool:
         if not success:
             break
         try:
-            if tracked_bb[frame_num]:
-                x, y, w, h = tracked_bb[frame_num]
+            if tracked_bb[f"{frame_num:04d}"]:
+                x, y, w, h = tracked_bb[f"{frame_num:04d}"]
                 image = image[y : y + h, x : x + w]  # noqa E203
                 img_path = str(face_images_dir / f"{frame_num:04d}.png")
                 cv2.imwrite(img_path, image)
