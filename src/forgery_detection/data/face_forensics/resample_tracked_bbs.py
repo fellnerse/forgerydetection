@@ -40,8 +40,6 @@ def resample_tracked_bbs(resampled_data_dir_root, bb_data_dir_root, compressions
         print(f"Current method: {resampled_videos.parents[1].name}")
 
         for video in tqdm(sorted(resampled_videos.iterdir())):
-            if resampled_videos.parents[1].name != "Deepfakes":
-                continue
 
             tracked_bb = tracked_bbs / video.with_suffix("").name / "tracked_bb.json"
             resampled_tracked_bb = (
