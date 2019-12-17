@@ -36,6 +36,7 @@ from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
+from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -75,6 +76,7 @@ class Supervised(pl.LightningModule):
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
         "mc3": MC3,
+        "audionet": AudioNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -102,13 +104,22 @@ class Supervised(pl.LightningModule):
 
         transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]
         self.train_data = self.file_list.get_dataset(
-            TRAIN_NAME, transform, sequence_length=self.model.sequence_length
+            TRAIN_NAME,
+            transform,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
-            VAL_NAME, transform, sequence_length=self.model.sequence_length
+            VAL_NAME,
+            transform,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
         )
         self.test_data = self.file_list.get_dataset(
-            TEST_NAME, transform, sequence_length=self.model.sequence_length
+            TEST_NAME,
+            transform,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from typing import List
 from typing import Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -8,8 +11,11 @@ from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data._utils.collate import default_collate
+from torchvision.datasets.folder import default_loader
 
-from forgery_detection.data.set import FileListDataset
+
+if TYPE_CHECKING:
+    from forgery_detection.data.set import FileListDataset
 
 
 def calculate_class_weights(dataset: FileListDataset) -> Tuple[List[str], List[float]]:
@@ -26,9 +32,17 @@ def get_sequence_collate_fn(sequence_length):
 
         def sequence_collate(batch):
             x, y = default_collate(batch)
-            x_shape = list(x.shape)
-            x_shape = [-1, sequence_length] + x_shape[1:]
-            return x.view(x_shape), y[::sequence_length]
+            if isinstance(x, list):
+                viwed_x = []
+                for _x in x:
+                    x_shape = list(_x.shape)
+                    x_shape = [-1, sequence_length] + x_shape[1:]
+                    viwed_x.append(_x.view(x_shape))
+                return viwed_x, y[::sequence_length]
+            else:
+                x_shape = list(x.shape)
+                x_shape = [-1, sequence_length] + x_shape[1:]
+                return x.view(x_shape), y[::sequence_length]
 
         return sequence_collate
 
@@ -119,3 +133,51 @@ class SequenceBatchSampler(BatchSampler):
                 batch = []
         if len(batch) > 0 and not self.drop_last:
             yield batch
+
+
+class ExtendedDefaultLoader:
+    """Class used for loading files from disk.
+
+    Additionally to pytorchts default loader this also can load corresponding audio for
+    images (given a np-file containing such additional information).
+
+    """
+
+    def __init__(self, audio_file: str = None):
+        self.should_load_audio = audio_file is not None
+
+        if self.should_load_audio:
+            try:
+                # this weird access is only because of numpy saving a dict behaves
+                # strange
+                self.audio = np.load(audio_file, allow_pickle=True)[()]
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Could not find {audio_file}.")
+
+    def load_data(self, path: str):
+        if self.should_load_audio:
+            try:
+                return default_loader(path), self._load_audio(path)
+            except (KeyError, IndexError):
+                print(path)
+                raise
+        else:
+            return default_loader(path)
+
+    def _load_audio(self, path):
+        parts = path.split("/")
+        video_name = parts[-2]
+        image_name = parts[-1].split(".")[0]
+
+        if "youtube" in path:
+            corresponding_audio = self.audio[video_name]
+        else:
+            video_names = video_name.split("_")
+            # for now just use primary video because some of the others are not available
+            corresponding_audio = self.audio[video_names[0]]
+            # if "Deepfakes" in path:
+            #     corresponding_audio = self.audio[video_names[0]]
+            # else:
+            #     corresponding_audio = self.audio[video_names[1]]
+        # remove modulo
+        return corresponding_audio[int(image_name) % len(corresponding_audio)]

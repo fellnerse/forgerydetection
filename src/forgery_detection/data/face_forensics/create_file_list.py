@@ -99,8 +99,6 @@ def _create_file_list(
                             filtered_images_idx.append(list_idx)
                         last_idx = image_idx
 
-                    # for the test-set all frames are going to be taken
-                    # otherwise distribute uniformly
                     selected_frames = _select_frames(
                         len(filtered_images_idx), samples_per_video
                     )

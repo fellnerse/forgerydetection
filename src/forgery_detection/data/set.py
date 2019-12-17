@@ -11,12 +11,12 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets import VisionDataset
-from torchvision.datasets.folder import default_loader
 from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.loading import ExtendedDefaultLoader
 
 logger = logging.getLogger(__file__)
 
@@ -45,7 +45,6 @@ class FileList:
         self.samples[split].append(
             (str(path.relative_to(self.root)), self.class_to_idx[target_label])
         )
-        self.samples_idx[split].append(len(self.samples[split]))
 
     def add_data_points(
         self,
@@ -64,7 +63,7 @@ class FileList:
     def save(self, path):
         """Save self.__dict__ as json."""
         with open(path, "w") as f:
-            json.dump(self.__dict__, f)  # carefull with self.root->Path
+            json.dump(self.__dict__, f)  # be careful with self.root->Path
 
     @classmethod
     def load(cls, path):
@@ -86,7 +85,9 @@ class FileList:
         self.root = str(new_root)
         return self
 
-    def get_dataset(self, split, transform=None, sequence_length: int = 1) -> Dataset:
+    def get_dataset(
+        self, split, transform=None, sequence_length: int = 1, audio_file: str = None
+    ) -> Dataset:
         """Get dataset by using this instance."""
         if sequence_length > self.min_sequence_length:
             logger.warning(
@@ -108,6 +109,7 @@ class FileList:
             split=split,
             sequence_length=sequence_length,
             transform=transform,
+            audio_file=audio_file,
         )
 
     @classmethod
@@ -157,11 +159,13 @@ class FileListDataset(VisionDataset):
         sequence_length: int,
         transform=None,
         target_transform=None,
+        audio_file: str = None,
     ):
         super().__init__(
             file_list.root, transform=transform, target_transform=target_transform
         )
-        self.loader = default_loader
+        self.extended_default_loader = ExtendedDefaultLoader(audio_file=audio_file)
+        self.loader = self.extended_default_loader.load_data
 
         self.classes = file_list.classes
         self.class_to_idx = file_list.class_to_idx
@@ -181,7 +185,10 @@ class FileListDataset(VisionDataset):
         path, target = self._samples[index]
         sample = self.loader(f"{self.root}/{path}")
         if self.transform is not None:
-            sample = self.transform(sample)
+            if isinstance(sample, tuple):
+                sample = self.transform(sample[0]), sample[1]
+            else:
+                sample = self.transform(sample)
         if self.target_transform is not None:
             target = self.target_transform(target)
 
