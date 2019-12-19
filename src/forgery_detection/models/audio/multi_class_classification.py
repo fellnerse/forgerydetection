@@ -28,7 +28,7 @@ class AudioNet(SequenceClassificationModel):
             [1, 1, 1, 1],
             pretrained=False,
             progress=True,
-            num_classes=256,
+            num_classes=1000,
         )
         self.resnet.conv1 = nn.Conv2d(
             1, 64, kernel_size=3, stride=1, padding=1, bias=False
@@ -49,3 +49,27 @@ class AudioNet(SequenceClassificationModel):
         flat = torch.cat((video, audio), dim=1)
         out = self.out(self.relu(flat))
         return out
+
+
+class AudioOnly(SequenceClassificationModel):
+    def __init__(self, pretrained=True):
+        super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
+
+        self.resnet = _resnet(
+            "resnet18",
+            BasicBlock,
+            [1, 1, 1, 1],
+            pretrained=False,
+            progress=True,
+            num_classes=1000,
+        )
+        self.resnet.conv1 = nn.Conv2d(
+            1, 64, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Linear(256, 5)
+
+    def forward(self, x):
+        _, audio = x
+        del _
+        return self.resnet(audio.unsqueeze(1))

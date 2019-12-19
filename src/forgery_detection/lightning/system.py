@@ -37,6 +37,7 @@ from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
+from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -77,6 +78,7 @@ class Supervised(pl.LightningModule):
         "r2plus1small": R2Plus1Small,
         "mc3": MC3,
         "audionet": AudioNet,
+        "audioonly": AudioOnly,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -136,9 +138,9 @@ class Supervised(pl.LightningModule):
         else:
             self.sampler_cls = BalancedSampler
 
-        system_mode = self.hparams.pop("mode")
+        self.system_mode = self.hparams.pop("mode")
 
-        if system_mode is SystemMode.TRAIN:
+        if self.system_mode is SystemMode.TRAIN:
             self.hparams.add_nb_trainable_params(self.model)
             if self.hparams["class_weights"]:
                 labels, weights = calculate_class_weights(self.val_data)
@@ -147,10 +149,10 @@ class Supervised(pl.LightningModule):
             else:
                 self.class_weights = None
 
-        elif system_mode is SystemMode.TEST:
+        elif self.system_mode is SystemMode.TEST:
             self.class_weights = None
 
-        elif system_mode is SystemMode.BENCHMARK:
+        elif self.system_mode is SystemMode.BENCHMARK:
             pass
 
     def on_sanity_check_start(self):
