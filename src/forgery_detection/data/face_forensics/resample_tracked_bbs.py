@@ -18,17 +18,17 @@ from forgery_detection.data.face_forensics import FaceForensicsDataStructure
 def resample_tracked_bbs(resampled_data_dir_root, bb_data_dir_root, compressions):
     tracked_bb_data_structure = FaceForensicsDataStructure(
         bb_data_dir_root,
-        compressions=Compression.c40,
+        compressions=compressions,
         data_types=DataType.face_images_tracked,
     )
     resampled_videos_data_structure = FaceForensicsDataStructure(
         resampled_data_dir_root,
-        compressions=Compression.c40,
+        compressions=compressions,
         data_types=DataType.resampled_videos,
     )
     resampled_videos_face_images_data_structure = FaceForensicsDataStructure(
         resampled_data_dir_root,
-        compressions=Compression.c40,
+        compressions=compressions,
         data_types=DataType.face_images_tracked,
     )
 

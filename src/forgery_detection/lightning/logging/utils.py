@@ -232,6 +232,17 @@ def log_dataset_preview(
     _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
 
     # log images
+    if isinstance(datapoints[0], tuple):
+        # this means there is audio data as well
+        audio = [x[1] for x in datapoints]
+        audio = np.stack(audio, axis=0)
+        audio -= audio.min()
+        audio /= audio.max()
+
+        _logger.experiment.add_image(name, audio, dataformats="HW", global_step=2)
+
+        datapoints = [x[0] for x in datapoints]
+
     datapoints = torch.stack(datapoints, dim=0)
     datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
     _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)

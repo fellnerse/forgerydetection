@@ -12,7 +12,13 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     "--data_dir",
     required=True,
     type=click.Path(exists=True),
-    help="Path to data dir containing, at least train and val data.",
+    help="Path to file list json.",
+)
+@click.option(
+    "--audio_file",
+    required=False,
+    type=click.Path(exists=True),
+    help="Path to np audio file containing.",
 )
 @click.option(
     "--log_dir",
