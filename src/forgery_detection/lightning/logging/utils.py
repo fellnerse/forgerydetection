@@ -236,8 +236,10 @@ def log_dataset_preview(
         # this means there is audio data as well
         audio = [x[1] for x in datapoints]
         audio = np.stack(audio, axis=0)
-        audio = make_grid(torch.from_numpy(audio), nrow=nrow)
-        _logger.experiment.add_image(name, audio, dataformats="CHW", global_step=2)
+        audio -= audio.min()
+        audio /= audio.max()
+
+        _logger.experiment.add_image(name, audio, dataformats="HW", global_step=2)
 
         datapoints = [x[0] for x in datapoints]
 
