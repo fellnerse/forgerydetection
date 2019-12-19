@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import List
 from typing import Tuple
 from typing import TYPE_CHECKING
@@ -13,6 +14,7 @@ from torch.utils.data import WeightedRandomSampler
 from torch.utils.data._utils.collate import default_collate
 from torchvision.datasets.folder import default_loader
 
+logger = logging.getLogger(__file__)
 
 if TYPE_CHECKING:
     from forgery_detection.data.set import FileListDataset
@@ -156,11 +158,7 @@ class ExtendedDefaultLoader:
 
     def load_data(self, path: str):
         if self.should_load_audio:
-            try:
-                return default_loader(path), self._load_audio(path)
-            except (KeyError, IndexError):
-                print(path)
-                raise
+            return default_loader(path), self._load_audio(path)
         else:
             return default_loader(path)
 
@@ -173,11 +171,15 @@ class ExtendedDefaultLoader:
             corresponding_audio = self.audio[video_name]
         else:
             video_names = video_name.split("_")
-            # for now just use primary video because some of the others are not available
-            corresponding_audio = self.audio[video_names[0]]
-            # if "Deepfakes" in path:
-            #     corresponding_audio = self.audio[video_names[0]]
-            # else:
-            #     corresponding_audio = self.audio[video_names[1]]
-        # remove modulo
-        return corresponding_audio[int(image_name) % len(corresponding_audio)]
+            if "Deepfakes" in path or "FaceSwap" in path:
+                corresponding_audio = self.audio[video_names[0]]
+            else:
+                corresponding_audio = self.audio[video_names[1]]
+        try:
+            return corresponding_audio[int(image_name)]
+        except IndexError:
+            logger.error(
+                f"{int(image_name)} is out of bounds for {len(corresponding_audio)}.\n"
+                f"path is: {path} "
+            )
+            raise

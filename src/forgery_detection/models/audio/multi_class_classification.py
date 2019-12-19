@@ -1,9 +1,14 @@
 import torch
-import torch.multiprocessing as mp
 from torch import nn
+from torchvision.models.resnet import _resnet
+from torchvision.models.resnet import BasicBlock
 
-from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.utils import SequenceClassificationModel
+
+
+class SimpleConvNet(nn.Module):
+    def __init__(self):
+        super().__init__()
 
 
 class AudioNet(SequenceClassificationModel):
@@ -15,32 +20,32 @@ class AudioNet(SequenceClassificationModel):
             num_classes=400,
             pretrained=pretrained,
         )
-        self.r2plus1.layer3 = nn.Identity()
-        self.r2plus1.layer4 = nn.Identity()
-        self.r2plus1.fc = nn.Linear(128, 256)
+        self.r2plus1.fc = nn.Linear(512, 256)
 
-        self.resnet = Resnet182D(
-            num_classes=256, sequence_length=1, pretrained=pretrained
+        self.resnet = _resnet(
+            "resnet18",
+            BasicBlock,
+            [1, 1, 1, 1],
+            pretrained=False,
+            progress=True,
+            num_classes=256,
         )
-        self.resnet.resnet.conv1 = nn.Conv2d(
+        self.resnet.conv1 = nn.Conv2d(
             1, 64, kernel_size=3, stride=1, padding=1, bias=False
         )
-        self.resnet.resnet.layer2 = nn.Identity()
-        self.resnet.resnet.layer3 = nn.Identity()
-        self.resnet.resnet.fc = nn.Linear(64, 256)
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Linear(256, 256)
 
+        self.relu = nn.ReLU()
         self.out = nn.Linear(512, self.num_classes)
 
     def forward(self, x):
         video, audio = x
-        video = video.transpose(1, 2)
 
-        processes = []
-        p = mp.Process(target=self.r2plus1, args=(video,))
-        p.start()
-        processes.append(p)
+        video = video.transpose(1, 2)
         video = self.r2plus1(video)
         audio = self.resnet(audio.unsqueeze(1))
+
         flat = torch.cat((video, audio), dim=1)
-        out = self.out(flat)
+        out = self.out(self.relu(flat))
         return out

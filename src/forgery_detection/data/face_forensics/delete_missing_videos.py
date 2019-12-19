@@ -90,3 +90,13 @@ for subdir in missing_videos_data_structure.get_subdirs():
         else:
             take_list.append(video)
     print(len(delete_list), len(take_list), subdir)
+
+# video Deepfakes/c40/face_images_tracked/739_865 (also FaceSwap) has some issues so it
+# needs to be deleted as well (apparently that was only the test set)
+# also:
+# 174_964
+# 122_144
+# 119_123
+# 017_803
+
+# 084_042
