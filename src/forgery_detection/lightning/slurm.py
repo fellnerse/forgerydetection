@@ -15,7 +15,7 @@ parser.add_argument(
 )
 parser.add_argument("--audio_file", default=None, type=str)
 parser.add_argument("--log_dir", default="/log/test_slurm", type=str)
-parser.add_argument("--batch_size", default=512, type=int)
+parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
 parser.add_argument("--model", default="resnet182d", type=str)
 parser.add_argument("--transforms", default="none", type=str)
@@ -78,7 +78,6 @@ def train_fx(trial_hparams, cluster_manager):
         val_percent_check=trial_hparams["val_check_interval"],
         val_check_interval=trial_hparams["val_check_interval"],
         weights_summary=None,
-        max_nb_epochs=2,
     )
     trainer.fit(my_model)
 
