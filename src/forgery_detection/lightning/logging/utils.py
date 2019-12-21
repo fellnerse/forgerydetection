@@ -89,7 +89,6 @@ class DictHolder(dict):
     """This just makes sure that the pytorch_lightning syntax works."""
 
     def __init__(self, kwargs: Union[dict, Namespace]):
-
         # if loading from checkpoint hparams will be a namespace
         if isinstance(kwargs, Namespace):
             kwargs = kwargs.__dict__
@@ -126,9 +125,10 @@ class DictHolder(dict):
             if isinstance(value, bool):
                 if value:
                     cli_arguments += f" --{key}"
-            else:
+            elif isinstance(value, (int, float, dict, str, type(None))):
                 cli_arguments += f" --{key}={value}"
-
+            else:
+                logger.warning(f"Not logging item_type {type(value)}.")
         return cli_arguments
 
     @staticmethod
