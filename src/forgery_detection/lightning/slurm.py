@@ -17,7 +17,7 @@ parser.add_argument("--audio_file", default=None, type=str)
 parser.add_argument("--log_dir", default="/log/test_slurm", type=str)
 parser.add_argument("--batch_size", default=512, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
-parser.add_argument("--model", default="resnet18multiclassdropout", type=str)
+parser.add_argument("--model", default="resnet182d", type=str)
 parser.add_argument("--transforms", default="none", type=str)
 parser.add_argument("--val_check_interval", default=0.02, type=float)
 parser.add_argument("--dont_balance_data", default=False)
@@ -57,7 +57,7 @@ cluster.per_experiment_nb_gpus = 1
 cluster.per_experiment_nb_nodes = 1
 
 # we'll request 10GB of memory per node
-cluster.memory_mb_per_node = 10000
+cluster.memory_mb_per_node = 20000
 
 # set a walltime of 10 minues
 cluster.job_time = "30:00"

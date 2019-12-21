@@ -6,7 +6,7 @@ from forgery_detection.models.utils import SequenceClassificationModel
 
 class Resnet182D(SequenceClassificationModel):
     def __init__(
-        self, num_classes, sequence_length, pretrained, contains_dropout=False
+        self, num_classes=5, sequence_length=1, pretrained=True, contains_dropout=False
     ):
         super().__init__(
             num_classes, sequence_length, contains_dropout=contains_dropout
