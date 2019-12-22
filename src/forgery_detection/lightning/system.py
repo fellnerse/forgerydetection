@@ -188,7 +188,6 @@ class Supervised(pl.LightningModule):
 
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-        logger.info("lightning_log: " + str(tensorboard_log))
         log_hparams(
             hparam_dict=self.hparams.to_dict(),
             metric_dict={

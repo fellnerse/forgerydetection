@@ -289,6 +289,7 @@ def _log_hparams(
     if type(hparam_dict) is not dict or type(metric_dict) is not dict:
         raise TypeError("hparam_dict and metric_dict should be dictionary.")
 
+    # todo is it possible to use the default file_writer here?
     with SummaryWriter(
         log_dir=os.path.join(experiment.file_writer.get_logdir(), name)
     ) as w_hp:

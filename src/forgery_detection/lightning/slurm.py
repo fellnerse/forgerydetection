@@ -15,7 +15,9 @@ parser.add_argument(
 )
 parser.add_argument("--audio_file", default=None, type=str)
 # todo find way of changing this logdir via cli
-parser.add_argument("--log_dir", default="/log/test_slurm/20_lr_weight_decay", type=str)
+parser.add_argument(
+    "--log_dir", default="/log/test_slurm/20_lr_weight_decay_better_ranges", type=str
+)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
 parser.add_argument("--model", default="resnet182d", type=str)
@@ -34,7 +36,7 @@ parser.opt_list(
     type=float,
     help="the learning rate",
     tunable=True,
-    options=list(np.power(10.0, -np.linspace(0.0, 10.0, num=10))),
+    options=np.power(10.0, -np.random.uniform(3, 7, size=10)),
 )
 
 parser.opt_list(
@@ -43,7 +45,7 @@ parser.opt_list(
     type=float,
     help="the learning rate",
     tunable=True,
-    options=list(np.linspace(0.0, 1.0, num=10)),
+    options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
 )
 
 hparams = parser.parse_args()
@@ -76,7 +78,7 @@ cluster.minutes_to_checkpoint_before_walltime = 1
 
 
 def train_fx(trial_hparams, cluster_manager):
-    print("cuda_devices availabel", torch.cuda.device_count())
+    print("cuda_devices available", torch.cuda.device_count())
     trial_hparams = trial_hparams.__dict__
     trial_hparams["mode"] = SystemMode.TRAIN
 

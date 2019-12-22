@@ -28,7 +28,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     default="/log",
 )
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
-@click.option("--weight_decay", default=0, help="Weight-decay used by optimizer")
+@click.option("--weight_decay", default=0.0, help="Weight-decay used by optimizer")
 @click.option("--batch_size", default=256, help="Path to data to validate on")
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
