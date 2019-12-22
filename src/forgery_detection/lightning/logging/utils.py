@@ -1,5 +1,6 @@
 import itertools
 import logging
+import os
 from argparse import Namespace
 from copy import deepcopy
 from enum import auto
@@ -19,6 +20,8 @@ from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_auc_score
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.summary import hparams
 from torchvision.utils import make_grid
 
 from forgery_detection.data.set import FileListDataset
@@ -115,6 +118,9 @@ class DictHolder(dict):
         logger.info(f"Trainable params: " f"{params}")
         self["nb_trainable_params"] = params
 
+    def to_dict(self):
+        return dict(self)
+
     @staticmethod
     def _construct_cli_arguments_from_hparams(hparams: dict):
         hparams_copy = deepcopy(hparams)
@@ -125,7 +131,7 @@ class DictHolder(dict):
             if isinstance(value, bool):
                 if value:
                     cli_arguments += f" --{key}"
-            elif isinstance(value, (int, float, dict, str, type(None))):
+            elif isinstance(value, (int, float, dict, str, type(None), list)):
                 cli_arguments += f" --{key}={value}"
             else:
                 logger.warning(f"Not logging item_type {type(value)}.")
@@ -246,3 +252,64 @@ def log_dataset_preview(
     datapoints = torch.stack(datapoints, dim=0)
     datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
     _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)
+
+
+def _map_to_loggable_hparam_types(hparams: dict) -> dict:
+    for key, value in hparams.items():
+        if isinstance(value, (type(None), list)):
+            hparams[key] = str(value)
+    return hparams
+
+
+def _filter_loggable_hparams(hparams: dict) -> dict:
+    return dict(
+        filter(
+            lambda item: isinstance(item[1], (int, float, str, bool)), hparams.items()
+        )
+    )
+
+
+def log_hparams(
+    hparam_dict: dict, metric_dict: dict, _logger: TestTubeLogger, global_step=None
+):
+    hparam_dict = _map_to_loggable_hparam_types(hparam_dict)
+    hparam_dict = _filter_loggable_hparams(hparam_dict)
+    _log_hparams(
+        hparam_dict=hparam_dict,
+        metric_dict=metric_dict,
+        experiment=_logger.experiment,
+        name="hparams",
+        global_step=global_step,
+    )
+
+
+def _log_hparams(
+    experiment, hparam_dict=None, metric_dict=None, name=None, global_step=None
+):
+    if type(hparam_dict) is not dict or type(metric_dict) is not dict:
+        raise TypeError("hparam_dict and metric_dict should be dictionary.")
+
+    with SummaryWriter(
+        log_dir=os.path.join(experiment.file_writer.get_logdir(), name)
+    ) as w_hp:
+        if global_step == 0:
+            exp, ssi, sei = hparams(hparam_dict, metric_dict)
+            w_hp.file_writer.add_summary(exp)
+            w_hp.file_writer.add_summary(ssi)
+            w_hp.file_writer.add_summary(sei)
+
+        if global_step > 0:
+            for k, v in metric_dict.items():
+                # this needs to be added to the same summarywriter object as the hparams
+                # either log hparams in the other summary writer object
+                # or log after each epoch values in same summarywriter object as hparams
+                if isinstance(v, dict):
+                    w_hp.add_scalars(k, v, global_step=global_step)
+                    logger.warning(
+                        "Logging multiple scalars with dict will not work for"
+                        "hparams and metrics. Because add_scalars generates new"
+                        " filewriters but everything that should be shown in hparams"
+                        "needs be written with the same filewriter."
+                    )
+                else:
+                    w_hp.add_scalar(k, v, global_step=global_step)

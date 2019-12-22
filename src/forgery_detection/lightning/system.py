@@ -32,6 +32,7 @@ from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
+from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
@@ -158,6 +159,13 @@ class Supervised(pl.LightningModule):
             pass
 
     def on_sanity_check_start(self):
+        log_hparams(
+            hparam_dict=self.hparams.to_dict(),
+            metric_dict={"metrics/acc": np.nan, "metrics/loss": np.nan},
+            _logger=self.logger,
+            global_step=0,
+        )
+
         if not self.hparams["debug"]:
             log_dataset_preview(self.train_data, "preview/train_data", self.logger)
             log_dataset_preview(self.val_data, "preview/val_data", self.logger)
@@ -180,6 +188,17 @@ class Supervised(pl.LightningModule):
 
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+        logger.info("lightning_log: " + str(tensorboard_log))
+        log_hparams(
+            hparam_dict=self.hparams.to_dict(),
+            metric_dict={
+                "metrics/acc": tensorboard_log["acc"],
+                "metrics/loss": tensorboard_log["loss"],
+            },
+            _logger=self.logger,
+            global_step=self.global_step,
+        )
+
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
         )
@@ -199,7 +218,9 @@ class Supervised(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams["lr"]
+            filter(lambda p: p.requires_grad, self.parameters()),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams["weight_decay"],
         )
         return optimizer
 

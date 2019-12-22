@@ -14,7 +14,8 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument("--audio_file", default=None, type=str)
-parser.add_argument("--log_dir", default="/log/test_slurm", type=str)
+# todo find way of changing this logdir via cli
+parser.add_argument("--log_dir", default="/log/test_slurm/20_lr_weight_decay", type=str)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
 parser.add_argument("--model", default="resnet182d", type=str)
@@ -34,6 +35,15 @@ parser.opt_list(
     help="the learning rate",
     tunable=True,
     options=list(np.power(10.0, -np.linspace(0.0, 10.0, num=10))),
+)
+
+parser.opt_list(
+    "--weight_decay",
+    default=0,
+    type=float,
+    help="the learning rate",
+    tunable=True,
+    options=list(np.linspace(0.0, 1.0, num=10)),
 )
 
 hparams = parser.parse_args()
@@ -61,6 +71,7 @@ cluster.memory_mb_per_node = 20000
 
 # set a walltime of 10 minues
 cluster.job_time = "30:00"
+# cluster.job_time = "5:00"
 cluster.minutes_to_checkpoint_before_walltime = 1
 
 
@@ -78,6 +89,8 @@ def train_fx(trial_hparams, cluster_manager):
         val_percent_check=trial_hparams["val_check_interval"],
         val_check_interval=trial_hparams["val_check_interval"],
         weights_summary=None,
+        early_stop_callback=None,
+        max_nb_epochs=14,
     )
     trainer.fit(my_model)
 
@@ -85,7 +98,7 @@ def train_fx(trial_hparams, cluster_manager):
 # run the models on the cluster
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
-    nb_trials=10,
+    nb_trials=20,
     job_name="my_grid_search_exp_name",
     job_display_name="my_exp",
     enable_auto_resubmit=True,
