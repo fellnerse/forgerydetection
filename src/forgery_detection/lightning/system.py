@@ -1,4 +1,5 @@
 import logging
+import multiprocessing as mp
 import pickle
 from argparse import Namespace
 from pathlib import Path
@@ -158,6 +159,11 @@ class Supervised(pl.LightningModule):
         elif self.system_mode is SystemMode.BENCHMARK:
             pass
 
+        # hparams logging
+        self.decay = 0.95
+        self.acc = -1
+        self.loss = -1
+
     def on_sanity_check_start(self):
         log_hparams(
             hparam_dict=self.hparams.to_dict(),
@@ -186,17 +192,27 @@ class Supervised(pl.LightningModule):
 
         return {"pred": pred, "target": target}
 
-    def validation_end(self, outputs):
-        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+    def _log_metrics_for_hparams(self, tensorboard_log: dict):
+        acc = tensorboard_log["acc"]
+        loss = tensorboard_log["loss"]
+        if self.acc < 0:
+            self.acc = acc
+            self.loss = loss
+        else:
+            self.acc = self.decay * self.acc + (1 - self.decay) * acc
+            self.loss = self.decay * self.loss + (1 - self.decay) * loss
+
         log_hparams(
             hparam_dict=self.hparams.to_dict(),
-            metric_dict={
-                "metrics/acc": tensorboard_log["acc"],
-                "metrics/loss": tensorboard_log["loss"],
-            },
+            metric_dict={"metrics/acc": self.acc, "metrics/loss": self.loss},
             _logger=self.logger,
             global_step=self.global_step,
         )
+
+    def validation_end(self, outputs):
+        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+
+        self._log_metrics_for_hparams(tensorboard_log)
 
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
@@ -229,7 +245,7 @@ class Supervised(pl.LightningModule):
             self.train_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
         )
 
     @pl.data_loader
@@ -238,7 +254,7 @@ class Supervised(pl.LightningModule):
             self.val_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
 
@@ -255,7 +271,7 @@ class Supervised(pl.LightningModule):
         loader = DataLoader(
             dataset=self.test_data,
             batch_sampler=sampler,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
             collate_fn=get_sequence_collate_fn(
                 sequence_length=self.test_data.sequence_length
             ),
