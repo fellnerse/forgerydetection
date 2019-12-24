@@ -7,6 +7,9 @@ from test_tube.hpc import SlurmCluster
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 
+# todo find way of changing this logdir via cli
+experiment_name = "50_data_augmentation_5_epochs"
+
 parser = HyperOptArgumentParser(strategy="random_search")
 parser.add_argument(
     "--data_dir",
@@ -14,10 +17,7 @@ parser.add_argument(
     type=str,
 )
 parser.add_argument("--audio_file", default=None, type=str)
-# todo find way of changing this logdir via cli
-parser.add_argument(
-    "--log_dir", default="/log/test_slurm/50_data_augmentation_5_epochs", type=str
-)
+parser.add_argument("--log_dir", default=f"/log/test_slurm/{experiment_name}", type=str)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
 parser.add_argument("--model", default="resnet182d", type=str)
@@ -77,22 +77,15 @@ cluster = SlurmCluster(
     "bin/python",
 )
 
-# let the cluster know where to email for a change in job status
-# (ie: complete, fail, etc...)
 cluster.notify_job_status(email="fellnerseb@gmail.com", on_done=True, on_fail=True)
 
-# set the job options. In this instance, we'll run 20 different models
-# each with its own set of hyperparameters giving each one 1 GPU (ie: taking up 20 GPUs)
 cluster.per_experiment_nb_gpus = 1
 cluster.per_experiment_nb_nodes = 1
 cluster.per_experiment_nb_cpus = 2
 
-# we'll request 10GB of memory per node
 cluster.memory_mb_per_node = 20000
 
-# set a walltime of 10 minues
 cluster.job_time = "2:00:00"
-# cluster.job_time = "5:00"
 cluster.minutes_to_checkpoint_before_walltime = 1
 
 
@@ -103,7 +96,6 @@ def train_fx(trial_hparams, cluster_manager):
 
     my_model = Supervised(trial_hparams)
 
-    # give the trainer the cluster object
     trainer = Trainer(
         gpus=trial_hparams["gpus"],
         default_save_path=trial_hparams["log_dir"],
@@ -120,7 +112,7 @@ def train_fx(trial_hparams, cluster_manager):
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
     nb_trials=50,
-    job_name="my_grid_search_exp_name",
-    job_display_name="my_exp",
+    job_name=experiment_name,
+    job_display_name=experiment_name,
     enable_auto_resubmit=True,
 )
