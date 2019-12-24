@@ -25,8 +25,14 @@ from forgery_detection.data.loading import get_fixed_dataloader
 from forgery_detection.data.loading import get_sequence_collate_fn
 from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
+from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import get_data
+from forgery_detection.data.utils import random_erasing
+from forgery_detection.data.utils import random_greyscale
+from forgery_detection.data.utils import random_horizontal_flip
+from forgery_detection.data.utils import random_resized_crop
+from forgery_detection.data.utils import random_rotation
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.logging.utils import DictHolder
@@ -85,6 +91,9 @@ class Supervised(pl.LightningModule):
         "audioonly": AudioOnly,
     }
 
+    # todo distingluish between pre and post pil_to_tensor transforms
+    # also distingluish between resizing and augmentation (augmentation should only be
+    # done on training set
     CUSTOM_TRANSFORMS = {
         "none": [],
         "crop": crop(),
@@ -92,6 +101,12 @@ class Supervised(pl.LightningModule):
         "resized_crop_small": resized_crop(224),
         "resized_crop_112": resized_crop(112),
         "resized_crop_flip": resized_crop_flip(),
+        "random_resized_crop": random_resized_crop(112),
+        "random_horizontal_flip": random_horizontal_flip(),
+        "colour_jitter": colour_jitter(),
+        "random_rotation": random_rotation(),
+        "random_greyscale": random_greyscale(),
+        "random_erasing": random_erasing(),
     }
 
     def __init__(self, kwargs: Union[dict, Namespace]):
@@ -117,13 +132,13 @@ class Supervised(pl.LightningModule):
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            transform,
+            [],  # todo change
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            transform,
+            [],  # todo change
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
@@ -172,7 +187,7 @@ class Supervised(pl.LightningModule):
             global_step=0,
         )
 
-        if not self.hparams["debug"]:
+        if not self.hparams["debug"] or True:
             log_dataset_preview(self.train_data, "preview/train_data", self.logger)
             log_dataset_preview(self.val_data, "preview/val_data", self.logger)
             log_dataset_preview(self.test_data, "preview/test_data", self.logger)
