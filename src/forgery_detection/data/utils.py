@@ -25,7 +25,7 @@ def resized_crop_flip(size=299):
 
 
 def random_resized_crop(size=112):
-    return [transforms.RandomResizedCrop(size=size, scale=(0.25, 1.0))]
+    return [transforms.RandomResizedCrop(size=size, scale=(0.75, 1.0))]
 
 
 def random_horizontal_flip():
@@ -47,8 +47,28 @@ def random_greyscale():
 def random_erasing():
     return [
         transforms.ToTensor(),
-        transforms.RandomErasing(scale=(0.02, 0.22)),
+        transforms.RandomErasing(scale=(0.02, 0.11)),
         transforms.ToPILImage(),
+    ]
+
+
+def random_flip_rotation():
+    return [transforms.RandomHorizontalFlip(), transforms.RandomRotation(15)]
+
+
+def random_flip_greyscale():
+    return [transforms.RandomHorizontalFlip(), transforms.RandomGrayscale()]
+
+
+def random_rotation_greyscale():
+    return [transforms.RandomRotation(15), transforms.RandomGrayscale()]
+
+
+def random_flip_rotation_greyscale():
+    return [
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),
+        transforms.RandomGrayscale(),
     ]
 
 

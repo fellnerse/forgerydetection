@@ -29,10 +29,14 @@ from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import get_data
 from forgery_detection.data.utils import random_erasing
+from forgery_detection.data.utils import random_flip_greyscale
+from forgery_detection.data.utils import random_flip_rotation
+from forgery_detection.data.utils import random_flip_rotation_greyscale
 from forgery_detection.data.utils import random_greyscale
 from forgery_detection.data.utils import random_horizontal_flip
 from forgery_detection.data.utils import random_resized_crop
 from forgery_detection.data.utils import random_rotation
+from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.logging.utils import DictHolder
@@ -107,6 +111,10 @@ class Supervised(pl.LightningModule):
         "random_rotation": random_rotation(),
         "random_greyscale": random_greyscale(),
         "random_erasing": random_erasing(),
+        "random_flip_rotation": random_flip_rotation(),
+        "random_flip_greyscale": random_flip_greyscale(),
+        "random_rotation_greyscale": random_rotation_greyscale(),
+        "random_flip_rotation_greyscale": random_flip_rotation_greyscale(),
     }
 
     def __init__(self, kwargs: Union[dict, Namespace]):

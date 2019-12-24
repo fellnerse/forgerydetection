@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
@@ -8,7 +7,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 
 # todo find way of changing this logdir via cli
-experiment_name = "50_data_augmentation_5_epochs"
+experiment_name = "50_more_data_augmentation_5_epochs"
 
 parser = HyperOptArgumentParser(strategy="random_search")
 parser.add_argument(
@@ -37,37 +36,42 @@ parser.opt_list(
     tunable=True,
     options=[
         "none",
-        "random_resized_crop",
         "random_horizontal_flip",
-        "colour_jitter",
         "random_rotation",
         "random_greyscale",
-        "random_erasing",
+        "random_flip_rotation",
+        "random_flip_greyscale",
+        "random_rotation_greyscale",
+        "random_flip_rotation_greyscale",
     ],
 )
 
-parser.opt_list(
-    "--lr",
-    default=10e-5,
-    type=float,
-    help="the learning rate",
-    tunable=True,
-    # options=np.power(10.0, -np.random.uniform(4, 6, size=10)),
-    options=np.power(10.0, -np.linspace(4.0, 5.0, num=10)),
-)
+parser.add_argument("--lr", default=6e-5, type=float)
+# parser.opt_list(
+#     "--lr",
+#     default=10e-5,
+#     type=float,
+#     help="the learning rate",
+#     tunable=True,
+#     # options=np.power(10.0, -np.random.uniform(4, 6, size=10)),
+#     options=np.power(10.0, -np.linspace(4.0, 5.0, num=10)),
+# )
 
-parser.opt_list(
-    "--weight_decay",
-    default=0,
-    type=float,
-    help="the learning rate",
-    tunable=True,
-    # options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
-    options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
-)
+parser.add_argument("--weight_decay", default=4.6e-6, type=float)
+# parser.opt_list(
+#     "--weight_decay",
+#     default=0,
+#     type=float,
+#     help="the learning rate",
+#     tunable=True,
+#     # options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
+#     options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
+# )
+
 
 hparams = parser.parse_args()
 
+# todo log this to file (search_space.txt)
 
 # init cluster
 cluster = SlurmCluster(
@@ -111,7 +115,7 @@ def train_fx(trial_hparams, cluster_manager):
 # todo change stuff here as well
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
-    nb_trials=50,
+    nb_trials=8,
     job_name=experiment_name,
     job_display_name=experiment_name,
     enable_auto_resubmit=True,
