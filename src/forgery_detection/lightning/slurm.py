@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
@@ -7,7 +8,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 
 # todo find way of changing this logdir via cli
-experiment_name = "50_more_data_augmentation_5_epochs"
+experiment_name = "100_lr_wd_3d_5_epochs_bs_50"
 
 parser = HyperOptArgumentParser(strategy="random_search")
 parser.add_argument(
@@ -19,7 +20,7 @@ parser.add_argument("--audio_file", default=None, type=str)
 parser.add_argument("--log_dir", default=f"/log/test_slurm/{experiment_name}", type=str)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
-parser.add_argument("--model", default="resnet182d", type=str)
+parser.add_argument("--model", default="resnet183dnodropout", type=str)
 
 parser.add_argument("--val_check_interval", default=0.02, type=float)
 parser.add_argument("--dont_balance_data", default=False)
@@ -28,45 +29,45 @@ parser.add_argument("--log_roc_values", default=False)
 
 parser.add_argument("--debug", default=False, type=bool)
 
-# parser.add_argument("--transforms", default="none", type=str)
+parser.add_argument("--transforms", default="none", type=str)
+# parser.opt_list(
+#     "--transforms",
+#     default="none",
+#     type=str,
+#     tunable=True,
+#     options=[
+#         "none",
+#         "random_horizontal_flip",
+#         "random_rotation",
+#         "random_greyscale",
+#         "random_flip_rotation",
+#         "random_flip_greyscale",
+#         "random_rotation_greyscale",
+#         "random_flip_rotation_greyscale",
+#     ],
+# )
+
+# parser.add_argument("--lr", default=6e-5, type=float)
 parser.opt_list(
-    "--transforms",
-    default="none",
-    type=str,
+    "--lr",
+    default=10e-5,
+    type=float,
+    help="the learning rate",
     tunable=True,
-    options=[
-        "none",
-        "random_horizontal_flip",
-        "random_rotation",
-        "random_greyscale",
-        "random_flip_rotation",
-        "random_flip_greyscale",
-        "random_rotation_greyscale",
-        "random_flip_rotation_greyscale",
-    ],
+    # options=np.power(10.0, -np.random.uniform(4, 6, size=10)),
+    options=np.power(10.0, -np.linspace(3.0, 7.0, num=10)),
 )
 
-parser.add_argument("--lr", default=6e-5, type=float)
-# parser.opt_list(
-#     "--lr",
-#     default=10e-5,
-#     type=float,
-#     help="the learning rate",
-#     tunable=True,
-#     # options=np.power(10.0, -np.random.uniform(4, 6, size=10)),
-#     options=np.power(10.0, -np.linspace(4.0, 5.0, num=10)),
-# )
-
-parser.add_argument("--weight_decay", default=4.6e-6, type=float)
-# parser.opt_list(
-#     "--weight_decay",
-#     default=0,
-#     type=float,
-#     help="the learning rate",
-#     tunable=True,
-#     # options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
-#     options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
-# )
+# parser.add_argument("--weight_decay", default=4.6e-6, type=float)
+parser.opt_list(
+    "--weight_decay",
+    default=0,
+    type=float,
+    help="the learning rate",
+    tunable=True,
+    # options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
+    options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
+)
 
 
 hparams = parser.parse_args()
@@ -115,7 +116,7 @@ def train_fx(trial_hparams, cluster_manager):
 # todo change stuff here as well
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
-    nb_trials=8,
+    nb_trials=100,
     job_name=experiment_name,
     job_display_name=experiment_name,
     enable_auto_resubmit=True,
