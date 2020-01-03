@@ -8,7 +8,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 
 # todo find way of changing this logdir via cli
-experiment_name = "100_lr_wd_3d_5_epochs_bs_50"
+experiment_name = "100_lr_wd_fully_3d_5_epochs_bs_50"
 
 parser = HyperOptArgumentParser(strategy="random_search")
 parser.add_argument(
@@ -20,7 +20,7 @@ parser.add_argument("--audio_file", default=None, type=str)
 parser.add_argument("--log_dir", default=f"/log/test_slurm/{experiment_name}", type=str)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
-parser.add_argument("--model", default="resnet183dnodropout", type=str)
+parser.add_argument("--model", default="resnet18fully3dpretrained", type=str)
 
 parser.add_argument("--val_check_interval", default=0.02, type=float)
 parser.add_argument("--dont_balance_data", default=False)
@@ -72,7 +72,7 @@ parser.opt_list(
 
 hparams = parser.parse_args()
 
-# todo log this to file (search_space.txt)
+# todo log this to file (search_space.txt) (slurm.py)
 
 # init cluster
 cluster = SlurmCluster(
