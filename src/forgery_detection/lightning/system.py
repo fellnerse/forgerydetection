@@ -117,6 +117,16 @@ class Supervised(pl.LightningModule):
         "random_flip_rotation_greyscale": random_flip_rotation_greyscale(),
     }
 
+    def _get_transforms(self, transforms: str):
+        if " " not in transforms:
+            return self.CUSTOM_TRANSFORMS[transforms]
+
+        transform_list = transforms.split(" ")
+        transforms = []
+        for transform in transform_list:
+            transforms.extend(self.CUSTOM_TRANSFORMS[transform])
+        return transforms
+
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()
 
@@ -131,7 +141,7 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.cl)})"
             )
 
-        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]
+        transform = self._get_transforms(self.hparams["transforms"])
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
             transform,
@@ -140,13 +150,14 @@ class Supervised(pl.LightningModule):
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            [],  # todo change
+            transform,  # todo change (when validating no data augmentation should
+            # happen)
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            [],  # todo change
+            transform,  # todo change
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
