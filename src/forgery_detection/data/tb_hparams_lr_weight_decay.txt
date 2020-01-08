@@ -1,0 +1,1128 @@
+Trial ID,Show Metrics,
+              transforms
+            ,
+              lr
+            ,
+              weight_decay
+            ,
+              metrics/acc
+            ,
+              metrics/loss
+            ,,,,,,,,lightning_logs/version_852/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              1.0000e-8
+            ,
+              0.46178
+            ,
+              1.4527
+            ,lightning_logs/version_853/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              4.6416e-10
+            ,
+              0.67140
+            ,
+              0.89777
+            ,lightning_logs/version_854/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              2.1544e-9
+            ,
+              0.29609
+            ,
+              1.5757
+            ,lightning_logs/version_855/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              4.6416e-8
+            ,
+              0.46418
+            ,
+              1.4443
+            ,lightning_logs/version_856/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              2.1544e-9
+            ,
+              0.70838
+            ,
+              1.2892
+            ,lightning_logs/version_857/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              0.000021544
+            ,
+              0.71382
+            ,
+              1.2445
+            ,lightning_logs/version_858/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              0.0000046416
+            ,
+              0.61071
+            ,
+              0.97129
+            ,lightning_logs/version_859/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              0.00010000
+            ,
+              0.53425
+            ,
+              1.3983
+            ,lightning_logs/version_860/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              2.1544e-7
+            ,
+              0.47726
+            ,
+              1.4289
+            ,lightning_logs/version_861/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              1.0000e-10
+            ,
+              0.64967
+            ,
+              0.92185
+            ,lightning_logs/version_862/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              0.00010000
+            ,
+              0.64405
+            ,
+              0.95673
+            ,lightning_logs/version_863/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              0.000021544
+            ,
+              0.66026
+            ,
+              1.5752
+            ,lightning_logs/version_864/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              0.0000010000
+            ,
+              0.44469
+            ,
+              1.4814
+            ,lightning_logs/version_865/tf/hparams,
+              none
+            ,
+              0.00012915
+            ,
+              4.6416e-10
+            ,
+              0.70223
+            ,
+              1.5031
+            ,lightning_logs/version_866/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              0.0000046416
+            ,
+              0.61815
+            ,
+              1.8513
+            ,lightning_logs/version_867/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              2.1544e-9
+            ,
+              0.62250
+            ,
+              1.8213
+            ,lightning_logs/version_868/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              0.0000046416
+            ,
+              0.43362
+            ,
+              1.4872
+            ,lightning_logs/version_869/tf/hparams,
+              none
+            ,
+              7.7426e-7
+            ,
+              1.0000e-8
+            ,
+              0.54475
+            ,
+              1.1920
+            ,lightning_logs/version_870/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              0.0000010000
+            ,
+              0.70882
+            ,
+              1.2258
+            ,lightning_logs/version_871/tf/hparams,
+              none
+            ,
+              0.00012915
+            ,
+              1.0000e-10
+            ,
+              0.70483
+            ,
+              1.3765
+            ,lightning_logs/version_872/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              0.00010000
+            ,
+              0.71083
+            ,
+              1.2966
+            ,lightning_logs/version_873/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              0.000021544
+            ,
+              0.28169
+            ,
+              1.5846
+            ,lightning_logs/version_874/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              4.6416e-10
+            ,
+              0.45858
+            ,
+              1.4771
+            ,lightning_logs/version_875/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              1.0000e-10
+            ,
+              0.71366
+            ,
+              1.3547
+            ,lightning_logs/version_876/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              2.1544e-7
+            ,
+              0.70296
+            ,
+              0.77611
+            ,lightning_logs/version_877/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              2.1544e-9
+            ,
+              0.45107
+            ,
+              1.4699
+            ,lightning_logs/version_878/tf/hparams,
+              none
+            ,
+              7.7426e-7
+            ,
+              4.6416e-10
+            ,
+              0.52834
+            ,
+              1.2792
+            ,lightning_logs/version_879/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              0.0000010000
+            ,
+              0.70489
+            ,
+              0.85646
+            ,lightning_logs/version_880/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              1.0000e-8
+            ,
+              0.66374
+            ,
+              1.7841
+            ,lightning_logs/version_881/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              1.0000e-8
+            ,
+              0.31353
+            ,
+              1.5683
+            ,lightning_logs/version_882/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              0.0000010000
+            ,
+              0.31158
+            ,
+              1.5704
+            ,lightning_logs/version_883/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              0.000021544
+            ,
+              0.71846
+            ,
+              0.77937
+            ,lightning_logs/version_884/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              2.1544e-7
+            ,
+              0.33277
+            ,
+              1.5688
+            ,lightning_logs/version_885/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              2.1544e-7
+            ,
+              0.70968
+            ,
+              1.3368
+            ,lightning_logs/version_886/tf/hparams,
+              none
+            ,
+              2.7826e-7
+            ,
+              0.000021544
+            ,
+              0.47504
+            ,
+              1.4218
+            ,lightning_logs/version_887/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              1.0000e-10
+            ,
+              0.66792
+            ,
+              1.7773
+            ,lightning_logs/version_888/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              1.0000e-10
+            ,
+              0.28091
+            ,
+              1.5859
+            ,lightning_logs/version_889/tf/hparams,
+              none
+            ,
+              0.00012915
+            ,
+              2.1544e-9
+            ,
+              0.69768
+            ,
+              1.3868
+            ,lightning_logs/version_890/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              0.0000010000
+            ,
+              0.64382
+            ,
+              1.8859
+            ,lightning_logs/version_891/tf/hparams,
+              none
+            ,
+              7.7426e-7
+            ,
+              1.0000e-10
+            ,
+              0.54595
+            ,
+              1.2209
+            ,lightning_logs/version_892/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              4.6416e-10
+            ,
+              0.63312
+            ,
+              1.9816
+            ,lightning_logs/version_893/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              0.00010000
+            ,
+              0.70385
+            ,
+              1.1310
+            ,lightning_logs/version_894/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              2.1544e-9
+            ,
+              0.69188
+            ,
+              1.2010
+            ,lightning_logs/version_895/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              0.00010000
+            ,
+              0.66116
+            ,
+              1.5144
+            ,lightning_logs/version_896/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              0.000021544
+            ,
+              0.70897
+            ,
+              1.1130
+            ,lightning_logs/version_897/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              4.6416e-10
+            ,
+              0.70237
+            ,
+              0.80410
+            ,lightning_logs/version_898/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              0.0000046416
+            ,
+              0.71205
+            ,
+              1.3089
+            ,lightning_logs/version_899/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              0.0000010000
+            ,
+              0.66656
+            ,
+              1.7453
+            ,lightning_logs/version_900/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              2.1544e-9
+            ,
+              0.67015
+            ,
+              1.7716
+            ,lightning_logs/version_901/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              0.0000010000
+            ,
+              0.69549
+            ,
+              1.2224
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            , ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+            ,,,,,,,,lightning_logs/version_902/tf/hparams,
+              none
+            ,
+              7.7426e-7
+            ,
+              0.00010000
+            ,
+              0.55404
+            ,
+              1.1897
+            ,lightning_logs/version_903/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              4.6416e-10
+            ,
+              0.71156
+            ,
+              1.3428
+            ,lightning_logs/version_904/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              0.0000010000
+            ,
+              0.66619
+            ,
+              0.91142
+            ,lightning_logs/version_905/tf/hparams,
+              none
+            ,
+              0.00035938
+            ,
+              4.6416e-10
+            ,
+              0.66682
+            ,
+              1.6984
+            ,lightning_logs/version_906/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              4.6416e-10
+            ,
+              0.30881
+            ,
+              1.5711
+            ,lightning_logs/version_907/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              0.00010000
+            ,
+              0.70262
+            ,
+              0.81552
+            ,lightning_logs/version_908/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              1.0000e-8
+            ,
+              0.70025
+            ,
+              1.1598
+            ,lightning_logs/version_909/tf/hparams,
+              none
+            ,
+              7.7426e-7
+            ,
+              2.1544e-9
+            ,
+              0.53441
+            ,
+              1.2212
+            ,lightning_logs/version_910/tf/hparams,
+              none
+            ,
+              0.00012915
+            ,
+              0.0000010000
+            ,
+              0.70755
+            ,
+              1.3601
+            ,lightning_logs/version_911/tf/hparams,
+              none
+            ,
+              0.0010000
+            ,
+              1.0000e-8
+            ,
+              0.62396
+            ,
+              1.9181
+            ,lightning_logs/version_912/tf/hparams,
+              none
+            ,
+              1.0000e-7
+            ,
+              0.00010000
+            ,
+              0.30684
+            ,
+              1.5728
+            ,lightning_logs/version_913/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              1.0000e-8
+            ,
+              0.70343
+            ,
+              0.80647
+            ,lightning_logs/version_914/tf/hparams,
+              none
+            ,
+              0.000046416
+            ,
+              1.0000e-8
+            ,
+              0.70714
+            ,
+              1.3546
+            ,lightning_logs/version_915/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              2.1544e-9
+            ,
+              0.60197
+            ,
+              1.0022
+            ,lightning_logs/version_916/tf/hparams,
+              none
+            ,
+              0.000016681
+            ,
+              4.6416e-10
+            ,
+              0.69817
+            ,
+              0.91754
+            ,lightning_logs/version_917/tf/hparams,
+              none
+            ,
+              0.0000059948
+            ,
+              0.0000046416
+            ,
+              0.67808
+            ,
+              0.84439
+            ,lightning_logs/version_918/tf/hparams,
+              none
+            ,
+              0.0000021544
+            ,
+              4.6416e-8
+            ,
+              0.52195
+            ,
+              1.2806
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,
+
+            ,,
+
+            ,
+
+            ,
+
+            ,
+
+            ,

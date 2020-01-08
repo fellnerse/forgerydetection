@@ -28,6 +28,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     default="/log",
 )
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
+@click.option("--weight_decay", default=0.0, help="Weight-decay used by optimizer")
 @click.option("--batch_size", default=256, help="Path to data to validate on")
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
@@ -40,10 +41,15 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Model that should be trained",
 )
 @click.option(
-    "--transforms",
-    type=click.Choice(Supervised.CUSTOM_TRANSFORMS.keys()),
-    default="resized_crop_small",
-    help="Transforms used for data preprocessing.",
+    "--resize_transforms",
+    default="none",
+    help="This resize transform is applied to train/val/test images",
+)
+@click.option(
+    "--augmentation_transforms",
+    default="none",
+    help="Augmentation only applied to train images. "
+    "Can be multiple if split with blank.",
 )
 # todo convert to absolute batches
 @click.option(
@@ -104,6 +110,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary=None,
-        max_nb_epochs=14,
+        max_nb_epochs=5,
     )
     trainer.fit(model)

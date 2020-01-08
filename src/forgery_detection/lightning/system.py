@@ -1,4 +1,5 @@
 import logging
+import multiprocessing as mp
 import pickle
 from argparse import Namespace
 from pathlib import Path
@@ -24,20 +25,32 @@ from forgery_detection.data.loading import get_fixed_dataloader
 from forgery_detection.data.loading import get_sequence_collate_fn
 from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
+from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import get_data
+from forgery_detection.data.utils import random_erasing
+from forgery_detection.data.utils import random_flip_greyscale
+from forgery_detection.data.utils import random_flip_rotation
+from forgery_detection.data.utils import random_flip_rotation_greyscale
+from forgery_detection.data.utils import random_greyscale
+from forgery_detection.data.utils import random_horizontal_flip
+from forgery_detection.data.utils import random_resized_crop
+from forgery_detection.data.utils import random_rotation
+from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
+from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -66,6 +79,7 @@ logger = logging.getLogger(__file__)
 
 class Supervised(pl.LightningModule):
     MODEL_DICT = {
+        "resnet182d": Resnet182D,
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
@@ -88,7 +102,27 @@ class Supervised(pl.LightningModule):
         "resized_crop_small": resized_crop(224),
         "resized_crop_112": resized_crop(112),
         "resized_crop_flip": resized_crop_flip(),
+        "random_resized_crop": random_resized_crop(112),
+        "random_horizontal_flip": random_horizontal_flip(),
+        "colour_jitter": colour_jitter(),
+        "random_rotation": random_rotation(),
+        "random_greyscale": random_greyscale(),
+        "random_erasing": random_erasing(),
+        "random_flip_rotation": random_flip_rotation(),
+        "random_flip_greyscale": random_flip_greyscale(),
+        "random_rotation_greyscale": random_rotation_greyscale(),
+        "random_flip_rotation_greyscale": random_flip_rotation_greyscale(),
     }
+
+    def _get_transforms(self, transforms: str):
+        if " " not in transforms:
+            return self.CUSTOM_TRANSFORMS[transforms]
+
+        transform_list = transforms.split(" ")
+        transforms = []
+        for transform in transform_list:
+            transforms.extend(self.CUSTOM_TRANSFORMS[transform])
+        return transforms
 
     def __init__(self, kwargs: Union[dict, Namespace]):
         super(Supervised, self).__init__()
@@ -104,22 +138,25 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.cl)})"
             )
 
-        transform = self.CUSTOM_TRANSFORMS[self.hparams["transforms"]]
+        resize_transform = self._get_transforms(self.hparams["resize_transforms"])
+        augmentation_transform = self._get_transforms(
+            self.hparams["augmentation_transforms"]
+        )
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
-            transform,
+            resize_transform + augmentation_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            transform,
+            resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            transform,
+            resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
@@ -155,8 +192,20 @@ class Supervised(pl.LightningModule):
         elif self.system_mode is SystemMode.BENCHMARK:
             pass
 
+        # hparams logging
+        self.decay = 0.95
+        self.acc = -1
+        self.loss = -1
+
     def on_sanity_check_start(self):
-        if not self.hparams["debug"]:
+        log_hparams(
+            hparam_dict=self.hparams.to_dict(),
+            metric_dict={"metrics/acc": np.nan, "metrics/loss": np.nan},
+            _logger=self.logger,
+            global_step=0,
+        )
+
+        if not self.hparams["debug"] or True:
             log_dataset_preview(self.train_data, "preview/train_data", self.logger)
             log_dataset_preview(self.val_data, "preview/val_data", self.logger)
             log_dataset_preview(self.test_data, "preview/test_data", self.logger)
@@ -176,8 +225,28 @@ class Supervised(pl.LightningModule):
 
         return {"pred": pred, "target": target}
 
+    def _log_metrics_for_hparams(self, tensorboard_log: dict):
+        acc = tensorboard_log["acc"]
+        loss = tensorboard_log["loss"]
+        if self.acc < 0:
+            self.acc = acc
+            self.loss = loss
+        else:
+            self.acc = self.decay * self.acc + (1 - self.decay) * acc
+            self.loss = self.decay * self.loss + (1 - self.decay) * loss
+
+        log_hparams(
+            hparam_dict=self.hparams.to_dict(),
+            metric_dict={"metrics/acc": self.acc, "metrics/loss": self.loss},
+            _logger=self.logger,
+            global_step=self.global_step,
+        )
+
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+
+        self._log_metrics_for_hparams(tensorboard_log)
+
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
         )
@@ -197,7 +266,9 @@ class Supervised(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, self.parameters()), lr=self.hparams["lr"]
+            filter(lambda p: p.requires_grad, self.parameters()),
+            lr=self.hparams["lr"],
+            weight_decay=self.hparams["weight_decay"],
         )
         return optimizer
 
@@ -207,7 +278,7 @@ class Supervised(pl.LightningModule):
             self.train_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
         )
 
     @pl.data_loader
@@ -216,7 +287,7 @@ class Supervised(pl.LightningModule):
             self.val_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
 
@@ -233,7 +304,7 @@ class Supervised(pl.LightningModule):
         loader = DataLoader(
             dataset=self.test_data,
             batch_sampler=sampler,
-            num_workers=12,
+            num_workers=mp.cpu_count(),
             collate_fn=get_sequence_collate_fn(
                 sequence_length=self.test_data.sequence_length
             ),

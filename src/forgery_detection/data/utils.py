@@ -24,6 +24,54 @@ def resized_crop_flip(size=299):
     ]
 
 
+def random_resized_crop(size=112):
+    return [transforms.RandomResizedCrop(size=size, scale=(0.75, 1.0))]
+
+
+def random_horizontal_flip():
+    return [transforms.RandomHorizontalFlip()]
+
+
+def colour_jitter():
+    return [transforms.ColorJitter()]
+
+
+def random_rotation():
+    return [transforms.RandomRotation(15)]
+
+
+def random_greyscale():
+    return [transforms.RandomGrayscale()]
+
+
+def random_erasing():
+    return [
+        transforms.ToTensor(),
+        transforms.RandomErasing(scale=(0.02, 0.11)),
+        transforms.ToPILImage(),
+    ]
+
+
+def random_flip_rotation():
+    return [transforms.RandomHorizontalFlip(), transforms.RandomRotation(15)]
+
+
+def random_flip_greyscale():
+    return [transforms.RandomHorizontalFlip(), transforms.RandomGrayscale()]
+
+
+def random_rotation_greyscale():
+    return [transforms.RandomRotation(15), transforms.RandomGrayscale()]
+
+
+def random_flip_rotation_greyscale():
+    return [
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),
+        transforms.RandomGrayscale(),
+    ]
+
+
 def get_data(
     data_dir, custom_transforms: Callable[[], List[Callable]] = crop
 ) -> ImageFolder:

@@ -66,18 +66,19 @@ class Resnet18Fully3D(SequenceClassificationModel):
         super().__init__(num_classes=5, sequence_length=8, contains_dropout=True)
         self.resnet = resnet_fully_3d.resnet18(
             pretrained=pretrained,
-            sample_size=224 * 2 * 2,
+            sample_size=112 * 2 * 2,
             shortcut_type="A",
             sample_duration=self.sequence_length,
             num_classes=101,
         )
-        self.resnet.layer1 = nn.Sequential(nn.Dropout3d(0.1), self.resnet.layer1)
-        self.resnet.layer2 = nn.Sequential(nn.Dropout3d(0.2), self.resnet.layer2)
+        # self.resnet.layer1 = nn.Sequential(nn.Dropout3d(0.1), self.resnet.layer1)
+        # self.resnet.layer2 = nn.Sequential(nn.Dropout3d(0.2), self.resnet.layer2)
         self.resnet.layer3 = nn.Identity()
         self.resnet.layer4 = nn.Identity()
-        self.resnet.fc = nn.Sequential(
-            nn.Dropout(0.5), nn.Linear(256, self.num_classes)
-        )
+        # self.resnet.fc = nn.Sequential(
+        #     nn.Dropout(0.5), nn.Linear(256, self.num_classes)
+        # )
+        self.resnet.fc = nn.Linear(256, self.num_classes)
 
     def forward(self, x):
         x = x.transpose(1, 2)
@@ -129,7 +130,8 @@ class MC3(SequenceClassificationModel):
     def __init__(self):
         super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
         self.mc3 = mc3_18(pretrained=True)
-        self.mc3.fc = nn.Linear(512, self.num_classes)
+        self.mc3.layer4 = nn.Identity()
+        self.mc3.fc = nn.Linear(256, self.num_classes)
 
     def forward(self, x):
         x = x.transpose(1, 2)
