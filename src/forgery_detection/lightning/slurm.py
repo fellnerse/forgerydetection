@@ -31,7 +31,9 @@ parser.add_argument("--audio_file", default=None, type=str)
 parser.add_argument("--log_dir", default=f"/log/test_slurm/{experiment_name}", type=str)
 parser.add_argument("--batch_size", default=50, type=int)
 parser.add_argument("--gpus", default=-1, type=int)
-parser.add_argument("--model", default="resnet18fully3dpretrained", type=str)
+
+# set model here
+parser.add_argument("--model", default="resnet182d", type=str)
 
 parser.add_argument("--val_check_interval", default=0.02, type=float)
 parser.add_argument("--dont_balance_data", default=False)
@@ -40,8 +42,10 @@ parser.add_argument("--log_roc_values", default=False)
 
 parser.add_argument("--debug", default=False, type=bool)
 
+parser.add_argument("--resize_transforms", default="none", type=str)
+
 # parser.add_argument("--transforms", default="none", type=str)
-transforms = [
+augmentation_transforms = [
     "random_resized_crop",
     "random_horizontal_flip",
     "colour_jitter",
@@ -107,7 +111,11 @@ transforms = [
     "random_resized_crop random_horizontal_flip colour_jitter random_rotation random_greyscale none",  # noqa E501
 ]
 parser.opt_list(
-    "--transforms", default="none", type=str, tunable=True, options=transforms
+    "--augmentation_transforms",
+    default="none",
+    type=str,
+    tunable=True,
+    options=augmentation_transforms,
 )
 
 parser.add_argument("--lr", default=1.3e-4, type=float)
@@ -179,7 +187,7 @@ def train_fx(trial_hparams, cluster_manager):
 # todo change stuff here as well
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
-    nb_trials=len(transforms),
+    nb_trials=len(augmentation_transforms),
     job_name=experiment_name,
     job_display_name=experiment_name,
     enable_auto_resubmit=True,

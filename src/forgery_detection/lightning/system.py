@@ -95,9 +95,6 @@ class Supervised(pl.LightningModule):
         "audioonly": AudioOnly,
     }
 
-    # todo distingluish between pre and post pil_to_tensor transforms
-    # also distingluish between resizing and augmentation (augmentation should only be
-    # done on training set
     CUSTOM_TRANSFORMS = {
         "none": [],
         "crop": crop(),
@@ -141,23 +138,25 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.cl)})"
             )
 
-        transform = self._get_transforms(self.hparams["transforms"])
+        resize_transform = self._get_transforms(self.hparams["resize_transforms"])
+        augmentation_transform = self._get_transforms(
+            self.hparams["augmentation_transforms"]
+        )
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
-            transform,
+            resize_transform + augmentation_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            transform,  # todo change (when validating no data augmentation should
-            # happen)
+            resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            transform,  # todo change
+            resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )

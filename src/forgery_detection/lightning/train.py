@@ -41,9 +41,15 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Model that should be trained",
 )
 @click.option(
-    "--transforms",
+    "--resize_transforms",
     default="none",
-    help="Transforms used for data preprocessing. Can be multiple if split with blank.",
+    help="This resize transform is applied to train/val/test images",
+)
+@click.option(
+    "--augmentation_transforms",
+    default="none",
+    help="Augmentation only applied to train images. "
+    "Can be multiple if split with blank.",
 )
 # todo convert to absolute batches
 @click.option(
