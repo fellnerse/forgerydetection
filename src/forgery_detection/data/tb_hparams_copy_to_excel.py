@@ -23,7 +23,6 @@ experiments = []
 experiments_str = []
 
 
-# with open("tb_hparams_augmentation.txt") as f:
 with open("tb_hparams_lr_weight_decay.txt") as f:
     # remove headers
     text = "".join(f.readlines()[10:])
