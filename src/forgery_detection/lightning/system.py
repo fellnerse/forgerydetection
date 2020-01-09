@@ -128,10 +128,14 @@ class Supervised(pl.LightningModule):
         super(Supervised, self).__init__()
 
         self.hparams = DictHolder(kwargs)
-        self.model: LightningModel = self.MODEL_DICT[self.hparams["model"]]()
 
         # load data-sets
         self.file_list = FileList.load(self.hparams["data_dir"])
+
+        self.model: LightningModel = self.MODEL_DICT[self.hparams["model"]](
+            num_classes=len(self.file_list.classes)
+        )
+
         if len(self.file_list.classes) != self.model.num_classes:
             raise ValueError(
                 f"Classes of model ({self.model.num_classes}) != classes of dataset"

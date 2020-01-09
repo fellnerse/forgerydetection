@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List
-from typing import Tuple
+from typing import Dict
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -20,11 +19,17 @@ if TYPE_CHECKING:
     from forgery_detection.data.set import FileListDataset
 
 
-def calculate_class_weights(dataset: FileListDataset) -> Tuple[List[str], List[float]]:
+def calculate_class_weights(dataset: FileListDataset) -> Dict[str, float]:
     labels, counts = np.unique(dataset.targets, return_counts=True)
     counts = 1 / counts
     counts /= counts.sum()
-    return list(map(lambda idx: dataset.classes[idx], labels)), counts
+
+    weight_dict = {class_idx: 0 for class_idx in dataset.class_to_idx.values()}
+
+    for label, count in zip(labels, counts):
+        weight_dict[label] = count
+
+    return weight_dict
 
 
 def get_sequence_collate_fn(sequence_length):
@@ -111,7 +116,13 @@ class BalancedSampler(WeightedRandomSampler):
     def __init__(self, dataset: FileListDataset, replacement=True):
 
         targets = np.array(dataset.targets, dtype=np.int)[dataset.samples_idx]
-        _, class_weights = calculate_class_weights(dataset)
+        class_weight_dict = calculate_class_weights(dataset)
+        class_weights = np.array(
+            [
+                class_weight_dict[label_idx]
+                for label_idx in sorted(dataset.class_to_idx.values())
+            ]
+        )
         weights = class_weights[targets]
 
         super().__init__(weights, num_samples=len(dataset), replacement=replacement)
