@@ -1,6 +1,7 @@
 import inspect
 from pathlib import Path
 
+import numpy as np
 import torch
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
@@ -9,10 +10,9 @@ from test_tube.hpc import SlurmCluster
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 
-
 SLURM_LOG_FOLDER = Path("/log/test_slurm/")
 
-experiment_name = "transform_mutations"
+experiment_name = "merged_datasets"
 
 run = SLURM_LOG_FOLDER / experiment_name
 run.mkdir(exist_ok=True)
@@ -21,10 +21,11 @@ src = inspect.getsource(inspect.getmodule(inspect.currentframe()))
 with open(run / "slurm.py", "w") as f:
     f.write(src)
 
+# random search will traverse the search space in random order
 parser = HyperOptArgumentParser(strategy="random_search")
 parser.add_argument(
     "--data_dir",
-    default="/data/ssd1/file_lists/c40/tracked_resampled_faces.json",
+    default="/data/ssd1/file_lists/c40/resampled_and_detection_112.json",
     type=str,
 )
 parser.add_argument("--audio_file", default=None, type=str)
@@ -44,106 +45,104 @@ parser.add_argument("--debug", default=False, type=bool)
 
 parser.add_argument("--resize_transforms", default="none", type=str)
 
-# parser.add_argument("--transforms", default="none", type=str)
-augmentation_transforms = [
-    "random_resized_crop",
-    "random_horizontal_flip",
-    "colour_jitter",
-    "random_rotation",
-    "random_greyscale",
-    "none",
-    "random_resized_crop random_horizontal_flip",
-    "random_resized_crop colour_jitter",
-    "random_resized_crop random_rotation",
-    "random_resized_crop random_greyscale",
-    "random_resized_crop none",
-    "random_horizontal_flip colour_jitter",
-    "random_horizontal_flip random_rotation",
-    "random_horizontal_flip random_greyscale",
-    "random_horizontal_flip none",
-    "colour_jitter random_rotation",
-    "colour_jitter random_greyscale",
-    "colour_jitter none",
-    "random_rotation random_greyscale",
-    "random_rotation none",
-    "random_greyscale none",
-    "random_resized_crop random_horizontal_flip colour_jitter",
-    "random_resized_crop random_horizontal_flip random_rotation",
-    "random_resized_crop random_horizontal_flip random_greyscale",
-    "random_resized_crop random_horizontal_flip none",
-    "random_resized_crop colour_jitter random_rotation",
-    "random_resized_crop colour_jitter random_greyscale",
-    "random_resized_crop colour_jitter none",
-    "random_resized_crop random_rotation random_greyscale",
-    "random_resized_crop random_rotation none",
-    "random_resized_crop random_greyscale none",
-    "random_horizontal_flip colour_jitter random_rotation",
-    "random_horizontal_flip colour_jitter random_greyscale",
-    "random_horizontal_flip colour_jitter none",
-    "random_horizontal_flip random_rotation random_greyscale",
-    "random_horizontal_flip random_rotation none",
-    "random_horizontal_flip random_greyscale none",
-    "colour_jitter random_rotation random_greyscale",
-    "colour_jitter random_rotation none",
-    "colour_jitter random_greyscale none",
-    "random_rotation random_greyscale none",
-    "random_resized_crop random_horizontal_flip colour_jitter random_rotation",
-    "random_resized_crop random_horizontal_flip colour_jitter random_greyscale",
-    "random_resized_crop random_horizontal_flip colour_jitter none",
-    "random_resized_crop random_horizontal_flip random_rotation random_greyscale",
-    "random_resized_crop random_horizontal_flip random_rotation none",
-    "random_resized_crop random_horizontal_flip random_greyscale none",
-    "random_resized_crop colour_jitter random_rotation random_greyscale",
-    "random_resized_crop colour_jitter random_rotation none",
-    "random_resized_crop colour_jitter random_greyscale none",
-    "random_resized_crop random_rotation random_greyscale none",
-    "random_horizontal_flip colour_jitter random_rotation random_greyscale",
-    "random_horizontal_flip colour_jitter random_rotation none",
-    "random_horizontal_flip colour_jitter random_greyscale none",
-    "random_horizontal_flip random_rotation random_greyscale none",
-    "colour_jitter random_rotation random_greyscale none",
-    "random_resized_crop random_horizontal_flip colour_jitter random_rotation random_greyscale",  # noqa E501
-    "random_resized_crop random_horizontal_flip colour_jitter random_rotation none",
-    "random_resized_crop random_horizontal_flip colour_jitter random_greyscale none",
-    "random_resized_crop random_horizontal_flip random_rotation random_greyscale none",
-    "random_resized_crop colour_jitter random_rotation random_greyscale none",
-    "random_horizontal_flip colour_jitter random_rotation random_greyscale none",
-    "random_resized_crop random_horizontal_flip colour_jitter random_rotation random_greyscale none",  # noqa E501
-]
+parser.add_argument("--transforms", default="none", type=str)
+parser.add_argument("--augmentation_transforms", default="none", type=str)
+# augmentation_transforms = [
+#     "random_resized_crop",
+#     "random_horizontal_flip",
+#     "colour_jitter",
+#     "random_rotation",
+#     "random_greyscale",
+#     "none",
+#     "random_resized_crop random_horizontal_flip",
+#     "random_resized_crop colour_jitter",
+#     "random_resized_crop random_rotation",
+#     "random_resized_crop random_greyscale",
+#     "random_resized_crop none",
+#     "random_horizontal_flip colour_jitter",
+#     "random_horizontal_flip random_rotation",
+#     "random_horizontal_flip random_greyscale",
+#     "random_horizontal_flip none",
+#     "colour_jitter random_rotation",
+#     "colour_jitter random_greyscale",
+#     "colour_jitter none",
+#     "random_rotation random_greyscale",
+#     "random_rotation none",
+#     "random_greyscale none",
+#     "random_resized_crop random_horizontal_flip colour_jitter",
+#     "random_resized_crop random_horizontal_flip random_rotation",
+#     "random_resized_crop random_horizontal_flip random_greyscale",
+#     "random_resized_crop random_horizontal_flip none",
+#     "random_resized_crop colour_jitter random_rotation",
+#     "random_resized_crop colour_jitter random_greyscale",
+#     "random_resized_crop colour_jitter none",
+#     "random_resized_crop random_rotation random_greyscale",
+#     "random_resized_crop random_rotation none",
+#     "random_resized_crop random_greyscale none",
+#     "random_horizontal_flip colour_jitter random_rotation",
+#     "random_horizontal_flip colour_jitter random_greyscale",
+#     "random_horizontal_flip colour_jitter none",
+#     "random_horizontal_flip random_rotation random_greyscale",
+#     "random_horizontal_flip random_rotation none",
+#     "random_horizontal_flip random_greyscale none",
+#     "colour_jitter random_rotation random_greyscale",
+#     "colour_jitter random_rotation none",
+#     "colour_jitter random_greyscale none",
+#     "random_rotation random_greyscale none",
+#     "random_resized_crop random_horizontal_flip colour_jitter random_rotation",
+#     "random_resized_crop random_horizontal_flip colour_jitter random_greyscale",
+#     "random_resized_crop random_horizontal_flip colour_jitter none",
+#     "random_resized_crop random_horizontal_flip random_rotation random_greyscale",
+#     "random_resized_crop random_horizontal_flip random_rotation none",
+#     "random_resized_crop random_horizontal_flip random_greyscale none",
+#     "random_resized_crop colour_jitter random_rotation random_greyscale",
+#     "random_resized_crop colour_jitter random_rotation none",
+#     "random_resized_crop colour_jitter random_greyscale none",
+#     "random_resized_crop random_rotation random_greyscale none",
+#     "random_horizontal_flip colour_jitter random_rotation random_greyscale",
+#     "random_horizontal_flip colour_jitter random_rotation none",
+#     "random_horizontal_flip colour_jitter random_greyscale none",
+#     "random_horizontal_flip random_rotation random_greyscale none",
+#     "colour_jitter random_rotation random_greyscale none",
+#     "random_resized_crop random_horizontal_flip colour_jitter random_rotation random_greyscale",  # noqa E501
+#     "random_resized_crop random_horizontal_flip colour_jitter random_rotation none",
+#     "random_resized_crop random_horizontal_flip colour_jitter random_greyscale none",
+#     "random_resized_crop random_horizontal_flip random_rotation random_greyscale none",
+#     "random_resized_crop colour_jitter random_rotation random_greyscale none",
+#     "random_horizontal_flip colour_jitter random_rotation random_greyscale none",
+#     "random_resized_crop random_horizontal_flip colour_jitter random_rotation random_greyscale none",  # noqa E501
+# ]
+# parser.opt_list(
+#     "--augmentation_transforms",
+#     default="none",
+#     type=str,
+#     tunable=True,
+#     options=augmentation_transforms,
+# )
+
+# parser.add_argument("--lr", default=1.3e-4, type=float)
+
+
 parser.opt_list(
-    "--augmentation_transforms",
-    default="none",
-    type=str,
+    "--lr",
+    default=10e-5,
+    type=float,
+    help="the learning rate",
     tunable=True,
-    options=augmentation_transforms,
+    options=np.power(10.0, -np.linspace(3.0, 7.0, num=10)),
 )
 
-parser.add_argument("--lr", default=1.3e-4, type=float)
-# parser.opt_list(
-#     "--lr",
-#     default=10e-5,
-#     type=float,
-#     help="the learning rate",
-#     tunable=True,
-#     options=np.power(10.0, -np.random.uniform(4, 6, size=10)),
-# options=np.power(10.0, -np.linspace(3.0, 7.0, num=10)),
-# )
-
-parser.add_argument("--weight_decay", default=1.3e-9, type=float)
-# parser.opt_list(
-#     "--weight_decay",
-#     default=0,
-#     type=float,
-#     help="the learning rate",
-#     tunable=True,
-#     # options=np.power(10.0, -np.random.uniform(0.0, 10.0, size=10)),
-#     options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
-# )
-
+# parser.add_argument("--weight_decay", default=1.3e-9, type=float)
+parser.opt_list(
+    "--weight_decay",
+    default=0,
+    type=float,
+    help="the learning rate",
+    tunable=True,
+    options=np.power(10.0, -np.linspace(4.0, 10.0, num=10)),
+)
 
 hparams = parser.parse_args()
-
-# todo log this to file (search_space.txt) (slurm.py)
 
 # init cluster
 cluster = SlurmCluster(
@@ -187,7 +186,8 @@ def train_fx(trial_hparams, cluster_manager):
 # todo change stuff here as well
 cluster.optimize_parallel_cluster_gpu(
     train_fx,
-    nb_trials=len(augmentation_transforms),
+    # nb_trials=len(augmentation_transforms),
+    nb_trials=100,
     job_name=experiment_name,
     job_display_name=experiment_name,
     enable_auto_resubmit=True,

@@ -24,13 +24,7 @@ experiments_str = []
 
 
 with open("tb_hparams_lr_weight_decay.txt") as f:
-    # remove headers
-    text = "".join(f.readlines()[10:])
-    text = text.replace("\n", "").replace(" ", "")
-
-    # filter out empty lines
-    text = text.split(",")
-    text = list(filter(lambda x: len(x) > 0, text))
+    text = f.readlines()
 
 for i in range(len(text) // len(header)):
     start_idx = i * len(header)
