@@ -20,6 +20,20 @@ class Resnet182D(SequenceClassificationModel):
         return self.resnet.forward(x)
 
 
+class Resnet182d2Blocks(Resnet182D):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.resnet.layer3 = nn.Identity()
+        self.resnet.fc = nn.Linear(128, self.num_classes)
+
+
+class Resnet182d1Block(Resnet182d2Blocks):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.resnet.layer2 = nn.Identity()
+        self.resnet.fc = nn.Linear(64, self.num_classes)
+
+
 class Resnet18MultiClassDropout(Resnet182D):
     def __init__(self, pretrained=True):
         super().__init__(

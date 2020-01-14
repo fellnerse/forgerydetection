@@ -161,7 +161,7 @@ def log_confusion_matrix(
     class_accuracies = cm.diagonal() / cm.sum(axis=1)
     class_accuracies_dict = {}
     for key, value in class_to_idx.items():
-        class_accuracies_dict[key] = class_accuracies[value]
+        class_accuracies_dict[str(key)] = class_accuracies[value]
     return class_accuracies_dict
 
 

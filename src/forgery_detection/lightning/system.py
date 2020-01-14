@@ -51,6 +51,8 @@ from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.multi_class_classification import Resnet182D
+from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
+from forgery_detection.models.image.multi_class_classification import Resnet182d2Blocks
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -80,6 +82,8 @@ logger = logging.getLogger(__file__)
 class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet182d": Resnet182D,
+        "resnet182d2blocks": Resnet182d2Blocks,
+        "resnet182d1block": Resnet182d1Block,
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
@@ -143,7 +147,7 @@ class Supervised(pl.LightningModule):
         if len(self.file_list.classes) != self.model.num_classes:
             raise ValueError(
                 f"Classes of model ({self.model.num_classes}) != classes of dataset"
-                f" ({len(self.file_list.cl)})"
+                f" ({len(self.file_list.classes)})"
             )
 
         resize_transform = self._get_transforms(self.hparams["resize_transforms"])
@@ -216,7 +220,10 @@ class Supervised(pl.LightningModule):
         if not self.hparams["debug"] or True:
             log_dataset_preview(self.train_data, "preview/train_data", self.logger)
             log_dataset_preview(self.val_data, "preview/val_data", self.logger)
-            log_dataset_preview(self.test_data, "preview/test_data", self.logger)
+            try:
+                log_dataset_preview(self.test_data, "preview/test_data", self.logger)
+            except IndexError as ie:
+                logger.warning(f"Not logging preview of test_data: {ie}")
 
     def forward(self, x):
         return self.model.forward(x)
