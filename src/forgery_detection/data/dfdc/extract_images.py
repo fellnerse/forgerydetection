@@ -1,0 +1,91 @@
+import json
+import multiprocessing as mp
+from pathlib import Path
+
+import click
+import face_recognition
+from cv2 import cv2
+from joblib import delayed
+from joblib import Parallel
+from tqdm import tqdm
+
+
+def extract_first_face(video, extracted_images_dir, meta_data):
+    # find first face
+    capture = cv2.VideoCapture(video)
+    frame_num = 0
+    while capture.isOpened():
+        # Read next frame
+        ret, frame = capture.read()
+
+        if not ret:
+            capture.release()
+            break
+
+        face_locations = face_recognition.face_locations(frame)
+
+        if face_locations:
+            # save it to disk
+            video_path = (
+                extracted_images_dir
+                / meta_data["label"]
+                / video.split("/")[-1].split(".")[0]
+            )
+            video_path.mkdir(exist_ok=True)
+
+            top, right, bottom, left = face_locations[0]
+
+            x = left
+            y = top
+            w = right - x
+            h = bottom - y
+            cropped_face = frame[y : y + h, x : x + w]  # noqa: E203
+            cv2.imwrite(str(video_path / f"{frame_num:03d}.png"), cropped_face)
+            break
+        frame_num += 1
+    # for i in range(0, num_frames):
+    #     ret = capture.grab()
+    #     if i % 10 == 0:
+    #         ret, frame = capture.retrieve()
+    # do something with frame
+    capture.release()
+
+
+@click.command()
+@click.option("--folder_number", "-n", required=True, type=int)
+@click.option("--data_dir", type=click.Path(exists=True))
+def extract_images(folder_number: int, data_dir: click.Path):
+    root_dir = Path(data_dir)
+    with open(root_dir / "all_metadata.json", "r") as f:
+        all_meta_data = json.load(f)
+
+    extracted_images_dir = root_dir / f"extracted_images_{folder_number}"
+    extracted_images_dir.mkdir(exist_ok=True)
+    real_folder = extracted_images_dir / "FAKE"
+    real_folder.mkdir(exist_ok=True)
+    fake_folder = extracted_images_dir / "REAL"
+    fake_folder.mkdir(exist_ok=True)
+
+    all_meta_data = dict(
+        filter(lambda item: f"part_{folder_number}" in item[0], all_meta_data.items())
+    )
+
+    Parallel(n_jobs=mp.cpu_count())(
+        delayed(
+            lambda _video, _meta_data: extract_first_face(
+                _video, extracted_images_dir, _meta_data
+            )
+        )(video, meta_data)
+        for video, meta_data in tqdm(all_meta_data.items())
+    )
+    # i = 0
+    # for video, meta_data in tqdm(all_meta_data.items()):
+    #     extract_first_face(video, extracted_images_dir, meta_data)
+    #
+    #     i += 1
+    #     if i == 10:
+    #         break
+
+
+if __name__ == "__main__":
+    extract_images()
