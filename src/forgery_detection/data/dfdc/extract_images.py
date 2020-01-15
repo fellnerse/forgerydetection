@@ -40,7 +40,7 @@ def extract_first_face(video, extracted_images_dir, meta_data):
             w = right - x
             h = bottom - y
             cropped_face = frame[y : y + h, x : x + w]  # noqa: E203
-            cv2.imwrite(str(video_path / f"{frame_num:03d}.png"), cropped_face)
+            cv2.imwrite(str(video_path / f"{frame_num:04d}.png"), cropped_face)
             break
         frame_num += 1
     # for i in range(0, num_frames):
@@ -75,12 +75,12 @@ def extract_images(folder_number: int, data_dir: click.Path):
             lambda _video, _meta_data: extract_first_face(
                 _video, extracted_images_dir, _meta_data
             )
-        )(video, meta_data)
+        )(str(root_dir / video), meta_data)
         for video, meta_data in tqdm(all_meta_data.items())
     )
     # i = 0
     # for video, meta_data in tqdm(all_meta_data.items()):
-    #     extract_first_face(video, extracted_images_dir, meta_data)
+    #     extract_first_face(str(root_dir / video), extracted_images_dir, meta_data)
     #
     #     i += 1
     #     if i == 10:

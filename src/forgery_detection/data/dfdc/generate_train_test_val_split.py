@@ -15,7 +15,7 @@ for folder in sorted(root_dir.iterdir()):
         with open(meta_data_file, "r") as f:
             meta_data: dict = json.load(f)
             for key, value in meta_data.items():
-                all_meta_data[str(folder / key)] = value
+                all_meta_data[folder.name + "/" + key] = value
     except StopIteration:
         logger.warning(f"Ignoring {folder}. Does not contain a .json file.")
 
