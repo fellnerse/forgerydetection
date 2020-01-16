@@ -78,7 +78,8 @@ def extract_images(folder_numbers: List[int], data_dir: click.Path):
 
         all_meta_data_filtered = dict(
             filter(
-                lambda item: f"part_{folder_number}" in item[0], all_meta_data.items()
+                lambda item: item[0].endswith(f"part_{folder_number}"),
+                all_meta_data.items(),
             )
         )
 
