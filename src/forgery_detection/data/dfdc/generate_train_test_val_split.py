@@ -6,7 +6,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__file__)
 root_dir = Path("/data/hdd/dfdc")
-
 all_meta_data = {}
 
 for folder in sorted(root_dir.iterdir()):
@@ -28,9 +27,10 @@ train_data_names = list(
         filter(lambda item: item[1]["split"] == "train", all_meta_data.items()),
     )
 )
+# there are no val images -> have to create those myself
 val_data_names = list(
     map(
         lambda item: item[0].split("/")[-1].split(".")[0],
-        filter(lambda item: item[1]["split"] == "test", all_meta_data.items()),
+        filter(lambda item: item[1]["split"] == "val", all_meta_data.items()),
     )
 )
