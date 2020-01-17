@@ -1,5 +1,4 @@
 import logging
-import multiprocessing as mp
 import pickle
 from argparse import Namespace
 from pathlib import Path
@@ -50,9 +49,18 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
+from forgery_detection.models.image.multi_class_classification import (
+    Resnet182d1BlockFrozen,
+)
 from forgery_detection.models.image.multi_class_classification import Resnet182d2Blocks
+from forgery_detection.models.image.multi_class_classification import (
+    Resnet182d2BlocksFrozen,
+)
+from forgery_detection.models.image.multi_class_classification import Resnet182dFrozen
+from forgery_detection.models.image.multi_class_classification import Resnet18Frozen
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
@@ -84,6 +92,11 @@ class Supervised(pl.LightningModule):
         "resnet182d": Resnet182D,
         "resnet182d2blocks": Resnet182d2Blocks,
         "resnet182d1block": Resnet182d1Block,
+        "resnet182d1blockfrozen": Resnet182d1BlockFrozen,
+        "resnet182d2blocksfrozen": Resnet182d2BlocksFrozen,
+        "resnet182dfrozen": Resnet182dFrozen,
+        "resnet18frozen": Resnet18Frozen,
+        "residualresnet": ResidualResnet,
         "resnet18multiclassdropout": Resnet18MultiClassDropout,
         "resnet18untrainedmulticlassdropout": Resnet18UntrainedMultiClassDropout,
         "resnet183d": Resnet183D,
@@ -293,7 +306,7 @@ class Supervised(pl.LightningModule):
             self.train_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=mp.cpu_count(),
+            num_workers=self.hparams["n_cpu"],
         )
 
     @pl.data_loader
@@ -302,7 +315,7 @@ class Supervised(pl.LightningModule):
             self.val_data,
             self.hparams["batch_size"],
             sampler=self.sampler_cls,
-            num_workers=mp.cpu_count(),
+            num_workers=self.hparams["n_cpu"],
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
 
@@ -319,7 +332,7 @@ class Supervised(pl.LightningModule):
         loader = DataLoader(
             dataset=self.test_data,
             batch_sampler=sampler,
-            num_workers=mp.cpu_count(),
+            num_workers=self.hparams["n_cpu"],
             collate_fn=get_sequence_collate_fn(
                 sequence_length=self.test_data.sequence_length
             ),

@@ -1,3 +1,5 @@
+import multiprocessing as mp
+
 import click
 from pytorch_lightning import Trainer
 
@@ -77,6 +79,12 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Indicates if roc values should be calculated and logged. Can slow down"
     "training immensely.",
 )
+@click.option(
+    "--n_cpu",
+    default=2,
+    help="Number of cpus used for data loading."
+    " -1 corresponds to using all cpus available.",
+)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN
@@ -87,6 +95,9 @@ def run_lightning(*args, **kwargs):
     )
 
     kwargs["logger"] = {"name": logger.name, "description": logger.description}
+
+    if kwargs["n_cpu"] == -1:
+        kwargs["n_cpu"] = mp.cpu_count()
 
     model = Supervised(kwargs)
 
@@ -110,6 +121,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary=None,
-        max_nb_epochs=25,
+        max_nb_epochs=5,
     )
     trainer.fit(model)
