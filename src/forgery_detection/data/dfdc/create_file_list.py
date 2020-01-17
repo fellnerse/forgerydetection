@@ -8,9 +8,9 @@ from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileList
 
-root_dir = Path("/data/hdd/dfdc")
+root_dir = Path("/data/hdd/dfdc/extracted_images")
 
-with open(root_dir / "all_metadata.json", "r") as f:
+with open(root_dir.parent / "all_metadata.json", "r") as f:
     all_meta_data = json.load(f)
 
 f = FileList(str(root_dir), classes=["FAKE", "REAL"], min_sequence_length=1)

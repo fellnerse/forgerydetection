@@ -15,15 +15,14 @@ logger = logging.getLogger(__file__)
 
 
 def extract_first_face(video, extracted_images_dir, meta_data):
-    video_path = (
+    video_file = (
         extracted_images_dir / meta_data["label"] / video.split("/")[-1].split(".")[0]
-    )
-    video_path.mkdir(exist_ok=True)
-    if len(list(video_path.glob("*"))):
-        logger.warning(
-            f"Files inside {video_path}: {list(video_path.glob('*'))}. Skipping it."
-        )
+    ).with_suffix(".json")
+    if video_file.exists():
+        logger.warning(f"{video_file} already preprocessed. Skipping it.")
         return
+
+    bounding_boxes = {}
     # find first face
     capture = cv2.VideoCapture(video)
     frame_num = 0
@@ -45,19 +44,13 @@ def extract_first_face(video, extracted_images_dir, meta_data):
             face_locations = face_recognition.face_locations(frame)
 
             if face_locations:
-                # save it to disk
-                top, right, bottom, left = face_locations[0]
-
-                x = left
-                y = top
-                w = right - x
-                h = bottom - y
-                cropped_face = frame[y : y + h, x : x + w]  # noqa: E203
-                cv2.imwrite(str(video_path / f"{frame_num:04d}.png"), cropped_face)
-                break
+                bounding_boxes[f"{frame_num:04d}"] = face_locations
 
         frame_num += 1
     capture.release()
+
+    with open(str(video_file), "w") as f:
+        json.dump(bounding_boxes, f)
 
 
 @click.command()
@@ -69,7 +62,9 @@ def extract_images(folder_numbers: List[int], data_dir: click.Path):
         all_meta_data = json.load(f)
 
     for folder_number in tqdm(folder_numbers):
-        extracted_images_dir = root_dir / f"extracted_images_{folder_number}"
+        extracted_images_dir = (
+            root_dir / "extracted_sequences" / f"extracted_images_{folder_number}"
+        )
         extracted_images_dir.mkdir(exist_ok=True)
         real_folder = extracted_images_dir / "FAKE"
         real_folder.mkdir(exist_ok=True)
@@ -100,7 +95,7 @@ def extract_images(folder_numbers: List[int], data_dir: click.Path):
         #     extract_first_face(str(root_dir / video), extracted_images_dir, meta_data)
         #
         #     i += 1
-        #     if i == 20:
+        #     if i == 5:
         #         break
 
 
