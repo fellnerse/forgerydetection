@@ -14,7 +14,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__file__)
 
 
-def extract_first_face(video, extracted_images_dir, meta_data):
+def extract_faces_on_10th_frame(video, extracted_images_dir, meta_data):
     video_file = (
         extracted_images_dir / meta_data["label"] / video.split("/")[-1].split(".")[0]
     ).with_suffix(".json")
@@ -80,7 +80,7 @@ def extract_images(folder_numbers: List[int], data_dir: click.Path):
 
         Parallel(n_jobs=mp.cpu_count())(
             delayed(
-                lambda _video, _meta_data: extract_first_face(
+                lambda _video, _meta_data: extract_faces_on_10th_frame(
                     _video, extracted_images_dir, _meta_data
                 )
             )(str(root_dir / video), meta_data)
@@ -92,7 +92,9 @@ def extract_images(folder_numbers: List[int], data_dir: click.Path):
         # for video, meta_data in tqdm(
         #     all_meta_data_filtered.items(), desc=f"folder_{folder_number}"
         # ):
-        #     extract_first_face(str(root_dir / video), extracted_images_dir, meta_data)
+        #     extract_faces_on_10th_frame(
+        #         str(root_dir / video), extracted_images_dir, meta_data
+        #     )
         #
         #     i += 1
         #     if i == 5:
