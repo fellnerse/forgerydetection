@@ -37,7 +37,7 @@ def colour_jitter():
 
 
 def random_rotation():
-    return [transforms.RandomRotation(15)]
+    return [transforms.RandomApply([transforms.RandomRotation(15)], 0.1)]
 
 
 def random_greyscale():
