@@ -77,7 +77,7 @@ class Resnet18Frozen(Resnet18):
         self._set_requires_grad_for_module(self.resnet.layer4, requires_grad=False)
 
 
-class ResidualResnet(Resnet182d2Blocks):
+class ResidualResnet(Resnet182D):
     def __init__(self, **kwargs):
         super().__init__(sequence_length=2, **kwargs)
 
