@@ -67,6 +67,7 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
+from forgery_detection.models.image.vae import SimpleVAE
 from forgery_detection.models.utils import LightningModel
 from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
@@ -110,6 +111,7 @@ class Supervised(pl.LightningModule):
         "mc3": MC3,
         "audionet": AudioNet,
         "audioonly": AudioOnly,
+        "vae": SimpleVAE,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -117,6 +119,7 @@ class Supervised(pl.LightningModule):
         "crop": crop(),
         "resized_crop": resized_crop(),
         "resized_crop_small": resized_crop(224),
+        "resized_crop_128": resized_crop(128),
         "resized_crop_112": resized_crop(112),
         "resized_crop_56": resized_crop(56),
         "resized_crop_28": resized_crop(28),
@@ -251,7 +254,7 @@ class Supervised(pl.LightningModule):
         x, target = batch
         pred = self.forward(x)
 
-        return {"pred": pred, "target": target}
+        return {"pred": pred, "target": target, "x": x}
 
     def _log_metrics_for_hparams(self, tensorboard_log: dict):
         acc = tensorboard_log["acc"]
