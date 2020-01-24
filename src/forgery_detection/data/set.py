@@ -171,6 +171,7 @@ class FileListDataset(VisionDataset):
         self.class_to_idx = file_list.class_to_idx
         self._samples = file_list.samples[split]
         self.samples_idx = file_list.samples_idx[split]
+        self.split = split
         self.targets = [s[1] for s in self._samples]
         self.sequence_length = sequence_length
 

@@ -5,7 +5,6 @@ from torch import nn
 from torch.autograd import Variable
 from torchvision.utils import make_grid
 
-from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.utils import LightningModel
 
 no_of_sample = 10
@@ -49,15 +48,20 @@ class GeneralVAE(LightningModel):
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         KLD /= BATCH_SIZE * 3 * 128 * 128
 
-        return BCE + KLD
+        return BCE, KLD
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
         recon_x, mu, logvar = self.forward(x)
 
-        loss = self.loss(recon_x, x, mu, logvar)
+        BCE, KLD = self.loss(recon_x, x, mu, logvar)
+        loss = BCE + KLD
         lightning_log = {"loss": loss}
-        tensorboard_log = {"loss": {"train": loss}}
+        tensorboard_log = {
+            "loss": {"train": loss},
+            "bce": {"train": BCE},
+            "kld": {"train": KLD},
+        }
         return tensorboard_log, lightning_log
 
     def aggregate_outputs(self, outputs, system):
@@ -69,17 +73,17 @@ class GeneralVAE(LightningModel):
         # target = torch.cat([x["target"] for x in outputs], 0)
         x = torch.cat([x["x"] for x in outputs], 0)
 
-        loss_mean = self.loss(x_recon, x, mu, logvar)
-        acc_mean = self.calculate_accuracy(x_recon, x)
+        BCE, KLD = self.loss(x_recon, x, mu, logvar)
+        loss_mean = BCE + KLD
 
-        tensorboard_log = {"loss": loss_mean, "acc": acc_mean}
-        lightning_log = {VAL_ACC: acc_mean}
+        tensorboard_log = {"loss": loss_mean, "bce": BCE, "kld": KLD}
+        lightning_log = {"bce": BCE}
 
         # log 10 images
         x_10 = x[:10]
         x_10_recon = x_recon[:10]
         x_10 = torch.cat((x_10, x_10_recon), dim=0)
-        datapoints = make_grid(x_10, nrow=10, range=(-1, 1), normalize=False)
+        datapoints = make_grid(x_10, nrow=10, range=(-1, 1), normalize=True)
         system.logger.experiment.add_image(
             "reconstruction",
             datapoints,
@@ -90,7 +94,7 @@ class GeneralVAE(LightningModel):
         return tensorboard_log, lightning_log
 
     def calculate_accuracy(self, pred, target):
-        return F.binary_cross_entropy(pred, target)
+        return F.binary_cross_entropy(F.sigmoid(pred), F.sigmoid(target))
 
 
 class SimpleVAE(GeneralVAE):
@@ -157,7 +161,7 @@ class SimpleVAE(GeneralVAE):
 
         z = self.fct_decode(z)
         z = self.final_decod_mean(z)
-        z = F.sigmoid(z)
+        z = torch.tanh(z)
 
         return z
 
