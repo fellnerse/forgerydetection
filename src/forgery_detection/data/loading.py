@@ -20,7 +20,9 @@ if TYPE_CHECKING:
 
 
 def calculate_class_weights(dataset: FileListDataset) -> Dict[str, float]:
-    labels, counts = np.unique(dataset.targets, return_counts=True)
+    labels, counts = np.unique(
+        np.array(dataset.targets, dtype=np.int)[dataset.samples_idx], return_counts=True
+    )
     counts = 1 / counts
     counts /= counts.sum()
 

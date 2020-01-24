@@ -68,6 +68,7 @@ from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
 from forgery_detection.models.image.vae import SimpleVAE
+from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
 from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
@@ -112,6 +113,7 @@ class Supervised(pl.LightningModule):
         "audionet": AudioNet,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
+        "vae_supervised": SupervisedVae,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -161,7 +163,7 @@ class Supervised(pl.LightningModule):
         )
 
         if len(self.file_list.classes) != self.model.num_classes:
-            raise ValueError(
+            logger.error(
                 f"Classes of model ({self.model.num_classes}) != classes of dataset"
                 f" ({len(self.file_list.classes)})"
             )
@@ -182,6 +184,7 @@ class Supervised(pl.LightningModule):
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
+        # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
             resize_transform,
@@ -276,7 +279,7 @@ class Supervised(pl.LightningModule):
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
 
-        self._log_metrics_for_hparams(tensorboard_log)
+        # self._log_metrics_for_hparams(tensorboard_log)
 
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
