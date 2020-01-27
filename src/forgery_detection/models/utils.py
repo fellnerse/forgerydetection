@@ -160,8 +160,8 @@ class GeneralVAE(LightningModel, ABC):
 
         tensorboard_log = {
             "loss": loss,
-            "bce": BCE,
-            "kld": KLD,
+            "reconstruction_loss": BCE,
+            "kld_loss": KLD,
             "classification_loss": classification_loss,
             "acc": acc_mean,
             "class_acc": class_accuracies,
