@@ -35,7 +35,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
+@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[0]")
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
