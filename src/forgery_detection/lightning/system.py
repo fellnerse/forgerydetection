@@ -86,6 +86,7 @@ from forgery_detection.models.video.multi_class_classification import (
     Resnet18Fully3DPretrained,
 )
 from forgery_detection.models.video.vae import VideoVae
+from forgery_detection.models.video.vae import VideoVaeSupervised
 from forgery_detection.models.video.vae import VideoVaeUpsample
 
 logger = logging.getLogger(__file__)
@@ -118,6 +119,7 @@ class Supervised(pl.LightningModule):
         "vae_supervised": SupervisedVae,
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
+        "vae_video_supervised": VideoVaeSupervised,
     }
 
     CUSTOM_TRANSFORMS = {

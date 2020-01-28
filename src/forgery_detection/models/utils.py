@@ -125,11 +125,15 @@ class GeneralVAE(LightningModel, ABC):
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
-        recon_x, pred, mu, logvar = self.forward(x)
+        x_recon, pred, mu, logvar = self.forward(x)
 
         BCE, KLD, acc_mean, classification_loss, loss = self._calculate_metrics(
-            logvar, mu, pred, recon_x, target, x
+            logvar, mu, pred, x_recon, target, x
         )
+
+        if system._log_training:
+            system._log_training = False
+            self._log_reconstructed_images(system, x, x_recon, suffix="train")
 
         lightning_log = {"loss": loss}
         tensorboard_log = {
@@ -155,6 +159,9 @@ class GeneralVAE(LightningModel, ABC):
             logvar, mu, pred, x_recon, target, x
         )
 
+        self._log_reconstructed_images(system, x, x_recon, suffix="val")
+        system._log_training = True
+
         # confusion matrix
         class_accuracies = system.log_confusion_matrix(target.cpu(), pred.cpu())
 
@@ -168,23 +175,26 @@ class GeneralVAE(LightningModel, ABC):
         }
         lightning_log = {VAL_ACC: acc_mean}
 
-        # log 10 images
-        x_12 = x[:3].view(-1, 3, 112, 112)
-        x_12_recon = x_recon[:3].view(-1, 3, 112, 112)
-        x_12 = torch.cat((x_12, x_12_recon), dim=0)
-        datapoints = make_grid(x_12, nrow=12, range=(-1, 1), normalize=True)
+        return tensorboard_log, lightning_log
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x_12 = x[:4].view(-1, 3, 112, 112)
+        x_12_recon = x_recon[:4].view(-1, 3, 112, 112)
+        x_12 = torch.cat(
+            (x_12, x_12_recon), dim=2
+        )  # this needs to stack the images differently
+        datapoints = make_grid(
+            x_12, nrow=self.sequence_length, range=(-1, 1), normalize=True
+        )
         system.logger.experiment.add_image(
-            "reconstruction",
+            f"reconstruction/{suffix}",
             datapoints,
             dataformats="CHW",
             global_step=system.global_step,
         )
 
-        return tensorboard_log, lightning_log
-
     def vae_loss(self, recon_x, x, mu, logvar) -> Tuple[torch.Tensor, torch.Tensor]:
         BCE = self.reconstruction_loss(recon_x, x)
-        # BCE = F.binary_cross_entropy(recon_x, x)
 
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         KLD /= len(x.view(-1))
@@ -194,6 +204,7 @@ class GeneralVAE(LightningModel, ABC):
     @staticmethod
     def reconstruction_loss(recon_x, x):
         return F.l1_loss(recon_x, x)
+        # return F.binary_cross_entropy(recon_x * 0.5 + 0.5, x * 0.5 + 0.5)
 
     def loss(self, logits, labels):
         raise NotImplementedError()

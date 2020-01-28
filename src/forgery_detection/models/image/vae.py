@@ -109,6 +109,10 @@ class SupervisedVae(SimpleVAE):
 
         self.classifier = nn.Linear(1024, self.num_classes)
 
+    def loss(self, logits, labels):
+        # todo implement
+        return torch.zeros((1,), device=logits.device)
+
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
