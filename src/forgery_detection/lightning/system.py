@@ -1,6 +1,7 @@
 import logging
 import pickle
 from argparse import Namespace
+from functools import partial
 from pathlib import Path
 from typing import Union
 
@@ -317,7 +318,10 @@ class Supervised(pl.LightningModule):
         return get_fixed_dataloader(
             self.train_data,
             self.hparams["batch_size"],
-            sampler=self.sampler_cls,
+            sampler=partial(
+                self.sampler_cls,
+                predefined_weights=np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.75]),
+            ),
             num_workers=self.hparams["n_cpu"],
         )
 

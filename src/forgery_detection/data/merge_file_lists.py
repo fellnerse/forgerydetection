@@ -9,9 +9,9 @@ from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileList
 
 resampled_file_list = FileList.load(
-    "/data/ssd1/file_lists/c40/tracked_resampled_faces_1_112.json"
+    "/data/ssd1/file_lists/c40/tracked_resampled_faces.json"
 )
-celeba = FileList.load("/data/ssd1/file_lists/celeba/celeba.json")
+celeba = FileList.load("/data/ssd1/file_lists/avspeech/avspeech_pegasus_20k.json")
 
 
 resampled_root = Path(resampled_file_list.root)
@@ -24,8 +24,8 @@ print(common_path, resampled_relative_to_root, celeba_relative_to_root)
 
 # change class idx values for resampled file list
 # make youtube one value higher
-# resampled_file_list.class_to_idx["DeepFakeDetection"] = 4
-# resampled_file_list.classes[4] = "DeepFakeDetection"
+resampled_file_list.class_to_idx["avspeech"] = 5
+resampled_file_list.classes.append("avspeech")
 # resampled_file_list.class_to_idx["youtube"] = 5
 # resampled_file_list.classes.append("youtube")
 
@@ -50,7 +50,7 @@ for split in celeba.samples.values():
         #     item[1] = 5
         # elif item[1] == 1:
         #     item[1] = 4
-        item[1] = 0
+        item[1] = 5
         item[0] = celeba_relative_to_root + "/" + item[0]
 
 print(celeba.samples["train"][-1])
@@ -83,7 +83,7 @@ print(
 
 # save merged file_list
 
-resampled_file_list.save("/data/ssd1/file_lists/celeba/resampled_and_celeba.json")
+resampled_file_list.save("/data/ssd1/file_lists/avspeech/resampled_and_avspeech.json")
 
-merged = FileList.load("/data/ssd1/file_lists/celeba/resampled_and_celeba.json")
+merged = FileList.load("/data/ssd1/file_lists/avspeech/resampled_and_avspeech.json")
 d = merged.get_dataset("train")

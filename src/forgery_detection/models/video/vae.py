@@ -104,12 +104,32 @@ class StemSample(Stem):
     def __init__(self, in_size, out_size, activation=nn.ReLU):
         super().__init__(in_size, out_size, activation)
         self.stem = nn.Sequential(
+            nn.Upsample(size=(8, 4, 4), mode="nearest"),
             nn.Conv3d(
                 in_size,
+                out_size // 2,
+                kernel_size=(3, 3, 3),
+                stride=(1, 1, 1),
+                padding=(1, 1, 1),
+            ),
+            nn.BatchNorm3d(out_size // 2),
+            activation(),
+            nn.Conv3d(
+                out_size // 2,
                 out_size,
                 kernel_size=(3, 3, 3),
                 stride=(1, 1, 1),
                 padding=(1, 1, 1),
+            ),
+            nn.BatchNorm3d(out_size),
+            activation(),
+            nn.Upsample(size=(8, 7, 7), mode="nearest"),
+            nn.Conv3d(
+                out_size,
+                out_size,
+                kernel_size=(1, 3, 3),
+                stride=(1, 1, 1),
+                padding=(0, 1, 1),
             ),
             nn.BatchNorm3d(out_size),
             activation(),
@@ -140,9 +160,17 @@ class Encoder(nn.Module):
         super().__init__()
         self.sequence_length = sequence_length
         self.mc3 = mc3_18(pretrained=True)
-        self.mc3.reduce = Conv3DNoTemporal(256, 32, stride=2)
-        self.mc3.bn = nn.BatchNorm3d(32)
-        self.mc3.elu = nn.ELU()
+        self.mc3.reduce = nn.Sequential(
+            Conv3DNoTemporal(256, 64, stride=2),
+            nn.BatchNorm3d(64),
+            nn.ELU(),
+            Conv3DNoTemporal(64, 32, stride=2),
+            nn.BatchNorm3d(32),
+            nn.ELU(),
+            Conv3DNoTemporal(32, 16, stride=2),
+            nn.BatchNorm3d(16),
+            nn.ELU(),
+        )
 
         # remove unnecessary stuff
         self.mc3.layer4 = nn.Identity()
@@ -156,9 +184,7 @@ class Encoder(nn.Module):
         x = self.mc3.layer2(x)
         x = self.mc3.layer3(x)
 
-        x = self.mc3.reduce(x)  # reduce to -1 ,32,  sequence length , 7, 7
-        x = self.mc3.bn(x)
-        x = self.mc3.elu(x)
+        x = self.mc3.reduce(x)  # reduce to -1 ,8,  sequence length , 2, 2
         return x
 
 
@@ -183,9 +209,9 @@ class VideoVae(GeneralVAE):
 
         # output: 256 -> mu and sigma are 128
 
-        # input 16 x 2 x 2 x 2
+        # input 8 x 8 x 2 x 2
         self.decoder = nn.Sequential(
-            stem(16, 128, activation=activation),
+            stem(8, 128, activation=activation),
             upblock(128, 128, num_conv=3, activation=activation),
             upblock(128, 128, num_conv=3, activation=activation),
             upblock(128, 128, num_conv=3, activation=activation),
@@ -199,7 +225,7 @@ class VideoVae(GeneralVAE):
     def encode(self, x):
         """return mu_z and logvar_z"""
         x = self.encoder(x)
-        return x[:, :16], x[:, 16:]  # output shape - batch_size x 128
+        return x[:, :8], x[:, 8:]  # output shape - batch_size x 128
 
     def decode(self, z):
         z = self.decoder(z)
@@ -238,13 +264,31 @@ class VideoVaeSupervised(VideoVaeUpsample):
         super().__init__(*args, **kwargs)
 
         self.classifier = nn.Sequential(
-            nn.Linear(128, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+            nn.Linear(256, 50), nn.ReLU(), nn.Linear(50, self.num_classes - 1)
         )
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparametrize(mu, logvar).view(-1, 16, 2, 2, 2)
-        return (self.decode(z), self.classifier(mu), mu, logvar)
+        z = self.reparametrize(mu, logvar)
+        if self.training:
+            pred = self.classifier(z.flatten(1))
+        else:
+            pred = self.classifier(mu.flatten(1))
+        return self.decode(z), pred, mu, logvar
 
     def loss(self, logits, labels):
+        # for now just remove it here
+        logits = logits[labels != 5]
+        labels = labels[labels != 5]
+        if logits.shape[0] == 0:
+            return torch.zeros((1,), device=logits.device)
         return F.cross_entropy(logits, labels)
+
+    def calculate_accuracy(self, pred, target):
+        pred = pred[target != 5]
+        target = target[target != 5]
+        if pred.shape[0] == 0:
+            return torch.zeros((1,), device=pred.device)
+        labels_hat = torch.argmax(pred, dim=1)
+        acc = labels_hat.eq(target).float().mean()
+        return acc

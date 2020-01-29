@@ -19,11 +19,16 @@ if TYPE_CHECKING:
     from forgery_detection.data.set import FileListDataset
 
 
-def calculate_class_weights(dataset: FileListDataset) -> Dict[str, float]:
+def calculate_class_weights(
+    dataset: FileListDataset, predefined_weights=None
+) -> Dict[str, float]:
     labels, counts = np.unique(
         np.array(dataset.targets, dtype=np.int)[dataset.samples_idx], return_counts=True
     )
-    counts = 1 / counts
+    if predefined_weights is not None:
+        counts = predefined_weights / counts
+    else:
+        counts = 1 / counts
     counts /= counts.sum()
 
     weight_dict = {class_idx: 0 for class_idx in dataset.class_to_idx.values()}
@@ -115,16 +120,19 @@ def get_fixed_dataloader(
 
 
 class BalancedSampler(WeightedRandomSampler):
-    def __init__(self, dataset: FileListDataset, replacement=True):
-
-        targets = np.array(dataset.targets, dtype=np.int)[dataset.samples_idx]
-        class_weight_dict = calculate_class_weights(dataset)
+    def __init__(
+        self, dataset: FileListDataset, replacement=True, predefined_weights=None
+    ):
+        class_weight_dict = calculate_class_weights(
+            dataset, predefined_weights=predefined_weights
+        )
         class_weights = np.array(
             [
                 class_weight_dict[label_idx]
                 for label_idx in sorted(dataset.class_to_idx.values())
             ]
         )
+        targets = np.array(dataset.targets, dtype=np.int)[dataset.samples_idx]
         weights = class_weights[targets]
 
         super().__init__(weights, num_samples=len(dataset), replacement=replacement)
