@@ -212,7 +212,10 @@ class GeneralVAE(LightningModel, ABC):
     def _calculate_metrics(self, logvar, mu, pred, recon_x, target, x):
         BCE, KLD = self.vae_loss(recon_x, x, mu, logvar)
         classifiaction_loss = self.loss(pred, target)
-        loss = BCE + KLD + classifiaction_loss
+        if not torch.isnan(classifiaction_loss):
+            loss = BCE + KLD + classifiaction_loss
+        else:
+            loss = BCE + KLD
         pred = F.softmax(pred, dim=1)
         acc_mean = self.calculate_accuracy(pred, target)
         return BCE, KLD, acc_mean, classifiaction_loss, loss

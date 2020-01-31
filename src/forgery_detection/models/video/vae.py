@@ -8,6 +8,7 @@ from torch.nn import functional as F
 from torchvision.models.video import mc3_18
 from torchvision.models.video.resnet import Conv3DNoTemporal
 
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.utils import GeneralVAE
 
 
@@ -281,14 +282,14 @@ class VideoVaeSupervised(VideoVaeUpsample):
         logits = logits[labels != 5]
         labels = labels[labels != 5]
         if logits.shape[0] == 0:
-            return torch.zeros((1,), device=logits.device)
+            return NAN_TENSOR.cuda(device=logits.device)
         return F.cross_entropy(logits, labels)
 
     def calculate_accuracy(self, pred, target):
         pred = pred[target != 5]
         target = target[target != 5]
         if pred.shape[0] == 0:
-            return torch.zeros((1,), device=pred.device)
+            return NAN_TENSOR
         labels_hat = torch.argmax(pred, dim=1)
         acc = labels_hat.eq(target).float().mean()
         return acc
