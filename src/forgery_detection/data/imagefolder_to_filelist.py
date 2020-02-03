@@ -4,7 +4,7 @@ import numpy as np
 
 from forgery_detection.data.set import FileList
 
-root_dir = Path("/mnt/raid5/sebastian/avspeech_extracted/dlib_extracted/video_crops/")
+root_dir = Path("/mnt/ssd2/sebastian/set/avspeech_moria_112")
 
 f = FileList(root_dir, ["avspeech"], 8)
 
@@ -28,7 +28,7 @@ val = videos[int(len(videos) * 0.9) :]  # noqa E203
 samples_per_video = 100
 
 for label in train:
-    images = list(label.glob("*.png"))
+    images = sorted(label.glob("*.png"))
     f.add_data_points(
         images,
         "avspeech",
@@ -39,7 +39,7 @@ for label in train:
     )
 
 for label in val:
-    images = list(label.glob("*.png"))
+    images = sorted(label.glob("*.png"))
     f.add_data_points(
         images,
         "avspeech",
@@ -50,7 +50,7 @@ for label in val:
     )
 
 f.root = str(f.root)
-f.save("/data/ssd1/file_lists/avspeech/avspeech_pegasus_20k_100_samples.json")
+f.save("/data/ssd1/file_lists/avspeech/avspeech_moria_20k_100_samples.json")
 
 print(f.get_dataset("train"))
 print(f.get_dataset("val"))
