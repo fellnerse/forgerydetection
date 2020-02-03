@@ -1,5 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
+from collections import OrderedDict
 from typing import Optional
 
 import torch
@@ -10,6 +11,7 @@ from torchvision.models.video.resnet import Conv3DNoTemporal
 
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.utils import GeneralVAE
+from forgery_detection.models.video.vgg import Vgg16
 
 
 class UpBlockTranspose(nn.Module):
@@ -293,3 +295,83 @@ class VideoVaeSupervised(VideoVaeUpsample):
         labels_hat = torch.argmax(pred, dim=1)
         acc = labels_hat.eq(target).float().mean()
         return acc
+
+
+class VideoVaeDetachedSupervised(VideoVaeSupervised):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparametrize(mu, logvar)
+        if self.training:
+            pred = self.classifier(z.flatten(1).detach())
+        else:
+            pred = self.classifier(mu.flatten(1).detach())
+        return self.decode(z), pred, mu, logvar
+
+
+class VideoVaeSupervisedBCE(VideoVaeSupervised):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def reconstruction_loss(recon_x, x):
+        return F.binary_cross_entropy(recon_x.mul(0.5).add(0.5), x.mul(0.5).add(0.5))
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) / 10.0
+
+
+class VideoAE(VideoVaeUpsample):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.encoder.mc3.reduce.add_module(
+            "ae_conv3d", Conv3DNoTemporal(16, 8, stride=2)
+        )
+        self.encoder.mc3.reduce.add_module("ae_bn3d", nn.BatchNorm3d(8))
+        self.encoder.mc3.reduce.add_module("ae_elu", nn.ELU())
+
+    def encode(self, x):
+        return self.encoder(x)
+
+    def forward(self, x):
+        x = self.encode(x)
+
+        return (
+            self.decode(x),
+            torch.ones((x.shape[0], self.num_classes), device=x.device),
+            torch.zeros_like(x),
+            torch.ones_like(x),
+        )
+
+    def loss(self, logits, labels):
+        return torch.zeros((1,), device=logits.device)
+
+
+class PretrainedVV(VideoVaeUpsample):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        state_dict = torch.load(
+            "/mnt/raid5/sebastian/model_checkpoints/ff_vae_video_upsample/model.ckpt"
+        )["state_dict"]
+
+        mapped_state_dict = OrderedDict()
+        for key, value in state_dict.items():
+            mapped_state_dict[key.replace("model.", "")] = value
+
+        self.load_state_dict(mapped_state_dict)
+
+
+class VVVGGLoss(PretrainedVV):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vgg = Vgg16(requires_grad=False)
+
+    def reconstruction_loss(self, recon_x, x):
+        features_y = self.vgg(recon_x)
+        features_x = self.vgg(x)
+
+        return F.l1_loss(recon_x, x) + F.mse_loss(
+            features_y.relu2_2, features_x.relu2_2
+        )

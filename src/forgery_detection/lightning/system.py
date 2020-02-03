@@ -1,7 +1,6 @@
 import logging
 import pickle
 from argparse import Namespace
-from functools import partial
 from pathlib import Path
 from typing import Union
 
@@ -86,9 +85,13 @@ from forgery_detection.models.video.multi_class_classification import Resnet18Fu
 from forgery_detection.models.video.multi_class_classification import (
     Resnet18Fully3DPretrained,
 )
+from forgery_detection.models.video.vae import VideoAE
 from forgery_detection.models.video.vae import VideoVae
+from forgery_detection.models.video.vae import VideoVaeDetachedSupervised
 from forgery_detection.models.video.vae import VideoVaeSupervised
+from forgery_detection.models.video.vae import VideoVaeSupervisedBCE
 from forgery_detection.models.video.vae import VideoVaeUpsample
+from forgery_detection.models.video.vae import VVVGGLoss
 
 logger = logging.getLogger(__file__)
 
@@ -121,6 +124,10 @@ class Supervised(pl.LightningModule):
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
         "vae_video_supervised": VideoVaeSupervised,
+        "vae_video_detached_supervised": VideoVaeDetachedSupervised,
+        "vae_video_supervised_bce": VideoVaeSupervisedBCE,
+        "ae_video": VideoAE,
+        "vae_vgg": VVVGGLoss,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -318,10 +325,11 @@ class Supervised(pl.LightningModule):
         return get_fixed_dataloader(
             self.train_data,
             self.hparams["batch_size"],
-            sampler=partial(
-                self.sampler_cls,
-                predefined_weights=np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.75]),
-            ),
+            sampler=self.sampler_cls,
+            # sampler=partial(
+            #     self.sampler_cls,
+            #     predefined_weights=np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.75]),
+            # ),
             num_workers=self.hparams["n_cpu"],
         )
 
