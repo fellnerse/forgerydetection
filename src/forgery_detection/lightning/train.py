@@ -67,6 +67,9 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     "Each class will be sampled with the same probability",
 )
 @click.option(
+    "--sampling_probs", default=None, help="Probabilities for classes during training."
+)
+@click.option(
     "--class_weights",
     is_flag=True,
     help="Indicates if class weights should be used during loss calculation."

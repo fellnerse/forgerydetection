@@ -1,6 +1,7 @@
 import logging
 import pickle
 from argparse import Namespace
+from functools import partial
 from pathlib import Path
 from typing import Union
 
@@ -182,6 +183,17 @@ class Supervised(pl.LightningModule):
                 f" ({len(self.file_list.classes)})"
             )
 
+        self.sampling_probs = self.hparams["sampling_probs"]
+        if self.sampling_probs:
+            self.sampling_probs = np.array(self.sampling_probs.split(" "), dtype=float)
+        if self.sampling_probs is not None and len(self.file_list.classes) != len(
+            self.sampling_probs
+        ):
+            raise ValueError(
+                f"Classes of dataset ({len(self.file_list.classes)}) != classes of "
+                f"sampling probs ({len(self.sampling_probs)})!"
+            )
+
         resize_transform = self._get_transforms(self.hparams["resize_transforms"])
         augmentation_transform = self._get_transforms(
             self.hparams["augmentation_transforms"]
@@ -322,14 +334,15 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
+        if self.sampling_probs is None:
+            sampler = self.sampler_cls
+        else:
+            sampler = partial(self.sampler_cls, predefined_weights=self.sampling_probs)
+
         return get_fixed_dataloader(
             self.train_data,
             self.hparams["batch_size"],
-            sampler=self.sampler_cls,
-            # sampler=partial(
-            #     self.sampler_cls,
-            #     predefined_weights=np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.75]),
-            # ),
+            sampler=sampler,
             num_workers=self.hparams["n_cpu"],
         )
 

@@ -369,8 +369,8 @@ class VVVGGLoss(PretrainedVV):
         self.vgg = Vgg16(requires_grad=False)
 
     def reconstruction_loss(self, recon_x, x):
-        features_y = self.vgg(recon_x)
-        features_x = self.vgg(x)
+        features_y = self.vgg(recon_x.view(-1, 3, 112, 112))
+        features_x = self.vgg(x.view(-1, 3, 112, 112))
 
         return F.l1_loss(recon_x, x) + F.mse_loss(
             features_y.relu2_2, features_x.relu2_2
