@@ -155,25 +155,26 @@ class GeneralVAE(LightningModel, ABC):
         target = torch.cat([x["target"] for x in outputs], 0)
         x = torch.cat([x["x"] for x in outputs], 0)
 
-        BCE, KLD, acc_mean, classification_loss, loss = self._calculate_metrics(
-            logvar, mu, pred, x_recon, target, x
-        )
+        with torch.no_grad():
+            BCE, KLD, acc_mean, classification_loss, loss = self._calculate_metrics(
+                logvar, mu, pred, x_recon, target, x
+            )
 
-        self._log_reconstructed_images(system, x, x_recon, suffix="val")
-        system._log_training = True
+            self._log_reconstructed_images(system, x, x_recon, suffix="val")
+            system._log_training = True
 
-        # confusion matrix
-        class_accuracies = system.log_confusion_matrix(target.cpu(), pred.cpu())
+            # confusion matrix
+            class_accuracies = system.log_confusion_matrix(target.cpu(), pred.cpu())
 
-        tensorboard_log = {
-            "loss": loss,
-            "reconstruction_loss": BCE,
-            "kld_loss": KLD,
-            "classification_loss": classification_loss,
-            "acc": acc_mean,
-            "class_acc": class_accuracies,
-        }
-        lightning_log = {VAL_ACC: acc_mean}
+            tensorboard_log = {
+                "loss": loss,
+                "reconstruction_loss": BCE,
+                "kld_loss": KLD,
+                "classification_loss": classification_loss,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+            lightning_log = {VAL_ACC: acc_mean}
 
         return tensorboard_log, lightning_log
 
@@ -217,7 +218,8 @@ class GeneralVAE(LightningModel, ABC):
         else:
             loss = BCE + KLD
         pred = F.softmax(pred, dim=1)
-        acc_mean = self.calculate_accuracy(pred, target)
+        with torch.no_grad():
+            acc_mean = self.calculate_accuracy(pred, target)
         return BCE, KLD, acc_mean, classifiaction_loss, loss
 
     def calculate_accuracy(self, pred, target):

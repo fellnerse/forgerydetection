@@ -349,7 +349,7 @@ class VideoAE(VideoVaeUpsample):
         return torch.zeros((1,), device=logits.device)
 
 
-class PretrainedVV(VideoVaeUpsample):
+class PretrainedVAE(VideoVaeUpsample):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         state_dict = torch.load(
@@ -363,15 +363,21 @@ class PretrainedVV(VideoVaeUpsample):
         self.load_state_dict(mapped_state_dict)
 
 
-class VVVGGLoss(PretrainedVV):
+class VVVGGLoss(PretrainedVAE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vgg = Vgg16(requires_grad=False)
+        self._set_requires_grad_for_module(self.vgg)
 
     def reconstruction_loss(self, recon_x, x):
         features_y = self.vgg(recon_x.view(-1, 3, 112, 112))
         features_x = self.vgg(x.view(-1, 3, 112, 112))
 
-        return F.l1_loss(recon_x, x) + F.mse_loss(
-            features_y.relu2_2, features_x.relu2_2
-        )
+        # return F.l1_loss(recon_x, x) + F.mse_loss(
+        #     features_y.relu2_2, features_x.relu2_2
+        # )
+        # for testing purposes only vgg_loss
+        return F.mse_loss(features_y.relu2_2, features_x.relu2_2)
+
+    def training_step(self, batch, batch_nb, system):
+        return super().training_step(batch, batch_nb, system)
