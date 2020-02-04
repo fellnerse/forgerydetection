@@ -72,7 +72,7 @@ def get_fixed_dataloader(
     batch_sampler = SequenceBatchSampler(
         sampler(dataset),
         batch_size=batch_size,
-        drop_last=False,
+        drop_last=True,
         sequence_length=dataset.sequence_length,
         samples_idx=dataset.samples_idx,
     )

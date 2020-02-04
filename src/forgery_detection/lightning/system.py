@@ -71,6 +71,7 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.vae import SimpleVAE
 from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.ae import VideoAE2
 from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import R2Plus1Frozen
@@ -129,6 +130,7 @@ class Supervised(pl.LightningModule):
         "vae_video_supervised_bce": VideoVaeSupervisedBCE,
         "ae_video": VideoAE,
         "vae_vgg": VVVGGLoss,
+        "ae_video2": VideoAE2,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -194,26 +196,26 @@ class Supervised(pl.LightningModule):
                 f"sampling probs ({len(self.sampling_probs)})!"
             )
 
-        resize_transform = self._get_transforms(self.hparams["resize_transforms"])
+        self.resize_transform = self._get_transforms(self.hparams["resize_transforms"])
         augmentation_transform = self._get_transforms(
             self.hparams["augmentation_transforms"]
         )
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
-            resize_transform + augmentation_transform,
+            self.resize_transform + augmentation_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            resize_transform,
+            self.resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            resize_transform,
+            self.resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
@@ -279,7 +281,7 @@ class Supervised(pl.LightningModule):
             tensorboard_log, lightning_log, suffix="train"
         )
 
-    def validation_step(self, batch, batch_nb):
+    def validation_step(self, batch, batch_nb, dataloader_id=-1):
         x, target = batch
         pred = self.forward(x)
 
@@ -348,13 +350,33 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        return get_fixed_dataloader(
-            self.val_data,
-            self.hparams["batch_size"],
-            sampler=self.sampler_cls,
+        static_batch_data = self.file_list.get_dataset(
+            VAL_NAME,
+            self.resize_transform,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
+        )
+        static_batch_data.samples_idx = static_batch_data.samples_idx[
+            :: len(static_batch_data) // 3
+        ]
+        static_batch_loader = get_fixed_dataloader(
+            static_batch_data,
+            4,
+            sampler=RandomSampler,
             num_workers=self.hparams["n_cpu"],
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
+        # static_batch_loader.drop_last = True
+        return [
+            get_fixed_dataloader(
+                self.val_data,
+                self.hparams["batch_size"],
+                sampler=self.sampler_cls,
+                num_workers=self.hparams["n_cpu"],
+                worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+            ),
+            static_batch_loader,
+        ]
 
     @pl.data_loader
     def test_dataloader(self):

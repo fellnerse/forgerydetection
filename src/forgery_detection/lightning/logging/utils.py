@@ -72,7 +72,7 @@ def get_logger_and_checkpoint_callback(
 
     checkpoint_callback = ModelCheckpoint(
         filepath=logger_dir / CHECKPOINTS,
-        save_best_only=True,
+        save_best_only=False,
         monitor=VAL_ACC,
         mode="max",
         prefix="",

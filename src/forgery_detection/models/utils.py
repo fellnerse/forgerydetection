@@ -247,3 +247,126 @@ class GeneralVAE(LightningModel, ABC):
         self, x
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         raise NotImplementedError()
+
+
+class GeneralAE(LightningModel, ABC):
+    def __init__(self, num_classes, sequence_length, contains_dropout):
+        super().__init__(num_classes, sequence_length, contains_dropout)
+
+    @abc.abstractmethod
+    def encode(self, x):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def decode(self, z):
+        raise NotImplementedError()
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        x_recon, pred = self.forward(x)
+
+        reconstruction_loss, acc_mean, classification_loss, loss = self._calculate_metrics(
+            pred, x_recon, target, x
+        )
+
+        if system._log_training:
+            system._log_training = False
+            self._log_reconstructed_images(system, x, x_recon, suffix="train")
+
+        lightning_log = {"loss": loss}
+        tensorboard_log = {
+            "loss": {"train": loss},
+            "reconstruction_loss": {"train": reconstruction_loss},
+            "classification_loss": {"train": classification_loss},
+            "acc": {"train": acc_mean},
+        }
+        return tensorboard_log, lightning_log
+
+    def aggregate_outputs(self, output, system):
+        random_batch, static_batch = output
+
+        # for the random batch we log everything
+        network_output = [x["pred"] for x in random_batch]
+        x_recon = torch.cat([x[0] for x in network_output], 0)
+        pred = torch.cat([x[1] for x in network_output], 0)
+
+        target = torch.cat([x["target"] for x in random_batch], 0)
+        x = torch.cat([x["x"] for x in random_batch], 0)
+
+        with torch.no_grad():
+            reconstruction_loss, acc_mean, classification_loss, loss = self._calculate_metrics(
+                pred, x_recon, target, x
+            )
+
+            self._log_reconstructed_images(
+                system, x, x_recon, suffix="val/random_batch"
+            )
+            system._log_training = True
+
+            # confusion matrix
+            class_accuracies = system.log_confusion_matrix(target.cpu(), pred.cpu())
+
+            tensorboard_log = {
+                "loss": loss,
+                "reconstruction_loss": reconstruction_loss,
+                "classification_loss": classification_loss,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+            lightning_log = {VAL_ACC: acc_mean}
+
+        # for the static batch we log only the images
+        network_output = [x["pred"] for x in static_batch]
+        x_recon = torch.cat([x[0] for x in network_output], 0)
+        x = torch.cat([x["x"] for x in static_batch], 0)
+        self._log_reconstructed_images(system, x, x_recon, suffix="val/static_batch")
+
+        return tensorboard_log, lightning_log
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x_12 = x[:4].view(-1, 3, 112, 112)
+        x_12_recon = x_recon[:4].contiguous().view(-1, 3, 112, 112)
+        x_12 = torch.cat(
+            (x_12, x_12_recon), dim=2
+        )  # this needs to stack the images differently
+        datapoints = make_grid(
+            x_12, nrow=self.sequence_length, range=(-1, 1), normalize=True
+        )
+        system.logger.experiment.add_image(
+            f"reconstruction/{suffix}",
+            datapoints,
+            dataformats="CHW",
+            global_step=system.global_step,
+        )
+
+    @staticmethod
+    def reconstruction_loss(recon_x, x):
+        raise NotImplementedError()
+
+    def loss(self, logits, labels):
+        raise NotImplementedError()
+
+    def _calculate_metrics(self, pred, recon_x, target, x):
+        reconstruction_loss = self.reconstruction_loss(recon_x, x)
+        classifiaction_loss = self.loss(pred, target)
+
+        if not torch.isnan(classifiaction_loss):
+            loss = reconstruction_loss + classifiaction_loss
+        else:
+            loss = reconstruction_loss
+
+        pred = F.softmax(pred, dim=1)
+
+        with torch.no_grad():
+            acc_mean = self.calculate_accuracy(pred, target)
+
+        return reconstruction_loss, acc_mean, classifiaction_loss, loss
+
+    def calculate_accuracy(self, pred, target):
+        labels_hat = torch.argmax(pred, dim=1)
+        acc = labels_hat.eq(target).float().mean()
+        return acc
+
+    @abc.abstractmethod
+    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplementedError()
