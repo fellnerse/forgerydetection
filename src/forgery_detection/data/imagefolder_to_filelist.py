@@ -23,7 +23,7 @@ f = FileList(root_dir, ["avspeech"], 8)
 
 videos = sorted(root_dir.iterdir())
 train = videos[: int(len(videos) * 0.9)]
-val = videos[int(len(videos) * 0.9) :]  # noqa E203
+val = videos[int(len(videos) * 0.9) :]
 
 samples_per_video = 100
 
