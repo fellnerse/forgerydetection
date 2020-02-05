@@ -1,13 +1,15 @@
 # https://github.com/atinghosh/VAE-pytorch/blob/master/VAE_celeba.py
 import logging
-from typing import Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from forgery_detection.models.utils import GeneralVAE
-
+from forgery_detection.models.utils import LOG_VAR
+from forgery_detection.models.utils import MU
+from forgery_detection.models.utils import PRED
+from forgery_detection.models.utils import RECON_X
 
 logger = logging.getLogger(__file__)
 
@@ -89,18 +91,22 @@ class SimpleVAE(GeneralVAE):
 
         return z
 
-    def forward(
-        self, x
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x):
         mu, logvar = self.encode(x)
         z = self._reparametrize(mu, logvar)
 
-        return (
-            self.decode(z),
-            torch.ones((x.shape[0], self.num_classes), device=x.device),
-            mu,
-            logvar,
-        )
+        return {
+            RECON_X: self.decode(z),
+            PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+            MU: mu,
+            LOG_VAR: logvar,
+        }
+
+    def reconstruction_loss(self, recon_x, x):
+        return F.l1_loss(recon_x, x)
+
+    def loss(self, logits, labels):
+        return torch.zeros((1,), device=logits.device)
 
 
 class SupervisedVae(SimpleVAE):
