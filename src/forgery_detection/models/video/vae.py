@@ -11,6 +11,10 @@ from torchvision.models.video.resnet import Conv3DNoTemporal
 
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.utils import GeneralVAE
+from forgery_detection.models.utils import LOG_VAR
+from forgery_detection.models.utils import MU
+from forgery_detection.models.utils import PRED
+from forgery_detection.models.utils import RECON_X
 from forgery_detection.models.video.vgg import Vgg16
 
 
@@ -237,13 +241,16 @@ class VideoVae(GeneralVAE):
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparametrize(mu, logvar)  # .view(-1, 16, 2, 2, 2)
-        return (
-            self.decode(z),
-            torch.ones((x.shape[0], self.num_classes), device=x.device),
-            mu,
-            logvar,
-        )
+        z = self._reparametrize(mu, logvar)  # .view(-1, 16, 2, 2, 2)
+        return {
+            RECON_X: self.decode(z),
+            PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+            MU: mu,
+            LOG_VAR: logvar,
+        }
+
+    def reconstruction_loss(self, recon_x, x):
+        return F.l1_loss(recon_x, x)
 
     def loss(self, logits, labels):
         return torch.zeros((1,), device=logits.device)
@@ -272,7 +279,7 @@ class VideoVaeSupervised(VideoVaeUpsample):
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparametrize(mu, logvar)
+        z = self._reparametrize(mu, logvar)
         if self.training:
             pred = self.classifier(z.flatten(1))
         else:
@@ -303,7 +310,7 @@ class VideoVaeDetachedSupervised(VideoVaeSupervised):
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparametrize(mu, logvar)
+        z = self._reparametrize(mu, logvar)
         if self.training:
             pred = self.classifier(z.flatten(1).detach())
         else:
