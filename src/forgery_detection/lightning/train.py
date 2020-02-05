@@ -88,6 +88,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Number of cpus used for data loading."
     " -1 corresponds to using all cpus available.",
 )
+@click.option("--max_epochs", default=100)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN
@@ -124,6 +125,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary=None,
-        max_nb_epochs=100,
+        max_nb_epochs=kwargs["max_epochs"],
     )
     trainer.fit(model)

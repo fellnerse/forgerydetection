@@ -128,8 +128,13 @@ class SequenceClassificationModel(LightningModel, ABC):
 
 
 class GeneralAE(LightningModel, ABC):
-    def __init__(self, num_classes, sequence_length, contains_dropout):
+    def __init__(
+        self, num_classes, sequence_length, contains_dropout, log_images_every=10
+    ):
         super().__init__(num_classes, sequence_length, contains_dropout)
+
+        self.log_image_count = log_images_every
+        self.log_images_every = log_images_every
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
@@ -140,7 +145,7 @@ class GeneralAE(LightningModel, ABC):
 
         metric_dict = self._calculate_metrics(**forward_dict)
 
-        if system._log_training:
+        if hasattr(system, "_log_training") and system._log_training:
             system._log_training = False
             self._log_reconstructed_images(
                 system, x, forward_dict[RECON_X], suffix="train"
@@ -155,6 +160,8 @@ class GeneralAE(LightningModel, ABC):
     def aggregate_outputs(self, output, system):
         """Aggregates outputs from val_step"""
 
+        should_log_images = self._should_log_images()
+
         # make sure this can see how many data loaders we have
         random_batch, static_batch = output
 
@@ -164,12 +171,16 @@ class GeneralAE(LightningModel, ABC):
             # calculated metrics based on outputs
             metric_dict = self._calculate_metrics(**output_dict)
 
-            # log reconstructed images
-            self._log_reconstructed_images(
-                system, output_dict[X], output_dict[RECON_X], suffix="val/random_batch"
-            )
-            # the next training step should log reconstructed images as well
-            system._log_training = True
+            if should_log_images:
+                # log reconstructed images
+                self._log_reconstructed_images(
+                    system,
+                    output_dict[X],
+                    output_dict[RECON_X],
+                    suffix="val/random_batch",
+                )
+                # the next training step should log reconstructed images as well
+                system._log_training = True
 
             # confusion matrix
             class_accuracies = system.log_confusion_matrix(
@@ -183,10 +194,11 @@ class GeneralAE(LightningModel, ABC):
 
         # process the static batch
         # for the static batch we log only the images
-        output_dict = self._output_to_metric_dict(static_batch)
-        self._log_reconstructed_images(
-            system, output_dict[X], output_dict[RECON_X], suffix="val/static_batch"
-        )
+        if should_log_images:
+            output_dict = self._output_to_metric_dict(static_batch)
+            self._log_reconstructed_images(
+                system, output_dict[X], output_dict[RECON_X], suffix="val/static_batch"
+            )
 
         return tensorboard_log, lightning_log
 
@@ -209,6 +221,14 @@ class GeneralAE(LightningModel, ABC):
     def loss(self, logits, labels):
         """classification loss"""
         raise NotImplementedError()
+
+    def _should_log_images(self):
+        if self.log_image_count - self.log_images_every == 0:
+            self.log_image_count = 0
+            return True
+        else:
+            self.log_image_count += 1
+            return False
 
     @staticmethod
     def _output_to_metric_dict(output: dict):

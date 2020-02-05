@@ -51,6 +51,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -123,6 +124,7 @@ class Supervised(pl.LightningModule):
         "audionet": AudioNet,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
+        "ae": SimpleAE,
         "vae_supervised": SupervisedVae,
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
