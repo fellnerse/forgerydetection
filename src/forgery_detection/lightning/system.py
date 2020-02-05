@@ -14,6 +14,7 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import SequentialSampler
 from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
@@ -362,7 +363,7 @@ class Supervised(pl.LightningModule):
         static_batch_loader = get_fixed_dataloader(
             static_batch_data,
             4,
-            sampler=RandomSampler,
+            sampler=SequentialSampler,  # use sequence sampler
             num_workers=self.hparams["n_cpu"],
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
