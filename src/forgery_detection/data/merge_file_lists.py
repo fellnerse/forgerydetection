@@ -11,7 +11,9 @@ from forgery_detection.data.set import FileList
 resampled_file_list = FileList.load(
     "/data/ssd1/file_lists/c40/tracked_resampled_faces.json"
 )
-celeba = FileList.load("/data/ssd1/file_lists/avspeech/100k_100_samples.json")
+celeba = FileList.load(
+    "/data/ssd1/file_lists/avspeech/100k_100_samples_consolidated.json"
+)
 
 resampled_file_list.root = "/mnt/ssd2/sebastian/set/tracked_resampled_faces_112/"
 resampled_root = Path(resampled_file_list.root)
@@ -84,10 +86,10 @@ print(
 # save merged file_list
 
 resampled_file_list.save(
-    "/data/ssd1/file_lists/avspeech/resampled_and_avspeech_100_samples.json"
+    "/data/ssd1/file_lists/avspeech/resampled_and_avspeech_100_samples_consolidated.json"
 )
 
 merged = FileList.load(
-    "/data/ssd1/file_lists/avspeech/resampled_and_avspeech_100_samples.json"
+    "/data/ssd1/file_lists/avspeech/resampled_and_avspeech_100_samples_consolidated.json"
 )
 d = merged.get_dataset("train")

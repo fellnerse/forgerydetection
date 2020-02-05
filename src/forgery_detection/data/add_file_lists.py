@@ -8,9 +8,11 @@ from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileList
 
-file_list_a = FileList.load("/data/ssd1/file_lists/avspeech/100k_100_samples.json")
+file_list_a = FileList.load(
+    "/data/ssd1/file_lists/avspeech/100k_100_samples_consolidated.json"
+)
 file_list_b = FileList.load(
-    "/data/ssd1/file_lists/avspeech/avspeech_moria_20k_100_samples.json"
+    "/data/ssd1/file_lists/avspeech/avspeech_moria_20k_100_samples_consolidated.json"
 )
 
 
@@ -59,7 +61,9 @@ print(file_list_a.samples_idx["train"][-1], len(file_list_a.samples["train"]))
 
 # save merged file_list
 
-file_list_a.save("/data/ssd1/file_lists/avspeech/100k_100_samples.json")
+file_list_a.save("/data/ssd1/file_lists/avspeech/100k_100_samples_consolidated.json")
 
-merged = FileList.load("/data/ssd1/file_lists/avspeech/100k_100_samples.json")
+merged = FileList.load(
+    "/data/ssd1/file_lists/avspeech/100k_100_samples_consolidated.json"
+)
 d = merged.get_dataset("train")
