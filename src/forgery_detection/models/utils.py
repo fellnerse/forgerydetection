@@ -160,7 +160,6 @@ class GeneralAE(LightningModel, ABC):
 
         # process the random batch
         output_dict = self._output_to_metric_dict(random_batch)
-        logger.warning(f"output_dict: {output_dict.keys()}")
         with torch.no_grad():
             # calculated metrics based on outputs
             metric_dict = self._calculate_metrics(**output_dict)
