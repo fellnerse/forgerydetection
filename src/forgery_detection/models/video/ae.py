@@ -4,6 +4,8 @@ from torch import nn
 from torchvision.models.video.resnet import Conv3DNoTemporal
 
 from forgery_detection.models.utils import GeneralAE
+from forgery_detection.models.utils import PRED
+from forgery_detection.models.utils import RECON_X
 from forgery_detection.models.video.vae import Encoder
 from forgery_detection.models.video.vae import StemSample
 from forgery_detection.models.video.vae import Transpose
@@ -60,13 +62,12 @@ class VideoAE2(GeneralAE):
 
     def forward(self, x):
         x = self.encode(x)
-        return (
-            self.decode(x),
-            torch.ones((x.shape[0], self.num_classes), device=x.device),
-        )
+        return {
+            RECON_X: self.decode(x),
+            PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+        }
 
     def reconstruction_loss(self, recon_x, x):
-
         return F.l1_loss(recon_x, x)
 
     def loss(self, logits, labels):
