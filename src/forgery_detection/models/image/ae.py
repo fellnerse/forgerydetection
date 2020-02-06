@@ -5,10 +5,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from forgery_detection.models.image.utils import ConvBlock
+from forgery_detection.models.mixins import L1LossMixin
+from forgery_detection.models.mixins import PretrainedNet
+from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.utils import GeneralAE
 from forgery_detection.models.utils import PRED
 from forgery_detection.models.utils import RECON_X
-from forgery_detection.models.video.vgg import Vgg16
 
 logger = logging.getLogger(__file__)
 
@@ -76,20 +78,20 @@ class SimpleAE(GeneralAE):
         return torch.zeros((1,), device=logits.device)
 
 
-class SimpleAEVGG(SimpleAE):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.vgg = Vgg16(requires_grad=False)
-        self._set_requires_grad_for_module(self.vgg)
-
+class SimpleAEVGG(SimpleAE, VGGLossMixin):
     def reconstruction_loss(self, recon_x, x):
-        features_y = self.vgg(recon_x.view(-1, 3, 112, 112))
-        features_x = self.vgg(x.view(-1, 3, 112, 112))
-
-        return F.mse_loss(features_y, features_x)
+        return self.vgg_loss(recon_x, x)
 
 
-class SimpleAEL1(SimpleAE):
+class SimpleAEL1(SimpleAE, L1LossMixin):
     def reconstruction_loss(self, recon_x, x):
+        return self.l1_loss(recon_x, x)
 
-        return F.l1_loss(recon_x, x)
+
+class SimpleAEL1Pretrained(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/l1/model.ckpt"
+    ),
+    SimpleAEL1,
+):
+    pass

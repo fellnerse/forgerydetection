@@ -327,7 +327,7 @@ class GeneralVAE(GeneralAE, ABC):
             # multiply log variance with 0.5, then in-place exponent
             # yielding the standard deviation
 
-            std = logvar.mul(0.5).exp_()  # type: Variable
+            std = logvar.mul(0.5).exp_()
             eps = Variable(std.data.new(std.size()).normal_())
             sample_z = eps.mul(std).add_(mu)
 
