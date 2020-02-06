@@ -55,6 +55,7 @@ from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.ae import SimpleAEL1
 from forgery_detection.models.image.ae import SimpleAEL1Pretrained
 from forgery_detection.models.image.ae import SimpleAEVGG
+from forgery_detection.models.image.ae import StackedAE
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -140,6 +141,7 @@ class Supervised(pl.LightningModule):
         "ae_video": VideoAE,
         "vae_vgg": VVVGGLoss,
         "ae_video2": VideoAE2,
+        "ae_stacked": StackedAE,
     }
 
     CUSTOM_TRANSFORMS = {
