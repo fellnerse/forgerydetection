@@ -52,6 +52,8 @@ from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.ae import SimpleAE
+from forgery_detection.models.image.ae import SimpleAEL1
+from forgery_detection.models.image.ae import SimpleAEVGG
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -125,6 +127,8 @@ class Supervised(pl.LightningModule):
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
+        "ae_vgg": SimpleAEVGG,
+        "ae_l1": SimpleAEL1,
         "vae_supervised": SupervisedVae,
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
@@ -369,7 +373,6 @@ class Supervised(pl.LightningModule):
             num_workers=self.hparams["n_cpu"],
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
-        # static_batch_loader.drop_last = True
         return [
             get_fixed_dataloader(
                 self.val_data,

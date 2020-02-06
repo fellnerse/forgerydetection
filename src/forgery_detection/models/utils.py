@@ -129,7 +129,7 @@ class SequenceClassificationModel(LightningModel, ABC):
 
 class GeneralAE(LightningModel, ABC):
     def __init__(
-        self, num_classes, sequence_length, contains_dropout, log_images_every=10
+        self, num_classes, sequence_length, contains_dropout, log_images_every=100
     ):
         super().__init__(num_classes, sequence_length, contains_dropout)
 
