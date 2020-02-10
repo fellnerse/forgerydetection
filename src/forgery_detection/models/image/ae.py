@@ -7,6 +7,7 @@ from torch import nn
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
+from forgery_detection.models.mixins import FaceNetLossMixin
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.mixins import SupervisedNet
@@ -106,9 +107,9 @@ class SimpleAEL1Pretrained(
     pass
 
 
-class SimpleAEVGGPretrained(
+class SimpleAEVggPretrained(
     PretrainedNet(
-        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/vgg/model.ckpt"
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/vgg/model_ported.ckpt"
     ),
     SimpleAEVGG,
 ):
@@ -302,8 +303,8 @@ class SupervisedAEL1(
         return super().loss(logits, labels) / 20
 
 
-class SupervisedAEVGG(
-    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEVGGPretrained
+class SupervisedAEVgg(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEVggPretrained
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -316,18 +317,25 @@ class SupervisedAEVGG(
         return super().loss(logits, labels)
 
 
-# reduce lr after one epoch
-class AEL1VGG(L1LossMixin, SimpleAEVGGPretrained):
+class AEL1VGG(L1LossMixin, SimpleAEVggPretrained):
     def reconstruction_loss(self, recon_x, x):
         return {
             "l1_loss": self.l1_loss(recon_x, x),
-            "vgg_content_loss": self.vgg_content_loss(recon_x, x) / 4,
+            "vgg_content_loss": self.content_loss(recon_x, x) / 4,
         }
 
 
-class AEFullVGG(SimpleAEVGGPretrained):
+class AEFullVGG(SimpleAEVggPretrained):
     def reconstruction_loss(self, recon_x, x):
         return {
-            "vgg_style_loss": self.vgg_style_loss(recon_x, x),
-            # "vgg_content_loss": self.vgg_content_loss(recon_x, x),
+            "style_loss": self.style_loss(recon_x, x),
+            "content_loss": self.content_loss(recon_x, x),
+        }
+
+
+class AEFullFaceNet(FaceNetLossMixin, SimpleAEVggPretrained):
+    def reconstruction_loss(self, recon_x, x):
+        return {
+            "style_loss": self.style_loss(recon_x, x) * 1e6,
+            "content_loss": self.content_loss(recon_x, x) * 1e3,
         }

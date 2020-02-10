@@ -51,6 +51,7 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
 from forgery_detection.models.image.ae import SimpleAE
@@ -59,7 +60,7 @@ from forgery_detection.models.image.ae import SimpleAEL1Pretrained
 from forgery_detection.models.image.ae import SimpleAEVGG
 from forgery_detection.models.image.ae import StackedAE
 from forgery_detection.models.image.ae import SupervisedAEL1
-from forgery_detection.models.image.ae import SupervisedAEVGG
+from forgery_detection.models.image.ae import SupervisedAEVgg
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -103,7 +104,6 @@ from forgery_detection.models.video.vae import VideoVaeDetachedSupervised
 from forgery_detection.models.video.vae import VideoVaeSupervised
 from forgery_detection.models.video.vae import VideoVaeSupervisedBCE
 from forgery_detection.models.video.vae import VideoVaeUpsample
-from forgery_detection.models.video.vae import VVVGGLoss
 
 logger = logging.getLogger(__file__)
 
@@ -135,11 +135,12 @@ class Supervised(pl.LightningModule):
         "ae": SimpleAE,
         "ae_vgg": SimpleAEVGG,
         "ae_full_vgg": AEFullVGG,
+        "ae_full_facenet": AEFullFaceNet,
         "ae_l1": SimpleAEL1,
         "ae_l1_pretrained": SimpleAEL1Pretrained,
         "ae_l1_vgg": AEL1VGG,
         "ae_supervised": SupervisedAEL1,
-        "ae_vgg_supervised": SupervisedAEVGG,
+        "ae_vgg_supervised": SupervisedAEVgg,
         "vae_supervised": SupervisedVae,
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
@@ -147,7 +148,6 @@ class Supervised(pl.LightningModule):
         "vae_video_detached_supervised": VideoVaeDetachedSupervised,
         "vae_video_supervised_bce": VideoVaeSupervisedBCE,
         "ae_video": VideoAE,
-        "vae_vgg": VVVGGLoss,
         "ae_video2": VideoAE2,
         "ae_stacked": StackedAE,
     }

@@ -6,32 +6,38 @@ from torch import nn
 from torch.nn import functional as F
 
 from forgery_detection.lightning.utils import NAN_TENSOR
-from forgery_detection.models.video.vgg import Vgg16
+from forgery_detection.models.sliced_nets import FaceNet
+from forgery_detection.models.sliced_nets import SlicedNet
+from forgery_detection.models.sliced_nets import Vgg16
 
 logger = logging.getLogger(__file__)
 
 
-class VGGLossMixin(nn.Module):
-    def __init__(self):
+class PerceptualLossMixin(nn.Module):
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.vgg = Vgg16(requires_grad=False)
-        self.vgg.eval()
-        self._set_requires_grad_for_module(self.vgg, requires_grad=False)
+        self.net: SlicedNet
 
-    def vgg_content_loss(self, recon_x, x):
-        features_recon_x, features_x = self._calculate_features(recon_x, x)
+    def content_loss(self, recon_x, x, slices=2):
+        features_recon_x, features_x = self._calculate_features(
+            recon_x, x, slices=slices
+        )
         return F.mse_loss(features_recon_x, features_x)
 
-    def vgg_style_loss(self, recon_x, x):
-        features_recon_x, features_x = self._calculate_features(recon_x, x)
+    def style_loss(self, recon_x, x, slices=2):
+        features_recon_x, features_x = self._calculate_features(
+            recon_x, x, slices=slices
+        )
 
         gram_style_recon_x = self._gram_matrix(features_recon_x)
         gram_style_x = self._gram_matrix(features_x)
 
         return F.mse_loss(gram_style_x, gram_style_recon_x) * features_recon_x.shape[0]
 
-    def vgg_full_loss(self, recon_x, x):
-        features_recon_x, features_x = self._calculate_features(recon_x, x)
+    def full_loss(self, recon_x, x, slices=2):
+        features_recon_x, features_x = self._calculate_features(
+            recon_x, x, slices=slices
+        )
 
         gram_style_recon_x = self._gram_matrix(features_recon_x)
         gram_style_x = self._gram_matrix(features_x)
@@ -40,9 +46,11 @@ class VGGLossMixin(nn.Module):
             0
         ] + F.mse_loss(features_recon_x, features_x)
 
-    def _calculate_features(self, recon_x, x):
-        features_recon_x = self.vgg(recon_x.view(-1, *recon_x.shape[-3:]))
-        features_x = self.vgg(x.view(-1, *x.shape[-3:]))
+    def _calculate_features(self, recon_x, x, slices=2):
+        features_recon_x = self.net(
+            recon_x.view(-1, *recon_x.shape[-3:]), slices=slices
+        )
+        features_x = self.net(x.view(-1, *x.shape[-3:]), slices=slices)
         return features_recon_x, features_x
 
     @staticmethod
@@ -51,6 +59,22 @@ class VGGLossMixin(nn.Module):
         features_t = features.transpose(1, 2)
         gram = features.bmm(features_t) / (y.shape[-3] * y.shape[-2] * y.shape[-1])
         return gram
+
+
+class VGGLossMixin(PerceptualLossMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.net = Vgg16(requires_grad=False)
+        self.net.eval()
+        self._set_requires_grad_for_module(self.net, requires_grad=False)
+
+
+class FaceNetLossMixin(PerceptualLossMixin):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.net = FaceNet(requires_grad=False)
+        self.net.eval()
+        self._set_requires_grad_for_module(self.net, requires_grad=False)
 
 
 class L1LossMixin(nn.Module):
@@ -68,7 +92,8 @@ def PretrainedNet(path_to_model: str):
 
             mapped_state_dict = OrderedDict()
             for key, value in state_dict.items():
-                mapped_state_dict[key.replace("model.", "")] = value
+                if not key.startswith("net."):
+                    mapped_state_dict[key.replace("model.", "")] = value
 
             self.load_state_dict(mapped_state_dict)
 
