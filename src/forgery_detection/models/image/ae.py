@@ -89,7 +89,7 @@ class SimpleAE(GeneralAE):
 
 class SimpleAEVGG(SimpleAE, VGGLossMixin):
     def reconstruction_loss(self, recon_x, x):
-        return self.vgg_loss(recon_x, x)
+        return self.vgg_content_loss(recon_x, x)
 
 
 class SimpleAEL1(SimpleAE, L1LossMixin):
@@ -316,6 +316,18 @@ class SupervisedAEVGG(
         return super().loss(logits, labels)
 
 
+# reduce lr after one epoch
 class AEL1VGG(L1LossMixin, SimpleAEVGGPretrained):
     def reconstruction_loss(self, recon_x, x):
-        return self.l1_loss(recon_x, x) + self.vgg_loss(recon_x, x)
+        return {
+            "l1_loss": self.l1_loss(recon_x, x),
+            "vgg_content_loss": self.vgg_content_loss(recon_x, x) / 4,
+        }
+
+
+class AEFullVGG(SimpleAEVGGPretrained):
+    def reconstruction_loss(self, recon_x, x):
+        return {
+            "vgg_style_loss": self.vgg_style_loss(recon_x, x),
+            # "vgg_content_loss": self.vgg_content_loss(recon_x, x),
+        }

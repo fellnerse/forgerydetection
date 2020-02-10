@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 
 import torch
@@ -7,6 +8,8 @@ from torch.nn import functional as F
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.video.vgg import Vgg16
 
+logger = logging.getLogger(__file__)
+
 
 class VGGLossMixin(nn.Module):
     def __init__(self):
@@ -15,10 +18,39 @@ class VGGLossMixin(nn.Module):
         self.vgg.eval()
         self._set_requires_grad_for_module(self.vgg, requires_grad=False)
 
-    def vgg_loss(self, recon_x, x):
-        features_y = self.vgg(recon_x.view(-1, *recon_x.shape[-3:]))
+    def vgg_content_loss(self, recon_x, x):
+        features_recon_x, features_x = self._calculate_features(recon_x, x)
+        return F.mse_loss(features_recon_x, features_x)
+
+    def vgg_style_loss(self, recon_x, x):
+        features_recon_x, features_x = self._calculate_features(recon_x, x)
+
+        gram_style_recon_x = self._gram_matrix(features_recon_x)
+        gram_style_x = self._gram_matrix(features_x)
+
+        return F.mse_loss(gram_style_x, gram_style_recon_x) * features_recon_x.shape[0]
+
+    def vgg_full_loss(self, recon_x, x):
+        features_recon_x, features_x = self._calculate_features(recon_x, x)
+
+        gram_style_recon_x = self._gram_matrix(features_recon_x)
+        gram_style_x = self._gram_matrix(features_x)
+
+        return F.mse_loss(gram_style_x, gram_style_recon_x) * features_recon_x.shape[
+            0
+        ] + F.mse_loss(features_recon_x, features_x)
+
+    def _calculate_features(self, recon_x, x):
+        features_recon_x = self.vgg(recon_x.view(-1, *recon_x.shape[-3:]))
         features_x = self.vgg(x.view(-1, *x.shape[-3:]))
-        return F.mse_loss(features_y, features_x)
+        return features_recon_x, features_x
+
+    @staticmethod
+    def _gram_matrix(y):
+        features = y.view(*y.shape[: -(len(y.shape) - 2)], y.shape[-2] * y.shape[-1])
+        features_t = features.transpose(1, 2)
+        gram = features.bmm(features_t) / (y.shape[-3] * y.shape[-2] * y.shape[-1])
+        return gram
 
 
 class L1LossMixin(nn.Module):

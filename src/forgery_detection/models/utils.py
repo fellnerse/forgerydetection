@@ -1,6 +1,7 @@
 import abc
 import logging
 from abc import ABC
+from functools import reduce
 
 import torch
 from torch import nn
@@ -24,6 +25,7 @@ ACC = "acc"
 CLASS_ACC = "class_acc"
 MU = "mu"
 LOG_VAR = "log_var"
+BATCH_SIZE = "batch_size"
 
 
 class LightningModel(nn.Module, ABC):
@@ -169,7 +171,7 @@ class GeneralAE(LightningModel, ABC):
         output_dict = self._transform_output_dict(random_batch)
         with torch.no_grad():
             # calculated metrics based on outputs
-            metric_dict = self._calculate_metrics(batch_size=50, **output_dict)
+            metric_dict = self._calculate_metrics(**output_dict)
 
             if should_log_images:
                 # log reconstructed images
@@ -215,7 +217,7 @@ class GeneralAE(LightningModel, ABC):
         raise NotImplementedError()
 
     @staticmethod
-    def reconstruction_loss(recon_x, x):
+    def reconstruction_loss(recon_x, x) -> dict:
         raise NotImplementedError()
 
     def loss(self, logits, labels):
@@ -224,7 +226,7 @@ class GeneralAE(LightningModel, ABC):
 
     def _should_log_images(self):
         if self.log_image_count - self.log_images_every == 0:
-            self.log_image_count = 0
+            self.log_image_count = 1
             return True
         else:
             self.log_image_count += 1
@@ -233,12 +235,13 @@ class GeneralAE(LightningModel, ABC):
     @staticmethod
     def _transform_output_dict(output: dict):
         network_output = [x[PRED] for x in output]
+        bs = network_output[0][PRED].shape[0]
         x_recon = torch.cat([x[RECON_X] for x in network_output], 0)
         pred = torch.cat([x[PRED] for x in network_output], 0)
 
         target = torch.cat([x[TARGET] for x in output], 0)
         x = torch.cat([x[X] for x in output], 0)
-        return {RECON_X: x_recon, PRED: pred, TARGET: target, X: x}
+        return {RECON_X: x_recon, PRED: pred, TARGET: target, X: x, BATCH_SIZE: bs}
 
     def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
         x_12 = x[:4].view(-1, 3, 112, 112)
@@ -264,9 +267,10 @@ class GeneralAE(LightningModel, ABC):
         return _metric_dict
 
     def _calculate_metrics(self, batch_size=1, **kwargs):
-        reconstruction_loss = self._calculate_batched_reconstruction_loss(
+        reconstruction_loss_dict = self._calculate_batched_reconstruction_loss(
             batch_size, kwargs
         )
+        reconstruction_loss = reduce(torch.add, reconstruction_loss_dict.values())
 
         classification_loss = self.loss(kwargs[PRED], kwargs[TARGET])
 
@@ -285,18 +289,24 @@ class GeneralAE(LightningModel, ABC):
             ACC: acc_mean,
             CLASSIFICATION_LOSS: classification_loss,
             LOSS: loss,
+            **reconstruction_loss_dict,
         }
 
     def _calculate_batched_reconstruction_loss(self, batch_size, kwargs):
-        reconstruction_loss = 0
+        reconstruction_loss = {}
         recon_x, x = kwargs[RECON_X], kwargs[X]
         recon_x, x = (
             recon_x.view(batch_size, -1, *recon_x.shape[-3:]),
             x.view(batch_size, -1, *x.shape[-3:]),
         )
         for _recon_x, _x in zip(recon_x, x):
-            reconstruction_loss += self.reconstruction_loss(_recon_x, _x)
-        return reconstruction_loss / recon_x.shape[0]
+            _reconstruction_loss = self.reconstruction_loss(_recon_x, _x)
+            for loss, value in _reconstruction_loss.items():
+                try:
+                    reconstruction_loss[loss] += value / recon_x.shape[0]
+                except KeyError:
+                    reconstruction_loss[loss] = value / recon_x.shape[0]
+        return reconstruction_loss
 
 
 class GeneralVAE(GeneralAE, ABC):

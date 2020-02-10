@@ -383,7 +383,7 @@ class VVVGGLoss(PretrainedVAE):
         # return F.l1_loss(recon_x, x) + F.mse_loss(
         #     features_y.relu2_2, features_x.relu2_2
         # )
-        # for testing purposes only vgg_loss
+        # for testing purposes only vgg_content_loss
         return F.mse_loss(features_y.relu2_2, features_x.relu2_2)
 
     def training_step(self, batch, batch_nb, system):
