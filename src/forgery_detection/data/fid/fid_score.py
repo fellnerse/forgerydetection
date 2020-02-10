@@ -36,6 +36,7 @@ import os
 from argparse import ArgumentDefaultsHelpFormatter
 from argparse import ArgumentParser
 from multiprocessing import cpu_count
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -132,19 +133,19 @@ def get_activations(files, model, batch_size=50, dims=2048, cuda=False, verbose=
     dl = DataLoader(
         ds,
         batch_size=batch_size,
-        drop_last=True,
+        drop_last=False,
         num_workers=2 * cpu_count(),
         pin_memory=cuda,
     )
 
-    n_batches = len(dl)
-    n_used_imgs = n_batches * batch_size
+    n_used_imgs = len(ds)
 
     pred_arr = np.empty((n_used_imgs, dims))
 
     for i, batch in enumerate(tqdm(dl)):
-        start = i
-        end = i + batch_size
+        batch_length = len(batch)
+        start = i * batch_size
+        end = start + batch_length
 
         if cuda:
             batch = batch.cuda(non_blocking=True)
@@ -157,7 +158,7 @@ def get_activations(files, model, batch_size=50, dims=2048, cuda=False, verbose=
         if pred.size(2) != 1 or pred.size(3) != 1:
             pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
 
-        pred_arr[start:end] = pred.cpu().data.numpy().reshape(pred.size(0), -1)
+        pred_arr[start:end] = pred.cpu().data.numpy().reshape(batch_length, -1)
 
     if verbose:
         print(" done")
@@ -251,14 +252,20 @@ def calculate_activation_statistics(
     return mu, sigma
 
 
-def _compute_statistics_of_path(path: str, model, batch_size, dims, cuda):
+def _compute_statistics_of_path(path: str, model, batch_size, dims, cuda, split="val"):
     if path.endswith(".npz"):
         f = np.load(path)
         m, s = f["mu"][:], f["sigma"][:]
         f.close()
     else:
         file_list = FileList.load(path)
-        files = list(map(lambda x: file_list.root + x[0], file_list.samples["val"]))
+        root = Path(file_list.root)
+
+        idx = file_list.samples_idx[split]
+
+        files = np.array(list(map(lambda x: root / x[0], file_list.samples[split])))
+        files = files[idx]
+
         m, s = calculate_activation_statistics(files, model, batch_size, dims, cuda)
 
     return m, s
@@ -276,8 +283,12 @@ def calculate_fid_given_paths(paths, batch_size, cuda, dims):
     if cuda:
         model.cuda()
 
-    m1, s1 = _compute_statistics_of_path(paths[0], model, batch_size, dims, cuda)
-    m2, s2 = _compute_statistics_of_path(paths[1], model, batch_size, dims, cuda)
+    m1, s1 = _compute_statistics_of_path(
+        paths[0], model, batch_size, dims, cuda, split="val"
+    )
+    m2, s2 = _compute_statistics_of_path(
+        paths[1], model, batch_size, dims, cuda, split="val"
+    )
     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
 
     return fid_value
