@@ -9,6 +9,7 @@ from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import PretrainedNet
+from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.utils import ACC
 from forgery_detection.models.utils import CLASS_ACC
@@ -105,6 +106,15 @@ class SimpleAEL1Pretrained(
     pass
 
 
+class SimpleAEVGGPretrained(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/vgg/model.ckpt"
+    ),
+    SimpleAEVGG,
+):
+    pass
+
+
 class StackedAE(GeneralAE, L1LossMixin):
     RECON_X_2 = "recon_x_2"
     RECON_X_DIFF = "recon_x_diff"
@@ -116,10 +126,7 @@ class StackedAE(GeneralAE, L1LossMixin):
         self.ae2 = SimpleAEL1Pretrained()
 
         self.classifier = nn.Sequential(
-            nn.Linear(784, 50),
-            nn.ReLU(),
-            nn.Dropout(),
-            nn.Linear(50, self.num_classes - 1),
+            nn.Linear(784, 50), nn.ReLU(), nn.Linear(50, self.num_classes - 1)
         )
 
     def training_step(self, batch, batch_nb, system):
@@ -154,7 +161,7 @@ class StackedAE(GeneralAE, L1LossMixin):
         random_batch, static_batch = output
 
         # process the random batch
-        output_dict = self._output_to_metric_dict(random_batch)
+        output_dict = self._transform_output_dict(random_batch)
         with torch.no_grad():
             # calculated metrics based on outputs
             metric_dict = self._calculate_metrics(**output_dict)
@@ -184,7 +191,7 @@ class StackedAE(GeneralAE, L1LossMixin):
         # process the static batch
         # for the static batch we log only the images
         if should_log_images:
-            output_dict = self._output_to_metric_dict(static_batch)
+            output_dict = self._transform_output_dict(static_batch)
             _x = torch.cat((output_dict[X], output_dict[self.RECON_X_DIFF]), dim=1)
             _recon_x = torch.cat(
                 (output_dict[RECON_X], output_dict[self.RECON_X_2]), dim=1
@@ -215,7 +222,7 @@ class StackedAE(GeneralAE, L1LossMixin):
         labels = labels[labels != 5]
         if logits.shape[0] == 0:
             return NAN_TENSOR.cuda(device=logits.device)
-        return F.cross_entropy(logits, labels) / 25
+        return F.cross_entropy(logits, labels) / 100
 
     def calculate_accuracy(self, pred, target):
         pred = pred[target != 5]
@@ -232,7 +239,7 @@ class StackedAE(GeneralAE, L1LossMixin):
     def decode(self, z):
         pass
 
-    def _output_to_metric_dict(self, output: dict):
+    def _transform_output_dict(self, output: dict):
         network_output = [x[PRED] for x in output]
         x_recon_1 = torch.cat([x[RECON_X] for x in network_output], 0)
         pred = torch.cat([x[PRED] for x in network_output], 0)
@@ -279,3 +286,36 @@ class StackedAE(GeneralAE, L1LossMixin):
             "reconstruction_loss_1": reconstruction_loss_1,
             "reconstruction_loss_2": reconstruction_loss_2,
         }
+
+
+class SupervisedAEL1(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEL1Pretrained
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) / 20
+
+
+class SupervisedAEVGG(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEVGGPretrained
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels)
+
+
+class AEL1VGG(L1LossMixin, SimpleAEVGGPretrained):
+    def reconstruction_loss(self, recon_x, x):
+        return self.l1_loss(recon_x, x) + self.vgg_loss(recon_x, x)
