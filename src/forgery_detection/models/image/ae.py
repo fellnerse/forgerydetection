@@ -327,15 +327,22 @@ class AEL1VGG(L1LossMixin, SimpleAEVggPretrained):
 
 class AEFullVGG(SimpleAEVggPretrained):
     def reconstruction_loss(self, recon_x, x):
-        return {
-            "style_loss": self.style_loss(recon_x, x),
-            "content_loss": self.content_loss(recon_x, x),
-        }
+        return {"perceptual_loss": self.full_loss(recon_x, x, slices=4)}
 
 
 class AEFullFaceNet(FaceNetLossMixin, SimpleAEVggPretrained):
     def reconstruction_loss(self, recon_x, x):
         return {
-            "style_loss": self.style_loss(recon_x, x) * 1e6,
-            "content_loss": self.content_loss(recon_x, x) * 1e3,
+            "style_loss": self.style_loss(recon_x, x) * 20,
+            "content_loss": self.content_loss(recon_x, x) * 10,
         }
+
+
+class StyleNet(SimpleAE, VGGLossMixin):
+    def reconstruction_loss(self, recon_x, x):
+        return {"style_loss": self.style_loss(recon_x, x)}
+
+
+class SqrtNet(SimpleAE, VGGLossMixin):
+    def reconstruction_loss(self, recon_x, x):
+        return {"perceptual_loss": self.full_loss(recon_x, x, slices=2)}

@@ -1,8 +1,11 @@
+import logging
+
 import torch
-import torch.nn.functional as F
 from torch import nn
 from torchvision.models.video.resnet import Conv3DNoTemporal
 
+from forgery_detection.models.mixins import L1LossMixin
+from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.utils import GeneralAE
 from forgery_detection.models.utils import PRED
 from forgery_detection.models.utils import RECON_X
@@ -11,8 +14,10 @@ from forgery_detection.models.video.vae import StemSample
 from forgery_detection.models.video.vae import Transpose
 from forgery_detection.models.video.vae import UpBlockSample
 
+logger = logging.getLogger(__file__)
 
-class VideoAE2(GeneralAE):
+
+class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
     def __init__(
         self,
         num_classes=5,
@@ -23,7 +28,7 @@ class VideoAE2(GeneralAE):
         *args,
         **kwargs
     ):
-        super(GeneralAE, self).__init__(
+        super().__init__(
             num_classes=num_classes,
             sequence_length=sequence_length,
             contains_dropout=False,
@@ -68,7 +73,10 @@ class VideoAE2(GeneralAE):
         }
 
     def reconstruction_loss(self, recon_x, x):
-        return F.l1_loss(recon_x, x)
+        return {
+            "l1_loss": self.l1_loss(recon_x, x),
+            "perceptual_loss": self.full_loss(recon_x, x, slices=2) / 4,
+        }
 
     def loss(self, logits, labels):
         return torch.zeros((1,), device=logits.device)

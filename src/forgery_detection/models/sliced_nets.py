@@ -14,7 +14,8 @@ class SlicedNet(nn.Module):
 
     def forward(self, X, slices=2):
         h = self.slice1(X)
-        h = self.slice2(h)
+        if slices > 1:
+            h = self.slice2(h)
         if slices > 2:
             h = self.slice3(h)
         if slices > 3:
@@ -47,20 +48,16 @@ class FaceNet(SlicedNet):
             inception_resnet_features.conv2d_1a,
             inception_resnet_features.conv2d_2a,
             inception_resnet_features.conv2d_2b,
-        )
-        self.slice2 = torch.nn.Sequential(
             inception_resnet_features.maxpool_3a,
             inception_resnet_features.conv2d_3b,
-            inception_resnet_features.conv2d_4a,
+        )
+        self.slice2 = torch.nn.Sequential(inception_resnet_features.conv2d_4a)
+        self.slice3 = torch.nn.Sequential(
             inception_resnet_features.conv2d_4b,
             inception_resnet_features.repeat_1,
+            inception_resnet_features.mixed_6a,
         )
-        self.slice3 = torch.nn.Sequential(
-            inception_resnet_features.mixed_6a, inception_resnet_features.repeat_2
-        )
-        self.slice4 = torch.nn.Sequential(
-            inception_resnet_features.mixed_7a, inception_resnet_features.repeat_3
-        )
+        self.slice4 = torch.nn.Sequential(inception_resnet_features.repeat_2)
 
         if not requires_grad:
             for param in self.parameters():

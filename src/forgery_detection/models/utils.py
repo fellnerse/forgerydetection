@@ -134,7 +134,6 @@ class GeneralAE(LightningModel, ABC):
         self, num_classes, sequence_length, contains_dropout, log_images_every=1
     ):
         super().__init__(num_classes, sequence_length, contains_dropout)
-
         self.log_image_count = log_images_every
         self.log_images_every = log_images_every
 
