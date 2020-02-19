@@ -295,8 +295,8 @@ class GeneralAE(LightningModel, ABC):
         reconstruction_loss = {}
         recon_x, x = kwargs[RECON_X], kwargs[X]
         recon_x, x = (
-            recon_x.view(batch_size, -1, *recon_x.shape[-3:]),
-            x.view(batch_size, -1, *x.shape[-3:]),
+            recon_x.reshape(batch_size, -1, *recon_x.shape[-3:]),
+            x.reshape(batch_size, -1, *x.shape[-3:]),
         )
         for _recon_x, _x in zip(recon_x, x):
             _reconstruction_loss = self.reconstruction_loss(_recon_x, _x)

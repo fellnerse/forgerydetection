@@ -85,6 +85,30 @@ class L1LossMixin(nn.Module):
         return F.l1_loss(recon_x, x)
 
 
+class LaplacianLossMixin(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.weights = (
+            torch.tensor([[1.0, 1.0, 1.0], [1.0, -8.0, 1.0], [1.0, 1.0, 1.0]])
+            .view(1, 1, 3, 3)
+            .repeat(1, 1, 1, 1)
+        )
+        self.weights.requires_grad_(False)
+
+    def laplacian_loss(self, recon_x, x):
+        if recon_x.device != self.weights.device:
+            self.weights = self.weights.to(recon_x.device)
+
+        recon_x_laplacian = F.conv2d(
+            recon_x.view(-1, 1, *recon_x.shape[-2:]), self.weights, stride=1, padding=1
+        ).view(-1, 3, *recon_x.shape[-2:])
+        x_laplacian = F.conv2d(
+            x.view(-1, 1, *x.shape[-2:]), self.weights, stride=1, padding=1
+        ).view(-1, 3, *x.shape[-2:])
+
+        return F.l1_loss(recon_x_laplacian, x_laplacian)
+
+
 def PretrainedNet(path_to_model: str):
     class PretrainedNetMixin(nn.Module):
         __path_to_model = path_to_model

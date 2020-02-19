@@ -9,6 +9,7 @@ from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import FaceNetLossMixin
 from forgery_detection.models.mixins import L1LossMixin
+from forgery_detection.models.mixins import LaplacianLossMixin
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
@@ -346,3 +347,17 @@ class StyleNet(SimpleAE, VGGLossMixin):
 class SqrtNet(SimpleAE, VGGLossMixin):
     def reconstruction_loss(self, recon_x, x):
         return {"perceptual_loss": self.full_loss(recon_x, x, slices=2)}
+
+
+class LaplacianLossNet(LaplacianLossMixin, SimpleAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"laplacian_loss": self.laplacian_loss(recon_x, x)}
+
+
+class PretrainedLaplacianLossNet(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/laplacian_loss/version_2/checkpoints/_ckpt_epoch_4.ckpt"
+    ),
+    LaplacianLossNet,
+):
+    pass

@@ -5,6 +5,8 @@ from torch import nn
 from torchvision.models.video.resnet import Conv3DNoTemporal
 
 from forgery_detection.models.mixins import L1LossMixin
+from forgery_detection.models.mixins import PretrainedNet
+from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.utils import GeneralAE
 from forgery_detection.models.utils import PRED
@@ -26,7 +28,7 @@ class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
         stem=StemSample,
         activation=nn.ReLU,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             num_classes=num_classes,
@@ -80,3 +82,28 @@ class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
 
     def loss(self, logits, labels):
         return torch.zeros((1,), device=logits.device)
+
+
+class PretrainedVideoAE(
+    PretrainedNet(
+        "/data/hdd/model_checkpoints/avspeech_ff_100/video/ae/l1+vgg/model.ckpt"
+    ),
+    VideoAE2,
+):
+    # there seems to be a bug in the encoder -> latent space is 8x8x1x1 instead of
+    # 8x8x2x2
+    pass
+
+
+class SupervisedVideoAE(
+    SupervisedNet(input_units=64, num_classes=5), PretrainedVideoAE
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 10

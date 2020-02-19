@@ -54,6 +54,8 @@ from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
+from forgery_detection.models.image.ae import LaplacianLossNet
+from forgery_detection.models.image.ae import PretrainedLaplacianLossNet
 from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.ae import SimpleAEL1
 from forgery_detection.models.image.ae import SimpleAEL1Pretrained
@@ -84,6 +86,7 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.vae import SimpleVAE
 from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.ae import SupervisedVideoAE
 from forgery_detection.models.video.ae import VideoAE2
 from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
@@ -141,6 +144,8 @@ class Supervised(pl.LightningModule):
         "ae_l1": SimpleAEL1,
         "ae_l1_pretrained": SimpleAEL1Pretrained,
         "ae_l1_vgg": AEL1VGG,
+        "ae_laplacian": LaplacianLossNet,
+        "ae_laplacian_pretrained": PretrainedLaplacianLossNet,
         "ae_supervised": SupervisedAEL1,
         "ae_vgg_supervised": SupervisedAEVgg,
         "vae_supervised": SupervisedVae,
@@ -151,6 +156,7 @@ class Supervised(pl.LightningModule):
         "vae_video_supervised_bce": VideoVaeSupervisedBCE,
         "ae_video": VideoAE,
         "ae_video2": VideoAE2,
+        "ae_video_supervised": SupervisedVideoAE,
         "ae_stacked": StackedAE,
         "style_net": StyleNet,
         "sqrt_net": SqrtNet,
