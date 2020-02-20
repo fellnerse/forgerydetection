@@ -103,6 +103,7 @@ from forgery_detection.models.video.multi_class_classification import Resnet18Fu
 from forgery_detection.models.video.multi_class_classification import (
     Resnet18Fully3DPretrained,
 )
+from forgery_detection.models.video.scramble import ScrambleNet
 from forgery_detection.models.video.vae import VideoAE
 from forgery_detection.models.video.vae import VideoVae
 from forgery_detection.models.video.vae import VideoVaeDetachedSupervised
@@ -160,6 +161,7 @@ class Supervised(pl.LightningModule):
         "ae_stacked": StackedAE,
         "style_net": StyleNet,
         "sqrt_net": SqrtNet,
+        "scramble_net": ScrambleNet,
     }
 
     CUSTOM_TRANSFORMS = {

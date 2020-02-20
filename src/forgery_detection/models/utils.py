@@ -101,6 +101,10 @@ class SequenceClassificationModel(LightningModel, ABC):
         return tensorboard_log, lightning_log
 
     def aggregate_outputs(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
         pred = torch.cat([x["pred"] for x in outputs], 0)
         target = torch.cat([x["target"] for x in outputs], 0)
 
