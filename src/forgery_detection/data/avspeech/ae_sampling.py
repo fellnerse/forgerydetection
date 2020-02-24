@@ -1,9 +1,12 @@
 import cv2
+import dlib
 import numpy as np
 import torch
 from scipy.ndimage import correlate1d
 from scipy.ndimage import generic_laplace
 from torch.nn import functional as F
+from torchvision.datasets.folder import default_loader
+from torchvision.transforms import transforms
 from torchvision.utils import make_grid
 
 from forgery_detection.models.utils import GeneralAE
@@ -18,28 +21,87 @@ class AESampler:
         )
         self.latent_vector.normal_()
 
-        self.latent_vector *= 0
+        # self.latent_vector *= 0
         self.n = 0
 
     def sample(self):
 
         # self.latent_vector[:, :, self.n].normal_()
+        self.latent_vector.normal_()
         # self.n += 1
         # gaussian_sample = self.latent_vector.normal_()
         # for i in range(7):
         #     gaussian_sample[:, i + 1] = gaussian_sample[:, 0]
         sample = self.ae.decode(self.latent_vector)
-        self.latent_vector[:, 0, 0] -= 0.01
+        # self.latent_vector[:, 0, 0] -= 0.01
         return sample
 
 
+def get_faces():
+    image = cv2.cv2.imread("./../../../me.png")
+    image_gray = cv2.cv2.cvtColor(image, cv2.cv2.COLOR_RGB2GRAY)
+    detector = dlib.get_frontal_face_detector()
+    faces = detector(image_gray, 1)
+
+    image = default_loader("./../../../me.png")
+
+    face_images = list(
+        map(
+            lambda face: image.crop(
+                (
+                    face.left() - face.width() * 0.3,
+                    face.top() - face.height() * 0.3,
+                    face.left() + face.width() * 1.3,
+                    face.top() + face.width() * 1.3,
+                )
+            ),
+            faces,
+        )
+    )
+    trans = transforms.Compose(
+        [
+            transforms.Resize(112),
+            transforms.CenterCrop(112),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    face_images = [trans(face_images[0]), trans(face_images[1])]
+    face_images = torch.stack(
+        (torch.stack([face_images[0]] * 8), torch.stack([face_images[1]] * 8))
+    )
+    return face_images
+
+
 def sample():
+
     ae = PretrainedVideoAE()
     ae_sampler = AESampler(ae)
 
     sample_images = []
     for _ in range(8):
         sample_images += [ae_sampler.sample().squeeze(0)]
+
+    sample_images = torch.cat(sample_images, dim=0)
+    datapoints = make_grid(sample_images, nrow=8, range=(-1, 1), normalize=True)
+
+    d = datapoints.detach().permute(1, 2, 0).numpy() * 255
+    d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
+
+    cv2.imwrite(f"sampled_images_random.png", d)
+
+    # reconstruct
+    face_image = get_faces()
+    latent_code = ae.encode(face_image)
+
+    sample_images = []
+    for idx in range(11):
+        images = ae.decode(
+            (
+                latent_code[0] * (idx / 10) + latent_code[1] * ((10 - idx) / 10)
+            ).unsqueeze(0)
+        )
+        sample_images += [image for image in images]
 
     sample_images = torch.cat(sample_images, dim=0)
     datapoints = make_grid(sample_images, nrow=8, range=(-1, 1), normalize=True)
