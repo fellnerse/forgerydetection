@@ -65,6 +65,7 @@ from forgery_detection.models.image.ae import StackedAE
 from forgery_detection.models.image.ae import StyleNet
 from forgery_detection.models.image.ae import SupervisedAEL1
 from forgery_detection.models.image.ae import SupervisedAEVgg
+from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -86,6 +87,7 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.vae import SimpleVAE
 from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.ae import SmallerVideoAE
 from forgery_detection.models.video.ae import SupervisedVideoAE
 from forgery_detection.models.video.ae import VideoAE2
 from forgery_detection.models.video.multi_class_classification import MC3
@@ -158,10 +160,12 @@ class Supervised(pl.LightningModule):
         "ae_video": VideoAE,
         "ae_video2": VideoAE2,
         "ae_video_supervised": SupervisedVideoAE,
+        "ae_video2_smaller": SmallerVideoAE,
         "ae_stacked": StackedAE,
         "style_net": StyleNet,
         "sqrt_net": SqrtNet,
         "scramble_net": ScrambleNet,
+        "ae_gan": AEGAN,
     }
 
     CUSTOM_TRANSFORMS = {

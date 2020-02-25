@@ -34,14 +34,18 @@ class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
             num_classes=num_classes,
             sequence_length=sequence_length,
             contains_dropout=False,
+            log_images_every=10,
         )
 
         self.encoder = Encoder(self.sequence_length)
-        self.encoder.mc3.reduce.add_module(
-            "ae_conv3d", Conv3DNoTemporal(16, 8, stride=2)
+        self.encoder.mc3.reduce = nn.Sequential(
+            Conv3DNoTemporal(256, 8, stride=2), nn.BatchNorm3d(8), nn.ELU()
         )
-        self.encoder.mc3.reduce.add_module("ae_bn3d", nn.BatchNorm3d(8))
-        self.encoder.mc3.reduce.add_module("ae_elu", nn.ELU())
+        # self.encoder.mc3.reduce.add_module(
+        #     "ae_conv3d", Conv3DNoTemporal(16, 8, stride=2)
+        # )
+        # self.encoder.mc3.reduce.add_module("ae_bn3d", nn.BatchNorm3d(8))
+        # self.encoder.mc3.reduce.add_module("ae_elu", nn.ELU())
 
         # output: 256 -> mu and sigma are 128
 
@@ -86,17 +90,16 @@ class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
 
 class PretrainedVideoAE(
     PretrainedNet(
-        "/data/hdd/model_checkpoints/avspeech_ff_100/video/ae/l1+vgg/model.ckpt"
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/video/ae/"
+        "l1+vgg/bigger_latent_space_further.ckpt"
     ),
     VideoAE2,
 ):
-    # there seems to be a bug in the encoder -> latent space is 8x8x1x1 instead of
-    # 8x8x2x2
     pass
 
 
 class SupervisedVideoAE(
-    SupervisedNet(input_units=64, num_classes=5), PretrainedVideoAE
+    SupervisedNet(input_units=8 * 8 * 7 * 7, num_classes=5), PretrainedVideoAE
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -106,4 +109,19 @@ class SupervisedVideoAE(
         return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
 
     def loss(self, logits, labels):
-        return super().loss(logits, labels) * 10
+        return super().loss(logits, labels)
+
+
+class SmallerVideoAE(PretrainedVideoAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.encoder.mc3.reduce = nn.Sequential(
+            Conv3DNoTemporal(256, 16, stride=1), nn.BatchNorm3d(16), nn.ELU()
+        )
+        self.decoder.__delitem__(0)
+        self.decoder.__setitem__(
+            0,
+            nn.Sequential(
+                Conv3DNoTemporal(16, 128, stride=1), nn.BatchNorm3d(128), nn.ELU()
+            ),
+        )

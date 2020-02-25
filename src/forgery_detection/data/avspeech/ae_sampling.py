@@ -98,7 +98,8 @@ def sample():
     for idx in range(11):
         images = ae.decode(
             (
-                latent_code[0] * (idx / 10) + latent_code[1] * ((10 - idx) / 10)
+                latent_code[1] * (idx / 10)
+                + ae_sampler.latent_vector.squeeze(0) * ((10 - idx) / 10)
             ).unsqueeze(0)
         )
         sample_images += [image for image in images]
@@ -109,7 +110,7 @@ def sample():
     d = datapoints.detach().permute(1, 2, 0).numpy() * 255
     d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
 
-    cv2.imwrite(f"sampled_images_interpolated.png", d)
+    cv2.imwrite(f"sampled_images_random_interpolated_me.png", d)
 
 
 def do_laplace_stuff():

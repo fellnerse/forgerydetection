@@ -110,7 +110,7 @@ class StemSample(Stem):
     def __init__(self, in_size, out_size, activation=nn.ReLU):
         super().__init__(in_size, out_size, activation)
         self.stem = nn.Sequential(
-            nn.Upsample(size=(8, 4, 4), mode="nearest"),
+            nn.Upsample(size=(8, 7, 7), mode="nearest"),
             nn.Conv3d(
                 in_size,
                 out_size // 2,

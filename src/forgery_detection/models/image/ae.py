@@ -83,7 +83,9 @@ class SimpleAE(GeneralAE):
         }
 
     def reconstruction_loss(self, recon_x, x):
-        return F.binary_cross_entropy_with_logits(recon_x, torch.sigmoid(x))
+        return {
+            "bce_loss": F.binary_cross_entropy_with_logits(recon_x, torch.sigmoid(x))
+        }
 
     def loss(self, logits, labels):
         return torch.zeros((1,), device=logits.device)
