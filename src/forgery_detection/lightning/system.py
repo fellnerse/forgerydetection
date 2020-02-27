@@ -88,6 +88,8 @@ from forgery_detection.models.image.vae import SimpleVAE
 from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
 from forgery_detection.models.video.ae import SmallerVideoAE
+from forgery_detection.models.video.ae import SupervisedSmallerVideoAE
+from forgery_detection.models.video.ae import SupervisedSmallerVideoAEGlobalAvgPooling
 from forgery_detection.models.video.ae import SupervisedVideoAE
 from forgery_detection.models.video.ae import VideoAE2
 from forgery_detection.models.video.multi_class_classification import MC3
@@ -161,6 +163,8 @@ class Supervised(pl.LightningModule):
         "ae_video2": VideoAE2,
         "ae_video_supervised": SupervisedVideoAE,
         "ae_video2_smaller": SmallerVideoAE,
+        "ae_video2_smaller_supervised": SupervisedSmallerVideoAE,
+        "ae_video2_smaller_supervised_avg_pooling": SupervisedSmallerVideoAEGlobalAvgPooling,
         "ae_stacked": StackedAE,
         "style_net": StyleNet,
         "sqrt_net": SqrtNet,

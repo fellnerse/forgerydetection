@@ -10,7 +10,7 @@ from torchvision.transforms import transforms
 from torchvision.utils import make_grid
 
 from forgery_detection.models.utils import GeneralAE
-from forgery_detection.models.video.ae import PretrainedVideoAE
+from forgery_detection.models.video.ae import PretrainedSmallerVideoAE
 
 
 class AESampler:
@@ -38,12 +38,12 @@ class AESampler:
 
 
 def get_faces():
-    image = cv2.cv2.imread("./../../../me.png")
+    image = cv2.cv2.imread("./../../../me2.png")
     image_gray = cv2.cv2.cvtColor(image, cv2.cv2.COLOR_RGB2GRAY)
     detector = dlib.get_frontal_face_detector()
     faces = detector(image_gray, 1)
 
-    image = default_loader("./../../../me.png")
+    image = default_loader("./../../../me2.png")
 
     face_images = list(
         map(
@@ -75,20 +75,20 @@ def get_faces():
 
 def sample():
 
-    ae = PretrainedVideoAE()
-    ae_sampler = AESampler(ae)
+    ae = PretrainedSmallerVideoAE()
+    # ae_sampler = AESampler(ae)
 
-    sample_images = []
-    for _ in range(8):
-        sample_images += [ae_sampler.sample().squeeze(0)]
-
-    sample_images = torch.cat(sample_images, dim=0)
-    datapoints = make_grid(sample_images, nrow=8, range=(-1, 1), normalize=True)
-
-    d = datapoints.detach().permute(1, 2, 0).numpy() * 255
-    d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
-
-    cv2.imwrite(f"sampled_images_random.png", d)
+    # sample_images = []
+    # for _ in range(8):
+    #     sample_images += [ae_sampler.sample().squeeze(0)]
+    #
+    # sample_images = torch.cat(sample_images, dim=0)
+    # datapoints = make_grid(sample_images, nrow=8, range=(-1, 1), normalize=True)
+    #
+    # d = datapoints.detach().permute(1, 2, 0).numpy() * 255
+    # d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
+    #
+    # cv2.imwrite(f"sampled_images_random.png", d)
 
     # reconstruct
     face_image = get_faces()
@@ -99,7 +99,8 @@ def sample():
         images = ae.decode(
             (
                 latent_code[1] * (idx / 10)
-                + ae_sampler.latent_vector.squeeze(0) * ((10 - idx) / 10)
+                # + ae_sampler.latent_vector.squeeze(0) * ((10 - idx) / 10)
+                + latent_code[0] * ((10 - idx) / 10)
             ).unsqueeze(0)
         )
         sample_images += [image for image in images]
@@ -110,7 +111,7 @@ def sample():
     d = datapoints.detach().permute(1, 2, 0).numpy() * 255
     d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
 
-    cv2.imwrite(f"sampled_images_random_interpolated_me.png", d)
+    cv2.imwrite(f"sampled_images_random_interpolated_me_esa.png", d)
 
 
 def do_laplace_stuff():

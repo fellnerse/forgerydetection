@@ -91,7 +91,7 @@ class VideoAE2(GeneralAE, VGGLossMixin, L1LossMixin):
 class PretrainedVideoAE(
     PretrainedNet(
         "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/video/ae/"
-        "l1+vgg/bigger_latent_space_further.ckpt"
+        "l1+vgg/8x8x7x7_latent_space.ckpt"
     ),
     VideoAE2,
 ):
@@ -109,10 +109,11 @@ class SupervisedVideoAE(
         return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
 
     def loss(self, logits, labels):
-        return super().loss(logits, labels)
+        return super().loss(logits, labels) * 10
 
 
-class SmallerVideoAE(PretrainedVideoAE):
+# previously was trained with inheriting from PretrainedVideoAE
+class SmallerVideoAE(VideoAE2):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.encoder.mc3.reduce = nn.Sequential(
@@ -125,3 +126,43 @@ class SmallerVideoAE(PretrainedVideoAE):
                 Conv3DNoTemporal(16, 128, stride=1), nn.BatchNorm3d(128), nn.ELU()
             ),
         )
+
+
+class PretrainedSmallerVideoAE(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/video/ae/"
+        "l1+vgg/16x8x14x14_latent_space.ckpt"
+    ),
+    SmallerVideoAE,
+):
+    pass
+
+
+class SupervisedSmallerVideoAE(
+    SupervisedNet(input_units=16 * 8 * 14 * 14, num_classes=5), PretrainedSmallerVideoAE
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 10
+
+
+class SupervisedSmallerVideoAEGlobalAvgPooling(
+    SupervisedNet(input_units=16 * 8 * 1 * 1, num_classes=5), PretrainedSmallerVideoAE
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.avgpool = nn.AdaptiveAvgPool3d((8, 1, 1))
+
+    def forward(self, x):
+        h = self.encode(x)
+        avg = self.avgpool(h)
+        return {RECON_X: self.decode(h), PRED: self.classifier(avg.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 10

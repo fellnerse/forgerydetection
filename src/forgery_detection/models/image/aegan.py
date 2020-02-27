@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from torch import nn
 
 from forgery_detection.models.image.ae import SimpleAE
-from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.utils import BATCH_SIZE
 from forgery_detection.models.utils import LOSS
 from forgery_detection.models.utils import PRED
@@ -33,49 +32,40 @@ class AEGAN(SimpleAE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.disc = nn.Sequential(
-            ConvBlock(3, 64, (3, 3), 1, 1),
-            nn.ELU(),
-            ConvBlock(64, 128, (3, 3), 1, 1),
-            nn.ELU(),
-            ConvBlock(128, 256, (3, 3), 1, 1),
-            nn.ELU(),
-            ConvBlock(256, 16, (3, 3), 1, 1),
-            nn.ELU(),
-            ConvBlock(16, 16, (3, 3), 1, 1),
-            nn.ELU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            Flatten(),
-            nn.Linear(16, 1),
-            nn.Sigmoid(),
-        )
+        self.disc = nn.Sequential(Flatten(), nn.Linear(16 * 7 * 7, 1), nn.Sigmoid())
+        self.update_disc = 0
+
+    def discriminate(self, x):
+        x = self.encode(x)
+        x = self.disc(x)
+        return x
 
     def forward(self, x):
         ae_dict = super().forward(x)
 
         # disc loss
         # 1. discriminator on "real image"
-        real_image_disc_output = self.disc(
+        real_image_disc_output = self.discriminate(
             x
         )  # this needs to be lossed with bce real label
         # 2. discriminator on "fake image"
-        fake_image_disc_output_for_disc = self.disc(
+        fake_image_disc_output_for_disc = self.discriminate(
             ae_dict[RECON_X].detach()
         )  # this needs to be lossed with bce fake label
 
         D_G_z1 = fake_image_disc_output_for_disc.mean()  # this should be around 0.5
+        D_G_z2 = real_image_disc_output.mean()  # this should be around 0.5 as well
 
         # gen loss
-        fake_image_disc_output_for_gen = self.disc(
+        fake_image_disc_output_for_gen = self.discriminate(
             ae_dict[RECON_X]
         )  # this needs to be lossed with bce real label
-        D_G_z2 = (
-            fake_image_disc_output_for_gen.mean()
-        )  # this should be around 0.5 as well
 
-        ae_dict[DRD] = real_image_disc_output
-        ae_dict[DFD] = fake_image_disc_output_for_disc
-        ae_dict[DFG] = fake_image_disc_output_for_gen
+        # self.update_disc = (self.update_disc + 1) % 2
+
+        ae_dict[DRD] = real_image_disc_output  # * self.update_disc
+        ae_dict[DFD] = fake_image_disc_output_for_disc  # * self.update_disc
+        ae_dict[DFG] = fake_image_disc_output_for_gen  # * (1 - self.update_disc)
 
         ae_dict[DGD] = D_G_z1
         ae_dict[DGG] = D_G_z2
@@ -125,7 +115,12 @@ class AEGAN(SimpleAE):
             + F.binary_cross_entropy(kwargs[DFD], label_fake)
         ) / 2
         gen_loss = F.binary_cross_entropy(kwargs[DFG], label_real)
-        metrics_dict[LOSS] += desc_loss + gen_loss
+
+        self.update_disc = (self.update_disc + 1) % 2
+        desc_loss = desc_loss * 0  # * self.update_disc
+        gen_loss = gen_loss  # * (1 - self.update_disc)
+
+        metrics_dict[LOSS] += (desc_loss + gen_loss) / 10
 
         metrics_dict["desc_loss"] = desc_loss
         metrics_dict["gen_loss"] = gen_loss
