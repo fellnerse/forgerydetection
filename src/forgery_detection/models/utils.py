@@ -238,11 +238,11 @@ class GeneralAE(LightningModel, ABC):
     @staticmethod
     def _transform_output_dict(output: dict):
         network_output = [x[PRED] for x in output]
-        bs = network_output[0][PRED].shape[0]
         x_recon = torch.cat([x[RECON_X] for x in network_output], 0)
         pred = torch.cat([x[PRED] for x in network_output], 0)
 
         target = torch.cat([x[TARGET] for x in output], 0)
+        bs = output[0][TARGET].shape[0]
         x = torch.cat([x[X] for x in output], 0)
         return {RECON_X: x_recon, PRED: pred, TARGET: target, X: x, BATCH_SIZE: bs}
 

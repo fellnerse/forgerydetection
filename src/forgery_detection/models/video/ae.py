@@ -153,7 +153,7 @@ class SupervisedSmallerVideoAE(
 
 
 class SupervisedSmallerVideoAEGlobalAvgPooling(
-    SupervisedNet(input_units=16 * 8 * 1 * 1, num_classes=5), PretrainedSmallerVideoAE
+    SupervisedNet(input_units=16 * 8 * 1 * 1, num_classes=5), SmallerVideoAE
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

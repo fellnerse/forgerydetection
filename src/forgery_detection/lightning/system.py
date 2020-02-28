@@ -65,6 +65,7 @@ from forgery_detection.models.image.ae import StackedAE
 from forgery_detection.models.image.ae import StyleNet
 from forgery_detection.models.image.ae import SupervisedAEL1
 from forgery_detection.models.image.ae import SupervisedAEVgg
+from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
@@ -153,6 +154,7 @@ class Supervised(pl.LightningModule):
         "ae_laplacian_pretrained": PretrainedLaplacianLossNet,
         "ae_supervised": SupervisedAEL1,
         "ae_vgg_supervised": SupervisedAEVgg,
+        "ae_vgg_supervised_two_headed": SupervisedTwoHeadedAEVGG,
         "vae_supervised": SupervisedVae,
         "vae_video": VideoVae,
         "vae_video_upsample": VideoVaeUpsample,
@@ -473,7 +475,7 @@ class Supervised(pl.LightningModule):
             self.logger,
             self.global_step,
             target,
-            torch.argmax(pred, dim=1),
+            torch.argmax(pred[:, : self.model.num_classes], dim=1),
             self.file_list.class_to_idx,
         )
 

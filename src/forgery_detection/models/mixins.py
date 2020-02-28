@@ -115,7 +115,14 @@ def PretrainedNet(path_to_model: str):
 
         def __init__(self, *args, **kwargs):
             super().__init__()
-            state_dict = torch.load(self.__path_to_model)["state_dict"]
+            try:
+                state_dict = torch.load(self.__path_to_model)["state_dict"]
+            except FileNotFoundError:
+                logger.error(
+                    f"Could not find the desired model checkpoint: {self.__path_to_model}."
+                )
+                input("Press any button to continue.")
+                return
 
             mapped_state_dict = OrderedDict()
             for key, value in state_dict.items():
@@ -158,3 +165,54 @@ def SupervisedNet(input_units: int, num_classes: int):
             return acc
 
     return SupervisedNetMixin
+
+
+def TwoHeadedSupervisedNet(input_units: int, num_classes: int):
+    class TwoheadedSupervisedNetMixin(nn.Module):
+        __input_units = input_units
+        __num_classes = num_classes
+
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+
+            class TwoWayForward(nn.Module):
+                def __init__(self, way_0: nn.Module, way_1: nn.Module):
+                    super().__init__()
+                    self.out_0 = way_0
+                    self.out_1 = way_1
+
+                def forward(self, x):
+                    return torch.cat((self.out_0(x), self.out_1(x)), dim=1)
+
+            self.classifier = nn.Sequential(
+                nn.Linear(self.__input_units, 50),
+                nn.ReLU(),
+                TwoWayForward(nn.Linear(50, self.__num_classes), nn.Linear(50, 2)),
+            )
+
+        def loss(self, logits, labels):
+            # for now just remove it here
+            method_predictions = logits[:, :5][labels != 5]
+            binary_predictions = logits[:, 5:][labels != 5]
+            labels = labels[labels != 5]
+
+            if labels.shape[0] == 0:
+                return NAN_TENSOR.cuda(device=labels.device)
+
+            binary_labels = (labels == 4).long()
+
+            return F.cross_entropy(method_predictions, labels) * (
+                4 / 5
+            ) + F.cross_entropy(binary_predictions, binary_labels) * (1 / 5)
+
+        def calculate_accuracy(self, pred, target):
+            pred = pred[:, :5]
+            pred = pred[target != 5]
+            target = target[target != 5]
+            if pred.shape[0] == 0:
+                return NAN_TENSOR
+            labels_hat = torch.argmax(pred, dim=1)
+            acc = labels_hat.eq(target).float().mean()
+            return acc
+
+    return TwoheadedSupervisedNetMixin

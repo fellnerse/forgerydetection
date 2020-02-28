@@ -12,6 +12,7 @@ from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import LaplacianLossMixin
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.mixins import SupervisedNet
+from forgery_detection.models.mixins import TwoHeadedSupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.utils import ACC
 from forgery_detection.models.utils import CLASS_ACC
@@ -93,7 +94,7 @@ class SimpleAE(GeneralAE):
 
 class SimpleAEVGG(SimpleAE, VGGLossMixin):
     def reconstruction_loss(self, recon_x, x):
-        return self.vgg_content_loss(recon_x, x)
+        return {"vgg_content_loss": self.content_loss(recon_x, x)}
 
 
 class SimpleAEL1(SimpleAE, L1LossMixin):
@@ -308,6 +309,20 @@ class SupervisedAEL1(
 
 class SupervisedAEVgg(
     SupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEVggPretrained
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels)
+
+
+class SupervisedTwoHeadedAEVGG(
+    TwoHeadedSupervisedNet(input_units=16 * 7 * 7, num_classes=5), SimpleAEVggPretrained
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
