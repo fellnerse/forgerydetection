@@ -1,6 +1,7 @@
 import logging
 import pickle
 from argparse import Namespace
+from functools import partial
 from pathlib import Path
 from typing import Union
 
@@ -13,6 +14,7 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import SequentialSampler
 from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
@@ -49,6 +51,23 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.image.ae import AEFullFaceNet
+from forgery_detection.models.image.ae import AEFullVGG
+from forgery_detection.models.image.ae import AEL1VGG
+from forgery_detection.models.image.ae import KrakenAE
+from forgery_detection.models.image.ae import LaplacianLossNet
+from forgery_detection.models.image.ae import PretrainedLaplacianLossNet
+from forgery_detection.models.image.ae import SimpleAE
+from forgery_detection.models.image.ae import SimpleAEL1
+from forgery_detection.models.image.ae import SimpleAEL1Pretrained
+from forgery_detection.models.image.ae import SimpleAEVGG
+from forgery_detection.models.image.ae import SqrtNet
+from forgery_detection.models.image.ae import StackedAE
+from forgery_detection.models.image.ae import StyleNet
+from forgery_detection.models.image.ae import SupervisedAEL1
+from forgery_detection.models.image.ae import SupervisedAEVgg
+from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
+from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -67,7 +86,14 @@ from forgery_detection.models.image.multi_class_classification import (
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
+from forgery_detection.models.image.vae import SimpleVAE
+from forgery_detection.models.image.vae import SupervisedVae
 from forgery_detection.models.utils import LightningModel
+from forgery_detection.models.video.ae import SmallerVideoAE
+from forgery_detection.models.video.ae import SupervisedSmallerVideoAE
+from forgery_detection.models.video.ae import SupervisedSmallerVideoAEGlobalAvgPooling
+from forgery_detection.models.video.ae import SupervisedVideoAE
+from forgery_detection.models.video.ae import VideoAE2
 from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import R2Plus1Frozen
@@ -83,6 +109,13 @@ from forgery_detection.models.video.multi_class_classification import Resnet18Fu
 from forgery_detection.models.video.multi_class_classification import (
     Resnet18Fully3DPretrained,
 )
+from forgery_detection.models.video.scramble import ScrambleNet
+from forgery_detection.models.video.vae import VideoAE
+from forgery_detection.models.video.vae import VideoVae
+from forgery_detection.models.video.vae import VideoVaeDetachedSupervised
+from forgery_detection.models.video.vae import VideoVaeSupervised
+from forgery_detection.models.video.vae import VideoVaeSupervisedBCE
+from forgery_detection.models.video.vae import VideoVaeUpsample
 
 logger = logging.getLogger(__file__)
 
@@ -110,6 +143,37 @@ class Supervised(pl.LightningModule):
         "mc3": MC3,
         "audionet": AudioNet,
         "audioonly": AudioOnly,
+        "vae": SimpleVAE,
+        "ae": SimpleAE,
+        "ae_vgg": SimpleAEVGG,
+        "ae_full_vgg": AEFullVGG,
+        "ae_full_facenet": AEFullFaceNet,
+        "ae_l1": SimpleAEL1,
+        "ae_l1_pretrained": SimpleAEL1Pretrained,
+        "ae_l1_vgg": AEL1VGG,
+        "ae_laplacian": LaplacianLossNet,
+        "ae_laplacian_pretrained": PretrainedLaplacianLossNet,
+        "ae_supervised": SupervisedAEL1,
+        "ae_vgg_supervised": SupervisedAEVgg,
+        "ae_vgg_supervised_two_headed": SupervisedTwoHeadedAEVGG,
+        "vae_supervised": SupervisedVae,
+        "vae_video": VideoVae,
+        "vae_video_upsample": VideoVaeUpsample,
+        "vae_video_supervised": VideoVaeSupervised,
+        "vae_video_detached_supervised": VideoVaeDetachedSupervised,
+        "vae_video_supervised_bce": VideoVaeSupervisedBCE,
+        "ae_video": VideoAE,
+        "ae_video2": VideoAE2,
+        "ae_video_supervised": SupervisedVideoAE,
+        "ae_video2_smaller": SmallerVideoAE,
+        "ae_video2_smaller_supervised": SupervisedSmallerVideoAE,
+        "ae_video2_smaller_supervised_avg_pooling": SupervisedSmallerVideoAEGlobalAvgPooling,
+        "ae_stacked": StackedAE,
+        "style_net": StyleNet,
+        "sqrt_net": SqrtNet,
+        "scramble_net": ScrambleNet,
+        "ae_gan": AEGAN,
+        "kraken_ae": KrakenAE,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -117,6 +181,7 @@ class Supervised(pl.LightningModule):
         "crop": crop(),
         "resized_crop": resized_crop(),
         "resized_crop_small": resized_crop(224),
+        "resized_crop_128": resized_crop(128),
         "resized_crop_112": resized_crop(112),
         "resized_crop_56": resized_crop(56),
         "resized_crop_28": resized_crop(28),
@@ -158,30 +223,42 @@ class Supervised(pl.LightningModule):
         )
 
         if len(self.file_list.classes) != self.model.num_classes:
-            raise ValueError(
+            logger.error(
                 f"Classes of model ({self.model.num_classes}) != classes of dataset"
                 f" ({len(self.file_list.classes)})"
             )
 
-        resize_transform = self._get_transforms(self.hparams["resize_transforms"])
+        self.sampling_probs = self.hparams["sampling_probs"]
+        if self.sampling_probs:
+            self.sampling_probs = np.array(self.sampling_probs.split(" "), dtype=float)
+        if self.sampling_probs is not None and len(self.file_list.classes) != len(
+            self.sampling_probs
+        ):
+            raise ValueError(
+                f"Classes of dataset ({len(self.file_list.classes)}) != classes of "
+                f"sampling probs ({len(self.sampling_probs)})!"
+            )
+
+        self.resize_transform = self._get_transforms(self.hparams["resize_transforms"])
         augmentation_transform = self._get_transforms(
             self.hparams["augmentation_transforms"]
         )
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
-            resize_transform + augmentation_transform,
+            self.resize_transform + augmentation_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            resize_transform,
+            self.resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
+        # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            resize_transform,
+            self.resize_transform,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
@@ -247,11 +324,11 @@ class Supervised(pl.LightningModule):
             tensorboard_log, lightning_log, suffix="train"
         )
 
-    def validation_step(self, batch, batch_nb):
+    def validation_step(self, batch, batch_nb, dataloader_id=-1):
         x, target = batch
         pred = self.forward(x)
 
-        return {"pred": pred, "target": target}
+        return {"pred": pred, "target": target, "x": x}
 
     def _log_metrics_for_hparams(self, tensorboard_log: dict):
         acc = tensorboard_log["acc"]
@@ -273,7 +350,7 @@ class Supervised(pl.LightningModule):
     def validation_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
 
-        self._log_metrics_for_hparams(tensorboard_log)
+        # self._log_metrics_for_hparams(tensorboard_log)
 
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="val"
@@ -302,22 +379,46 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
+        if self.sampling_probs is None:
+            sampler = self.sampler_cls
+        else:
+            sampler = partial(self.sampler_cls, predefined_weights=self.sampling_probs)
+
         return get_fixed_dataloader(
             self.train_data,
             self.hparams["batch_size"],
-            sampler=self.sampler_cls,
+            sampler=sampler,
             num_workers=self.hparams["n_cpu"],
         )
 
     @pl.data_loader
     def val_dataloader(self):
-        return get_fixed_dataloader(
-            self.val_data,
-            self.hparams["batch_size"],
-            sampler=self.sampler_cls,
+        static_batch_data = self.file_list.get_dataset(
+            VAL_NAME,
+            self.resize_transform,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
+        )
+        static_batch_data.samples_idx = static_batch_data.samples_idx[
+            :: len(static_batch_data) // 3
+        ]
+        static_batch_loader = get_fixed_dataloader(
+            static_batch_data,
+            4,
+            sampler=SequentialSampler,  # use sequence sampler
             num_workers=self.hparams["n_cpu"],
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
+        return [
+            get_fixed_dataloader(
+                self.val_data,
+                self.hparams["batch_size"],
+                sampler=self.sampler_cls,
+                num_workers=self.hparams["n_cpu"],
+                worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+            ),
+            static_batch_loader,
+        ]
 
     @pl.data_loader
     def test_dataloader(self):
@@ -376,7 +477,7 @@ class Supervised(pl.LightningModule):
             self.logger,
             self.global_step,
             target,
-            torch.argmax(pred, dim=1),
+            torch.argmax(pred[:, : self.model.num_classes], dim=1),
             self.file_list.class_to_idx,
         )
 

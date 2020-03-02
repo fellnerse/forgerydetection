@@ -27,6 +27,7 @@ librosa = "^0.7.1"
 kaggle = "^1.5"
 cifar2png = "^0.0.4"
 face_recognition = "^1.2"
+facenet-pytorch = "^2.1.1"
 
 [tool.poetry.dev-dependencies]
 

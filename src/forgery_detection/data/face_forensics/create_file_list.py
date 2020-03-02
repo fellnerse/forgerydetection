@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import List
 
 import click
 import numpy as np
@@ -15,7 +14,8 @@ from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileList
-from forgery_detection.data.utils import _img_name_to_int
+from forgery_detection.data.utils import img_name_to_int
+from forgery_detection.data.utils import select_frames
 
 logger = logging.getLogger(__file__)
 
@@ -30,24 +30,6 @@ def _get_min_sequence_length(source_dir_data_structure):
                 min_length = number_of_frames
 
     return min_length
-
-
-def _select_frames(nb_images: int, samples_per_video: int) -> List[int]:
-    """Selects frames to take from video.
-
-    Args:
-        nb_images: length of video aka. number of frames in video
-        samples_per_video: how many frames of this video should be taken. If this value
-            is bigger then nb_images or -1, nb_images are taken.
-
-    """
-    if samples_per_video == -1 or samples_per_video > nb_images:
-        selected_frames = range(nb_images)
-    else:
-        selected_frames = np.rint(
-            np.linspace(1, nb_images, min(samples_per_video, nb_images)) - 1
-        ).astype(int)
-    return selected_frames
 
 
 def _create_file_list(
@@ -89,17 +71,17 @@ def _create_file_list(
 
                     # find all frames that have at least min_sequence_length-1 preceeding
                     # frames
-                    sequence_start = _img_name_to_int(images[0])
+                    sequence_start = img_name_to_int(images[0])
                     last_idx = sequence_start
                     for list_idx, image in enumerate(images):
-                        image_idx = _img_name_to_int(image)
+                        image_idx = img_name_to_int(image)
                         if last_idx + 1 != image_idx:
                             sequence_start = image_idx
                         elif image_idx - sequence_start >= min_sequence_length - 1:
                             filtered_images_idx.append(list_idx)
                         last_idx = image_idx
 
-                    selected_frames = _select_frames(
+                    selected_frames = select_frames(
                         len(filtered_images_idx), samples_per_video
                     )
 

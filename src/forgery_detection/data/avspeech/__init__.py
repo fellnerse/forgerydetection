@@ -1,0 +1,1 @@
+AVSPEECH_NAME = "avspeech"

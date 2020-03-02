@@ -35,7 +35,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 @click.option(
     "--scheduler_patience", default=10, help="Patience of ReduceLROnPlateau scheduler"
 )
-@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[3]")
+@click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[0]")
 @click.option(
     "--model",
     type=click.Choice(Supervised.MODEL_DICT.keys()),
@@ -67,6 +67,9 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     "Each class will be sampled with the same probability",
 )
 @click.option(
+    "--sampling_probs", default=None, help="Probabilities for classes during training."
+)
+@click.option(
     "--class_weights",
     is_flag=True,
     help="Indicates if class weights should be used during loss calculation."
@@ -85,6 +88,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="Number of cpus used for data loading."
     " -1 corresponds to using all cpus available.",
 )
+@click.option("--max_epochs", default=100)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN
@@ -121,6 +125,6 @@ def run_lightning(*args, **kwargs):
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
         weights_summary=None,
-        max_nb_epochs=5,
+        max_nb_epochs=kwargs["max_epochs"],
     )
     trainer.fit(model)
