@@ -81,8 +81,8 @@ class L1LossMixin(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-    def l1_loss(self, recon_x, x):
-        return F.l1_loss(recon_x, x)
+    def l1_loss(self, recon_x, x, **kwargs):
+        return F.l1_loss(recon_x, x, **kwargs)
 
 
 class LaplacianLossMixin(nn.Module):

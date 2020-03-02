@@ -54,6 +54,7 @@ from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
+from forgery_detection.models.image.ae import KrakenAE
 from forgery_detection.models.image.ae import LaplacianLossNet
 from forgery_detection.models.image.ae import PretrainedLaplacianLossNet
 from forgery_detection.models.image.ae import SimpleAE
@@ -172,6 +173,7 @@ class Supervised(pl.LightningModule):
         "sqrt_net": SqrtNet,
         "scramble_net": ScrambleNet,
         "ae_gan": AEGAN,
+        "kraken_ae": KrakenAE,
     }
 
     CUSTOM_TRANSFORMS = {

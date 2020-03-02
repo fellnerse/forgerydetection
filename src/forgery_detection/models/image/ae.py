@@ -3,6 +3,7 @@ import logging
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torchvision.utils import make_grid
 
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
@@ -58,7 +59,6 @@ class SimpleAE(GeneralAE):
         self.final_decod_mean = nn.Conv2d(16, 3, (3, 3), padding=1)
 
     def encode(self, x):
-        """return mu_z and logvar_z"""
 
         x = F.elu(self.block1(x))
         x = F.elu(self.block2(x))
@@ -378,3 +378,112 @@ class PretrainedLaplacianLossNet(
     LaplacianLossNet,
 ):
     pass
+
+
+class KrakenAE(GeneralAE, L1LossMixin):
+    def __init__(self, *args, **kwargs):
+        super(KrakenAE, self).__init__(
+            num_classes=5, sequence_length=1, contains_dropout=False
+        )
+        # Encoder
+        self.encoder = nn.Sequential(
+            ConvBlock(3, 64, (3, 3), 1, 1),
+            nn.ELU(),
+            ConvBlock(64, 128, (3, 3), 1, 1),
+            nn.ELU(),
+            ConvBlock(128, 256, (3, 3), 1, 1),
+            nn.ELU(),
+            ConvBlock(256, 16, (3, 3), 1, 1),
+            nn.ELU(),
+        )
+
+        self.decoder = [self._get_decoder(idx) for idx in range(self.num_classes + 1)]
+
+    def _get_decoder(self, idx):
+
+        decoder = nn.Sequential(
+            nn.Conv2d(16, 64, (3, 3), padding=1),
+            nn.ELU(),
+            nn.Upsample(scale_factor=2, mode="nearest"),  # 16
+            nn.Conv2d(64, 64, (3, 3), padding=1),
+            nn.ELU(),
+            nn.Upsample(scale_factor=2, mode="nearest"),  # 32
+            nn.Conv2d(64, 64, (3, 3), padding=1),
+            nn.ELU(),
+            nn.Upsample(scale_factor=2, mode="nearest"),  # 64
+            nn.Conv2d(64, 16, (3, 3), padding=1),
+            nn.ELU(),
+            nn.Upsample(scale_factor=2, mode="nearest"),  # 128
+            nn.Conv2d(16, 3, (3, 3), padding=1),
+        )
+        self.__setattr__(f"decoder_{idx}", decoder)
+        return decoder
+
+    def encode(self, x):
+        x = self.encoder(x)
+        return x
+
+    def decode(self, x):
+        x = [decoder(x) for decoder in self.decoder]
+        x = torch.stack(x, dim=1)
+        return torch.tanh(x)
+
+    def forward(self, x):
+        h = self.encode(x)
+        decoded_images = self.decode(h)
+
+        return {
+            RECON_X: decoded_images,
+            # PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+            PRED: self._calculated_predictions(x, decoded_images)[
+                :, : self.num_classes
+            ],
+        }
+
+    def _calculated_predictions(self, x, decoded_images):
+        x = torch.stack([x] * decoded_images.shape[1], dim=1)
+        reconstruction_losses = torch.mean(
+            self.reconstruction_loss(decoded_images, x, reduction="none")["l1_loss"],
+            dim=[-3, -2, -1],
+        )
+        return reconstruction_losses
+
+    def loss(self, logits, labels):
+        # for now just remove it here
+        logits = logits[labels != 5]
+        labels = labels[labels != 5]
+        if logits.shape[0] == 0:
+            return NAN_TENSOR.cuda(device=logits.device)
+        return F.cross_entropy(logits, labels)
+
+    def reconstruction_loss(self, recon_x, x, **kwargs):
+        return {"l1_loss": self.l1_loss(recon_x, x, **kwargs)}
+
+    def _pick_correct_reconstructions(self, **kwargs):
+        recon_x, targets = kwargs[RECON_X], kwargs[TARGET]
+        recon_x = recon_x[range(recon_x.shape[0]), targets].squeeze(1)
+        return recon_x
+
+    def _calculate_batched_reconstruction_loss(self, batch_size, kwargs):
+        recon_x = kwargs[RECON_X]
+        kwargs[RECON_X] = self._pick_correct_reconstructions(**kwargs)
+        reconstruction_loss = super()._calculate_batched_reconstruction_loss(
+            batch_size, kwargs
+        )
+        kwargs[RECON_X] = recon_x
+        return reconstruction_loss
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x_12 = x[:4].view(-1, 3, 112, 112)
+        x_12_recon = (
+            x_recon[:4].contiguous().view(-1, 3, 112, 112).reshape(4, -1, 3, 112, 112)
+        )
+        x_12 = x_12.unsqueeze(1)
+        x_12 = torch.cat((x_12, x_12_recon), dim=1).reshape(-1, 3, 112, 112)
+        datapoints = make_grid(x_12, nrow=7, range=(-1, 1), normalize=True)
+        system.logger.experiment.add_image(
+            f"reconstruction/{suffix}",
+            datapoints,
+            dataformats="CHW",
+            global_step=system.global_step,
+        )
