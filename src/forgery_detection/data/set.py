@@ -5,6 +5,7 @@ from pathlib import Path
 from pprint import pformat
 from shutil import copy2
 from typing import List
+from typing import Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -29,6 +30,7 @@ class FileList:
 
         self.samples = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
         self.samples_idx = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
+        self.relative_bbs = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
 
         self.min_sequence_length = min_sequence_length
 
@@ -86,7 +88,12 @@ class FileList:
         return self
 
     def get_dataset(
-        self, split, transform=None, sequence_length: int = 1, audio_file: str = None
+        self,
+        split,
+        transform=None,
+        sequence_length: int = 1,
+        should_align_faces=False,
+        audio_file: str = None,
     ) -> Dataset:
         """Get dataset by using this instance."""
         if sequence_length > self.min_sequence_length:
@@ -108,6 +115,7 @@ class FileList:
             file_list=self,
             split=split,
             sequence_length=sequence_length,
+            should_align_faces=should_align_faces,
             transform=transform,
             audio_file=audio_file,
         )
@@ -157,6 +165,7 @@ class FileListDataset(VisionDataset):
         file_list: FileList,
         split: str,
         sequence_length: int,
+        should_align_faces=False,
         transform=None,
         target_transform=None,
         audio_file: str = None,
@@ -175,7 +184,13 @@ class FileListDataset(VisionDataset):
         self.targets = [s[1] for s in self._samples]
         self.sequence_length = sequence_length
 
-    def __getitem__(self, index):
+        self.should_align_faces = should_align_faces
+        if self.should_align_faces:
+            self.relative_bbs = file_list.relative_bbs[split]
+            if len(self.relative_bbs) == 0:
+                raise ValueError("Trying to align faces without relative bbs.")
+
+    def __getitem__(self, index: Tuple[int, int]):
         """
         Args:
             index (int): Index
@@ -183,8 +198,15 @@ class FileListDataset(VisionDataset):
         Returns:
             tuple: (sample, target) where target is class_index of the target class.
         """
-        path, target = self._samples[index]
+        img_idx, align_idx = index
+
+        path, target = self._samples[img_idx]
         sample = self.loader(f"{self.root}/{path}")
+
+        if self.should_align_faces:
+            relative_bb = self.relative_bbs[align_idx]
+            sample = self.align_face(sample, relative_bb)
+
         if self.transform is not None:
             if isinstance(sample, tuple):
                 sample = self.transform(sample[0]), sample[1]
@@ -197,3 +219,29 @@ class FileListDataset(VisionDataset):
 
     def __len__(self):
         return len(self.samples_idx)
+
+    def align_face(self, sample, relative_bb):
+        x, y, w, h = self.calculate_relative_bb(
+            sample.width, sample.height, relative_bb
+        )
+        return sample.crop((x, y, x + w, y + h))
+
+    # todo do this in advance
+    @staticmethod
+    def calculate_relative_bb(
+        total_width: int, total_height: int, relative_bb_values: List[int]
+    ):
+        x, y, w, h = relative_bb_values
+
+        size_bb = int(max(w, h) * 1.3)
+        center_x, center_y = x + int(0.5 * w), y + int(0.5 * h)
+
+        # Check for out of bounds, x-y lower left corner
+        x = max(int(center_x - size_bb // 2), 0)
+        y = max(int(center_y - size_bb // 2), 0)
+
+        # Check for too big size for given x, y
+        size_bb = min(total_width - x, size_bb)
+        size_bb = min(total_height - y, size_bb)
+
+        return x, y, size_bb, size_bb
