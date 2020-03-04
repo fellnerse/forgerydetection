@@ -1,5 +1,6 @@
 import matplotlib as mpl
 import numpy as np
+import torch
 from cv2 import cv2
 from matplotlib import pyplot as plt
 
@@ -135,22 +136,42 @@ def process_channel(img: np.ndarray, sigma=5):
     return img_back_high, img_back_low
 
 
-def process_channel_with_mask(img: np.ndarray, mask: np.ndarray):
+def shift(t, backwards=False):
+    return torch.roll(
+        t,
+        [(-1 if backwards else 1) * (dim // 2) for dim in t.shape],
+        tuple(range(t.ndim)),
+    )
+
+
+def process_channel_with_mask(img: np.ndarray, mask: np.ndarray, use_np=True):
     if img.shape != mask.shape:
         raise ValueError(
             f"img shape ({img.shape}) and mask shape ({mask.shape}) should be the same!"
         )
-    f = np.fft.fft2(img)
+    if use_np:
+        f = np.fft.fft2(img)
+        mask = np.fft.ifftshift(mask)
+        fshift = f * mask
+        img_back = np.fft.ifft2(fshift)
+        img_back = np.abs(img_back).astype(int)
+        return img_back
+    else:
+        img = torch.from_numpy(img).double()
+        f = torch.rfft(img, 2, onesided=False, normalized=True)
+        mask = torch.from_numpy(mask).unsqueeze(-1)
+        mask = shift(mask, backwards=True)
+        fshift = f * mask
 
-    mask = np.fft.ifftshift(mask)
-    fshift = f * mask
-    img_back = reconstruct_from_fftshift(fshift)
-    return img_back
+        img_back = torch.irfft(fshift, 2, onesided=False, normalized=True)
+        img_back = torch.abs(img_back).int()
+        return img_back.numpy()
 
 
 def reconstruct_from_fftshift(fshift_high):
-    img_back_high = np.fft.ifft2(fshift_high)
-    img_back_high = np.abs(img_back_high).astype(int)
+    # img_back_high = np.fft.ifft2(fshift_high)
+    img_back_high = torch.irfft(fshift_high, 2, onesided=False, normalized=True)
+    img_back_high = torch.abs(img_back_high).int()
     return img_back_high
 
 
@@ -216,11 +237,9 @@ def generate_circles(rows, cols, bins=10, dist_exponent=2):
 
 
 def visualize_circles():
-    # circles = generate_circles(1600, 900, bins=4, dist_exponent=3)
-    circles = generate_circles(112, 112, bins=4, dist_exponent=3)
-
     # img = get_image(grey=False)
     img = get_image_fake(grey=False)
+    circles = generate_circles(img.shape[0], img.shape[1], bins=4, dist_exponent=2)
 
     reconstructed_images = []
     for mask in circles:
@@ -256,17 +275,30 @@ def visualize_circles():
         )
 
 
+def reconstruct_rgb_image_with_mask_and_torch(img: np.ndarray, mask: np.ndarray):
+    img = torch.from_numpy(img).double()
+    f = torch.rfft(img, 3, onesided=False, normalized=True)
+    mask = torch.from_numpy(mask).unsqueeze(-1).unsqueeze(-1)
+    mask = shift(mask, backwards=True)
+    fshift = f * mask
+
+    img_back = torch.irfft(fshift, 3, onesided=False, normalized=True)
+    img_back = torch.abs(img_back).numpy()
+    img_back = (img_back / img_back.max()) * 255 // 1
+    return img_back.astype(int)
+
+
 def reconstruct_rgb_image_with_mask(img: np.ndarray, mask: np.ndarray):
     img_out = np.zeros(img.shape, dtype=img.dtype)
     for c in range(img.shape[-1]):
         channel = img[..., c]
-        img_back = process_channel_with_mask(channel, mask=mask)
+        img_back = process_channel_with_mask(channel, mask=mask, use_np=True)
 
-        # img_out[:, :, c] = img_back
-        # img_out[:, :, c] = np.clip(img_back, 0, 255)
-        img_out[:, :, c] = (img_back / img_back.max()) * 255 // 1
+        img_out[:, :, c] = img_back
+    # img_out = np.clip(img_out, 0, 255)
+    img_out = (img_out / img_out.max()) * 255 // 1
 
-    return img_out
+    return img_out.astype(int)
 
 
 if __name__ == "__main__":
