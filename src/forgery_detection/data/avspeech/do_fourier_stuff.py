@@ -141,16 +141,15 @@ def process_channel_with_mask(img: np.ndarray, mask: np.ndarray):
             f"img shape ({img.shape}) and mask shape ({mask.shape}) should be the same!"
         )
     f = np.fft.fft2(img)
-    fshift = np.fft.fftshift(f)
 
-    fshift = fshift * mask
+    mask = np.fft.ifftshift(mask)
+    fshift = f * mask
     img_back = reconstruct_from_fftshift(fshift)
     return img_back
 
 
 def reconstruct_from_fftshift(fshift_high):
-    f_ishift = np.fft.ifftshift(fshift_high)
-    img_back_high = np.fft.ifft2(f_ishift)
+    img_back_high = np.fft.ifft2(fshift_high)
     img_back_high = np.abs(img_back_high).astype(int)
     return img_back_high
 
