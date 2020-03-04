@@ -260,7 +260,7 @@ def visualize_circles():
     mask = sum(circles)
     plt.imshow(mask)
     fig.add_subplot(rows, columns, (len(circles) + 1) * 2)
-    reconstruction = reconstruct_rgb_image_with_mask(img, mask)
+    reconstruction = reconstruct_rgb_image_with_mask_and_torch(img, mask)
     plt.imshow(reconstruction, cmap="gray")
 
     # visualize difference between input and reconstructed image
@@ -277,12 +277,12 @@ def visualize_circles():
 
 def reconstruct_rgb_image_with_mask_and_torch(img: np.ndarray, mask: np.ndarray):
     img = torch.from_numpy(img).double()
-    f = torch.rfft(img, 3, onesided=False, normalized=True)
+    f = torch.rfft(img, 3, onesided=False, normalized=False)
     mask = torch.from_numpy(mask).unsqueeze(-1).unsqueeze(-1)
     mask = shift(mask, backwards=True)
     fshift = f * mask
 
-    img_back = torch.irfft(fshift, 3, onesided=False, normalized=True)
+    img_back = torch.irfft(fshift, 3, onesided=False, normalized=False)
     img_back = torch.abs(img_back).numpy()
     img_back = (img_back / img_back.max()) * 255 // 1
     return img_back.astype(int)
