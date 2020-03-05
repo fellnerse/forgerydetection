@@ -9,6 +9,7 @@ from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import FaceNetLossMixin
+from forgery_detection.models.mixins import FourierLossMixin
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import LaplacianLossMixin
 from forgery_detection.models.mixins import PretrainedNet
@@ -487,3 +488,8 @@ class KrakenAE(GeneralAE, L1LossMixin):
             dataformats="CHW",
             global_step=system.global_step,
         )
+
+
+class FourierAE(SimpleAE, FourierLossMixin):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}

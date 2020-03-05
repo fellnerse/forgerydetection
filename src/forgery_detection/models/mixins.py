@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from forgery_detection.data.utils import rfft
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.sliced_nets import FaceNet
 from forgery_detection.models.sliced_nets import SlicedNet
@@ -107,6 +108,18 @@ class LaplacianLossMixin(nn.Module):
         ).view(-1, 3, *x.shape[-2:])
 
         return F.l1_loss(recon_x_laplacian, x_laplacian)
+
+
+class FourierLossMixin(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def fourier_loss(self, recon_x, x):
+        complex_recon_x, complex_x = rfft(recon_x), rfft(x)
+        loss = torch.mean(
+            torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
+        )
+        return loss
 
 
 def PretrainedNet(path_to_model: str):
