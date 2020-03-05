@@ -48,12 +48,16 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     help="This resize transform is applied to train/val/test images",
 )
 @click.option(
-    "--augmentation_transforms",
+    "--image_augmentation_transforms",
     default="none",
     help="Augmentation only applied to train images. "
     "Can be multiple if split with blank.",
 )
-# todo convert to absolute batches
+@click.option(
+    "--tensor_augmentation_transforms",
+    default="none",
+    help="Augmentations applied to tensors. " "Can be multiple if split with blank.",
+)
 @click.option(
     "--val_check_interval",
     default=0.02,

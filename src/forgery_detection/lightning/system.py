@@ -36,6 +36,7 @@ from forgery_detection.data.utils import random_rotation
 from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
+from forgery_detection.data.utils import rfft_transform
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
@@ -198,6 +199,7 @@ class Supervised(pl.LightningModule):
         "random_flip_greyscale": random_flip_greyscale(),
         "random_rotation_greyscale": random_rotation_greyscale(),
         "random_flip_rotation_greyscale": random_flip_rotation_greyscale(),
+        "rfft": rfft_transform(),
     }
 
     def _get_transforms(self, transforms: str):
@@ -240,25 +242,32 @@ class Supervised(pl.LightningModule):
             )
 
         self.resize_transform = self._get_transforms(self.hparams["resize_transforms"])
-        augmentation_transform = self._get_transforms(
-            self.hparams["augmentation_transforms"]
+        image_augmentation_transforms = self._get_transforms(
+            self.hparams["image_augmentation_transforms"]
         )
+        self.tensor_augmentation_transforms = self._get_transforms(
+            self.hparams["tensor_augmentation_transforms"]
+        )
+
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
-            self.resize_transform + augmentation_transform,
+            image_transforms=self.resize_transform + image_augmentation_transforms,
+            tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
-            self.resize_transform,
+            image_transforms=self.resize_transform,
+            tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
             TEST_NAME,
-            self.resize_transform,
+            image_transforms=self.resize_transform,
+            tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
@@ -395,7 +404,8 @@ class Supervised(pl.LightningModule):
     def val_dataloader(self):
         static_batch_data = self.file_list.get_dataset(
             VAL_NAME,
-            self.resize_transform,
+            image_transforms=self.resize_transform,
+            tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )

@@ -17,7 +17,6 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.loading import ExtendedDefaultLoader
-from forgery_detection.data.utils import rfft_transform
 
 logger = logging.getLogger(__file__)
 
@@ -101,7 +100,7 @@ class FileList:
                 f"does not exist might raise an error in the FileListDataset."
             )
         image_transforms = image_transforms or []
-        tensor_transforms = tensor_transforms or rfft_transform()
+        tensor_transforms = tensor_transforms or []
         image_transforms = transforms.Compose(
             image_transforms
             + [

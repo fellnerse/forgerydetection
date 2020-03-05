@@ -46,7 +46,7 @@ parser.add_argument("--debug", default=False, type=bool)
 parser.add_argument("--resize_transforms", default="none", type=str)
 
 parser.add_argument("--transforms", default="none", type=str)
-parser.add_argument("--augmentation_transforms", default="none", type=str)
+parser.add_argument("--image_augmentation_transforms", default="none", type=str)
 # augmentation_transforms = [
 #     "random_resized_crop",
 #     "random_horizontal_flip",
