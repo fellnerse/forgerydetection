@@ -66,6 +66,9 @@ from forgery_detection.models.image.ae import SupervisedAEVgg
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.frequency_ae import FrequencyAE
+from forgery_detection.models.image.frequency_ae import FrequencyAEcomplex
+from forgery_detection.models.image.frequency_ae import FrequencyAEMagnitude
+from forgery_detection.models.image.frequency_ae import FrequencyAEtanh
 from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
@@ -175,6 +178,9 @@ class Supervised(pl.LightningModule):
         "kraken_ae": KrakenAE,
         "frequency_ae": FrequencyAE,
         "pretrained_frequency_ae": PretrainedFrequencyNet,
+        "frequency_ae_tanh": FrequencyAEtanh,
+        "frequency_ae_magnitude": FrequencyAEMagnitude,
+        "frequency_ae_complex": FrequencyAEcomplex,
     }
 
     CUSTOM_TRANSFORMS = {
