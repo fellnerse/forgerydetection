@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torchvision.utils import make_grid
 
+from forgery_detection.data.utils import irfft
 from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import L1LossMixin
@@ -24,51 +25,41 @@ class FrequencyAE(SimpleAE, L1LossMixin):
 
         z = self.fct_decode(z)
         z = self.final_decod_mean(z)
-        # z = z.reshape((z.shape[0], 2, 3, *z.shape[-2:]))
-        # z = z.permute((0, 2, 3, 4, 1))
 
         return z
 
     def forward(self, f):
-        # transform into fourier space
-        # f = torch.rfft(x, 3, onesided=False, normalized=False)
-        # put fourier dim in front of image
-        # f = f.permute((0, 4, 1, 2, 3))
-        # f = f.reshape((x.shape[0], -1, *x.shape[-2:]))
-        # apply tanh
+        # input is b x 2 x c x w x h -> combine fourier and colour channels
+        f = f.reshape((f.shape[0], -1, *f.shape[-2:]))
         f = torch.tanh(f)
         # encode
         f = self.encode(f)
         # decode
         d = self.decode(f)
-        # d = self._inverse_tanh(d) # todo do i need this here? does it make sense?
-        # maybe the network should be able to learn this
 
-        # d = torch.irfft(d, 3, onesided=False, normalized=False) # I should do this in logging
-        # d = torch.tanh(d)
+        # add the fourier channel
+        d = d.reshape((d.shape[0], 2, 3, *d.shape[-2:]))
         return {
             RECON_X: d,
             PRED: torch.ones((f.shape[0], self.num_classes), device=f.device),
-            # PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
         }
 
     def reconstruction_loss(self, recon_x, x):
+        # todo experiment what is better:
+        # l1 loss on raw data, or on tanhd data
         return {"l1_loss": self.l1_loss(recon_x, x)}
+        # return {"l1_loss": self.l1_loss(torch.tanh(recon_x), torch.tanh(x))}
 
     @staticmethod
     def _inverse_tanh(x):
         return torch.log((x + 1) / (1 - x)) / 2
 
     def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
-        x_12 = x[:4].view(-1, 2, 3, 112, 112).permute((0, 2, 3, 4, 1))
-        x_12_recon = (
-            x_recon[:4].contiguous().view(-1, 2, 3, 112, 112).permute((0, 2, 3, 4, 1))
-        )
+        x_12 = x[:4].view(-1, *x.shape[-4:])
+        x_12_recon = x_recon[:4].contiguous().view(-1, *x.shape[-4:])
 
-        x_12 = torch.irfft(x_12, 3, onesided=False, normalized=False)
-        x_12_recon = torch.irfft(x_12_recon, 3, onesided=False, normalized=False).clamp(
-            -1, 1
-        )
+        x_12 = irfft(x_12)
+        x_12_recon = irfft(x_12_recon)
 
         x_12 = torch.cat(
             (x_12, x_12_recon), dim=2

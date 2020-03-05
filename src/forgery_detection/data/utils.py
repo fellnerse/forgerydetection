@@ -118,11 +118,11 @@ def irfft(x: torch.tensor):
         *original_permutation[-3:],
         original_permutation[-4],
     ]
-    return torch.irfft(x, 3, onesided=False, normalized=False).permute(permute)
+    return torch.irfft(x.permute(permute), 3, onesided=False, normalized=False)
 
 
 def rfft_transform():
-    return [rfft, lambda x: x.reshape(6, 112, 112)]
+    return [rfft]
 
 
 def img_name_to_int(img: Path):

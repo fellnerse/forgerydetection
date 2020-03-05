@@ -249,7 +249,10 @@ def log_dataset_preview(
 
         datapoints = [x[0] for x in datapoints]
 
-    datapoints = torch.stack(datapoints, dim=0)[:, [0, 1, 2]]
+    datapoints = torch.stack(datapoints, dim=0)
+    datapoints = datapoints.reshape(
+        (-1, *datapoints.shape[-3:])
+    )  # make sure it's b x c x w x h
     datapoints = make_grid(datapoints, nrow=nrow, range=(-1, 1), normalize=True)
     _logger.experiment.add_image(name, datapoints, dataformats="CHW", global_step=1)
 
