@@ -17,6 +17,7 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.loading import ExtendedDefaultLoader
+from forgery_detection.data.utils import rfft_transform
 
 logger = logging.getLogger(__file__)
 
@@ -86,7 +87,12 @@ class FileList:
         return self
 
     def get_dataset(
-        self, split, transform=None, sequence_length: int = 1, audio_file: str = None
+        self,
+        split,
+        image_transforms=None,
+        tensor_transforms=None,
+        sequence_length: int = 1,
+        audio_file: str = None,
     ) -> Dataset:
         """Get dataset by using this instance."""
         if sequence_length > self.min_sequence_length:
@@ -94,21 +100,23 @@ class FileList:
                 f"{sequence_length}>{self.min_sequence_length}. Trying to load data that"
                 f"does not exist might raise an error in the FileListDataset."
             )
-        transform = transform or []
-        transform = transforms.Compose(
-            transform
+        image_transforms = image_transforms or []
+        tensor_transforms = tensor_transforms or rfft_transform()
+        image_transforms = transforms.Compose(
+            image_transforms
             + [
                 transforms.ToTensor(),
                 transforms.Normalize(
                     mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
                 ),
             ]
+            + tensor_transforms
         )
         return FileListDataset(
             file_list=self,
             split=split,
             sequence_length=sequence_length,
-            transform=transform,
+            transform=image_transforms,
             audio_file=audio_file,
         )
 

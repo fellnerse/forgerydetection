@@ -2,7 +2,6 @@ import logging
 import pickle
 from argparse import Namespace
 from functools import partial
-from pathlib import Path
 from typing import Union
 
 import numpy as np
@@ -11,11 +10,9 @@ import torch
 from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
 from sklearn.preprocessing import LabelBinarizer
 from torch import optim
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import RandomSampler
 from torch.utils.data.sampler import SequentialSampler
-from tqdm import tqdm
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
@@ -28,7 +25,6 @@ from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
-from forgery_detection.data.utils import get_data
 from forgery_detection.data.utils import random_erasing
 from forgery_detection.data.utils import random_flip_greyscale
 from forgery_detection.data.utils import random_flip_rotation
@@ -68,6 +64,8 @@ from forgery_detection.models.image.ae import SupervisedAEL1
 from forgery_detection.models.image.ae import SupervisedAEVgg
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.aegan import AEGAN
+from forgery_detection.models.image.frequency_ae import FrequencyAE
+from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -174,6 +172,8 @@ class Supervised(pl.LightningModule):
         "scramble_net": ScrambleNet,
         "ae_gan": AEGAN,
         "kraken_ae": KrakenAE,
+        "frequency_ae": FrequencyAE,
+        "pretrained_frequency_ae": PretrainedFrequencyNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -439,28 +439,6 @@ class Supervised(pl.LightningModule):
             ),
         )
         return loader
-
-    def benchmark(self, benchmark_dir, device, threshold=0.5):
-        self.cuda(device)
-        self.eval()
-        data = get_data(benchmark_dir)
-        predictions_dict = {}
-        total = 0
-        real = 0
-        for i in tqdm(range(len(data))):
-            img, _ = data[i]
-            name = Path(data.samples[i][0]).name
-            pred = self(img.unsqueeze(0).cuda(device)).detach().cpu().squeeze()
-            pred = F.softmax(pred, dim=0).numpy()
-            pred -= threshold
-            if pred[1] > 0:
-                predictions_dict[name] = "real"
-                real += 1
-            else:
-                predictions_dict[name] = "fake"
-            total += 1
-        logger.info(f"real %: {real/total}")
-        return predictions_dict
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
         if self.hparams["log_roc_values"]:

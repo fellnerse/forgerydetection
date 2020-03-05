@@ -11,7 +11,7 @@ a = f.get_dataset(
     "test",
     audio_file="/data/hdd/audio_features/audio_features.npy",
     sequence_length=8,
-    transform=resized_crop(112),
+    image_transforms=resized_crop(112),
 )
 path = Path(
     "/data/ssd1/set/tracked_resampled_faces/original_sequences/youtube/c40/face_images_tracked"
@@ -34,7 +34,7 @@ a = f.get_dataset(
     "val",
     audio_file="/data/hdd/audio_features/audio_features.npy",
     sequence_length=8,
-    transform=[],
+    image_transforms=[],
 )
 b = a[0]
 
