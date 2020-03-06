@@ -1,10 +1,13 @@
 import logging
 from collections import OrderedDict
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision.utils import make_grid
 
+from forgery_detection.data.utils import irfft
 from forgery_detection.data.utils import rfft
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.sliced_nets import FaceNet
@@ -113,6 +116,7 @@ class LaplacianLossMixin(nn.Module):
 class FourierLossMixin(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
+        self.circles = self.generate_circles(112, 112, bins=4, dist_exponent=3)
 
     def fourier_loss(self, recon_x, x):
         complex_recon_x, complex_x = rfft(recon_x), rfft(x)
@@ -120,6 +124,54 @@ class FourierLossMixin(nn.Module):
             torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
         )
         return loss
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x = rfft(x[:4])
+        x_recon = rfft(x_recon[:4].contiguous())
+
+        self.circles = self.circles.to(x.device)
+        x_frequencies = torch.cat([irfft(x * mask) for mask in self.circles])
+        x_recon_frequencies = torch.cat(
+            [irfft(x_recon * mask) for mask in self.circles]
+        )
+
+        x = torch.cat((x_frequencies, x_recon_frequencies), dim=2)
+        datapoints = make_grid(
+            x, nrow=self.sequence_length * 4, range=(-1, 1), normalize=True
+        )
+        system.logger.experiment.add_image(
+            f"reconstruction/{suffix}",
+            datapoints,
+            dataformats="CHW",
+            global_step=system.global_step,
+        )
+
+    def generate_circles(self, rows, cols, bins=10, dist_exponent=2):
+        x, y = np.meshgrid(
+            np.linspace(-cols // 2, cols // 2, cols),
+            np.linspace(-rows // 2, rows // 2, rows),
+        )
+        d = np.sqrt(x * x + y * y)
+        circles = []
+        biggest_dist = d.max()
+        for i in range(bins):
+            inner_dist = i ** dist_exponent * biggest_dist / bins ** dist_exponent
+            outer_dist = (i + 1) ** dist_exponent * biggest_dist / bins ** dist_exponent
+            circles.append(
+                torch.from_numpy(((inner_dist < d) & (d <= outer_dist))).float()
+            )
+
+        # add one mask with only 1 for full reconstruction
+        circles.append(circles[-1] * 0 + 1)
+
+        circles = torch.stack(circles)
+        circles = torch.roll(
+            circles,
+            [-1 * (dim // 2) for dim in circles.shape[1:]],
+            tuple(range(1, len(circles.shape))),
+        )
+        circles = circles.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # add b x 2 x c
+        return circles
 
 
 def PretrainedNet(path_to_model: str):

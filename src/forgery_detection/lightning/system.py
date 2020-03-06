@@ -51,6 +51,7 @@ from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
+from forgery_detection.models.image.ae import BiggerFourierAE
 from forgery_detection.models.image.ae import FourierAE
 from forgery_detection.models.image.ae import KrakenAE
 from forgery_detection.models.image.ae import LaplacianLossNet
@@ -64,6 +65,7 @@ from forgery_detection.models.image.ae import StackedAE
 from forgery_detection.models.image.ae import StyleNet
 from forgery_detection.models.image.ae import SupervisedAEL1
 from forgery_detection.models.image.ae import SupervisedAEVgg
+from forgery_detection.models.image.ae import SupervisedBiggerFourierAE
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.frequency_ae import FrequencyAE
@@ -183,6 +185,8 @@ class Supervised(pl.LightningModule):
         "frequency_ae_magnitude": FrequencyAEMagnitude,
         "frequency_ae_complex": FrequencyAEcomplex,
         "fourier_ae": FourierAE,
+        "bigger_fourier_ae": BiggerFourierAE,
+        "supervised_bigger_fourier_ae": SupervisedBiggerFourierAE,
     }
 
     CUSTOM_TRANSFORMS = {

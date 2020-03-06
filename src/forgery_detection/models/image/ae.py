@@ -3,6 +3,8 @@ import logging
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torchvision.models.resnet import BasicBlock
+from torchvision.models.resnet import conv1x1
 from torchvision.utils import make_grid
 
 from forgery_detection.lightning.utils import NAN_TENSOR
@@ -490,6 +492,80 @@ class KrakenAE(GeneralAE, L1LossMixin):
         )
 
 
-class FourierAE(SimpleAE, FourierLossMixin):
+class FourierAE(FourierLossMixin, SimpleAE):
     def reconstruction_loss(self, recon_x, x):
         return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class BiggerAE(SimpleAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.block1 = BasicBlock(
+            3, 64, 2, downsample=self._downsample(3, 64 * 1, 2)
+        )  # 64
+        self.block2 = BasicBlock(
+            64, 128, 2, downsample=self._downsample(64, 128, 2)
+        )  # 32
+        self.block3 = BasicBlock(
+            128, 256, 2, downsample=self._downsample(128, 256, 2)
+        )  # 16
+        self.block4 = BasicBlock(
+            256, 16, 2, downsample=self._downsample(256, 16, 2)
+        )  # 8
+
+        self.fct_decode = nn.Sequential(
+            self._upblock(16, 64, 3),
+            self._upblock(64, 128, 3),
+            self._upblock(128, 128, 3),
+            self._upblock(128, 16, 3),
+        )
+
+    def _downsample(self, in_planes, out_planes, stride):
+        return nn.Sequential(
+            conv1x1(in_planes, out_planes, stride), nn.BatchNorm2d(out_planes)
+        )
+
+    def _upblock(self, in_size, out_size, num_conv, activation=nn.ReLU):
+        return nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(in_size, out_size, 3, 1, 1),
+            nn.BatchNorm2d(out_size),
+            activation(),
+            *[
+                nn.Sequential(
+                    nn.Conv2d(out_size, out_size, 3, 1, 1),
+                    nn.BatchNorm2d(out_size),
+                    activation(),
+                )
+                for _ in range(num_conv - 1)
+            ],
+        )
+
+    def encode(self, x):
+
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+
+        return x
+
+
+class BiggerFourierAE(FourierLossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class SupervisedBiggerFourierAE(
+    SupervisedNet(16 * 7 * 7, num_classes=5), BiggerFourierAE
+):
+    avgpool = nn.AdaptiveAvgPool2d((1, 1))
+
+    def forward(self, x):
+        h = self.encode(x)
+        # avg = self.avgpool(h)
+        # return {RECON_X: self.decode(h), PRED: self.classifier(avg.flatten(1))}
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 100
