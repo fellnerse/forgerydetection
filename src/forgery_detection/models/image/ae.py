@@ -556,6 +556,11 @@ class BiggerFourierAE(FourierLossMixin, BiggerAE):
         return {"complex_loss": self.fourier_loss(recon_x, x)}
 
 
+class BiggerL1AE(L1LossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": self.l1_loss(recon_x, x)}
+
+
 class SupervisedBiggerFourierAE(
     SupervisedNet(16 * 7 * 7, num_classes=5), BiggerFourierAE
 ):
@@ -569,3 +574,20 @@ class SupervisedBiggerFourierAE(
 
     def loss(self, logits, labels):
         return super().loss(logits, labels) * 100
+
+
+class SupervisedBiggerAEL1(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), BiggerAE, L1LossMixin
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": self.l1_loss(recon_x, x) * 200 * 4}
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 20 * 4
