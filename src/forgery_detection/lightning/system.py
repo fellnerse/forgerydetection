@@ -70,11 +70,14 @@ from forgery_detection.models.image.ae import SupervisedBiggerAEL1
 from forgery_detection.models.image.ae import SupervisedBiggerFourierAE
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.aegan import AEGAN
+from forgery_detection.models.image.frequency_ae import BiggerFrequencyAE
+from forgery_detection.models.image.frequency_ae import BiggerFrequencyAElog
 from forgery_detection.models.image.frequency_ae import FrequencyAE
 from forgery_detection.models.image.frequency_ae import FrequencyAEcomplex
 from forgery_detection.models.image.frequency_ae import FrequencyAEMagnitude
 from forgery_detection.models.image.frequency_ae import FrequencyAEtanh
 from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
+from forgery_detection.models.image.frequency_ae import SupervisedBiggerFrequencyAE
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
@@ -186,6 +189,9 @@ class Supervised(pl.LightningModule):
         "frequency_ae_tanh": FrequencyAEtanh,
         "frequency_ae_magnitude": FrequencyAEMagnitude,
         "frequency_ae_complex": FrequencyAEcomplex,
+        "bigger_frequency_ae": BiggerFrequencyAE,
+        "supervised_bigger_frequency_ae": SupervisedBiggerFrequencyAE,
+        "bigger_frequency_ae_log": BiggerFrequencyAElog,
         "fourier_ae": FourierAE,
         "bigger_fourier_ae": BiggerFourierAE,
         "supervised_bigger_fourier_ae": SupervisedBiggerFourierAE,

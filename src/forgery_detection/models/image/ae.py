@@ -11,6 +11,7 @@ from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import FaceNetLossMixin
+from forgery_detection.models.mixins import FourierLoggingMixin
 from forgery_detection.models.mixins import FourierLossMixin
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import LaplacianLossMixin
@@ -556,7 +557,7 @@ class BiggerFourierAE(FourierLossMixin, BiggerAE):
         return {"complex_loss": self.fourier_loss(recon_x, x)}
 
 
-class BiggerL1AE(L1LossMixin, BiggerAE):
+class BiggerL1AE(FourierLoggingMixin, L1LossMixin, BiggerAE):
     def reconstruction_loss(self, recon_x, x):
         return {"l1_loss": self.l1_loss(recon_x, x)}
 
@@ -577,7 +578,10 @@ class SupervisedBiggerFourierAE(
 
 
 class SupervisedBiggerAEL1(
-    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), BiggerAE, L1LossMixin
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5),
+    FourierLoggingMixin,
+    BiggerAE,
+    L1LossMixin,
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

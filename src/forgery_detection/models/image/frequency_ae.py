@@ -1,22 +1,24 @@
 import logging
 
-import numpy as np
 import torch
 from torch import nn
 from torchvision.utils import make_grid
 
 from forgery_detection.data.utils import irfft
+from forgery_detection.models.image.ae import BiggerAE
 from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.utils import ConvBlock
+from forgery_detection.models.mixins import FourierLoggingMixin
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import PretrainedNet
+from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.utils import PRED
 from forgery_detection.models.utils import RECON_X
 
 logger = logging.getLogger(__file__)
 
 
-class FrequencyAE(SimpleAE, L1LossMixin):
+class FrequencyAE(FourierLoggingMixin, SimpleAE, L1LossMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.block1 = ConvBlock(6, 64, (3, 3), 1, 1)
@@ -24,8 +26,6 @@ class FrequencyAE(SimpleAE, L1LossMixin):
 
         self.log_image_count = 10
         self.log_images_every = 10
-
-        self.circles = self.generate_circles(112, 112, bins=4, dist_exponent=3)
 
     def decode(self, z):
 
@@ -53,15 +53,9 @@ class FrequencyAE(SimpleAE, L1LossMixin):
     def reconstruction_loss(self, recon_x, x):
         return {"l1_loss": self.l1_loss(recon_x, x)}
 
-    @staticmethod
-    def _inverse_tanh(x):
-        return torch.log((x + 1) / (1 - x)) / 2
-
-    # todo add frequency visualizations with masks
     def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
-        x = x[:4].view(-1, *x.shape[-4:])
-        x_recon = x_recon[:4].contiguous().view(-1, *x.shape[-4:])
-
+        x = x[:4]
+        x_recon = x_recon[:4].contiguous()
         self.circles = self.circles.to(x.device)
         x_frequencies = torch.cat([irfft(x * mask) for mask in self.circles])
         x_recon_frequencies = torch.cat(
@@ -78,34 +72,6 @@ class FrequencyAE(SimpleAE, L1LossMixin):
             dataformats="CHW",
             global_step=system.global_step,
         )
-
-    # todo implement loss function here
-    def generate_circles(self, rows, cols, bins=10, dist_exponent=2):
-        x, y = np.meshgrid(
-            np.linspace(-cols // 2, cols // 2, cols),
-            np.linspace(-rows // 2, rows // 2, rows),
-        )
-        d = np.sqrt(x * x + y * y)
-        circles = []
-        biggest_dist = d.max()
-        for i in range(bins):
-            inner_dist = i ** dist_exponent * biggest_dist / bins ** dist_exponent
-            outer_dist = (i + 1) ** dist_exponent * biggest_dist / bins ** dist_exponent
-            circles.append(
-                torch.from_numpy((inner_dist < d) & (d <= outer_dist)).double()
-            )
-
-        # add one mask with only 1 for full reconstruction
-        circles.append(circles[-1] * 0 + 1)
-
-        circles = torch.stack(circles)
-        circles = torch.roll(
-            circles,
-            [-1 * (dim // 2) for dim in circles.shape[1:]],
-            tuple(range(1, len(circles.shape))),
-        )
-        circles = circles.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # add b x 2 x c
-        return circles
 
 
 class PretrainedFrequencyNet(
@@ -151,3 +117,86 @@ class FrequencyAEcomplex(FrequencyAE):
     def reconstruction_loss(self, recon_x, x):
         loss = torch.mean(torch.sqrt(torch.sum((recon_x - x) ** 2, dim=-1)))
         return {"complex_loss": loss}
+
+
+class BiggerFrequencyAE(FourierLoggingMixin, BiggerAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.block1 = ConvBlock(6, 64, (3, 3), 1, 1)
+        self.final_decod_mean = nn.Conv2d(16, 6, (3, 3), padding=1)
+
+        self.log_image_count = 10
+        self.log_images_every = 10
+
+    def decode(self, z):
+
+        z = self.fct_decode(z)
+        z = self.final_decod_mean(z)
+
+        return z
+
+    def forward(self, f):
+        # input is b x 2 x c x w x h -> combine fourier and colour channels
+        f = f.reshape((f.shape[0], -1, *f.shape[-2:]))
+        # encode
+        f = self.encode(f)
+        # decode
+        d = self.decode(f)
+
+        # add the fourier channel
+        d = d.reshape((d.shape[0], 2, 3, *d.shape[-2:]))
+        return {
+            RECON_X: d,
+            PRED: torch.ones((f.shape[0], self.num_classes), device=f.device),
+        }
+
+    def reconstruction_loss(self, recon_x, x):
+        loss = torch.mean(torch.sqrt(torch.sum((recon_x - x) ** 2, dim=-1)))
+        return {"complex_loss": loss}
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x = x[:4]
+        x_recon = x_recon[:4].contiguous()
+        self.circles = self.circles.to(x.device)
+        x_frequencies = torch.cat([irfft(x * mask) for mask in self.circles])
+        x_recon_frequencies = torch.cat(
+            [irfft(x_recon * mask) for mask in self.circles]
+        )
+
+        x = torch.cat((x_frequencies, x_recon_frequencies), dim=2)
+        datapoints = make_grid(
+            x, nrow=self.sequence_length * 4, range=(-1, 1), normalize=True
+        )
+        system.logger.experiment.add_image(
+            f"reconstruction/{suffix}",
+            datapoints,
+            dataformats="CHW",
+            global_step=system.global_step,
+        )
+
+
+class BiggerFrequencyAElog(BiggerFrequencyAE):
+    def forward(self, f):
+        # input is b x 2 x c x w x h -> combine fourier and colour channels
+        f = f.reshape((f.shape[0], -1, *f.shape[-2:]))
+        f = self.logify(f)
+        # encode
+        f = self.encode(f)
+        # decode
+        d = self.decode(f)
+
+        # add the fourier channel
+        d = d.reshape((d.shape[0], 2, 3, *d.shape[-2:]))
+        return {
+            RECON_X: d,
+            PRED: torch.ones((f.shape[0], self.num_classes), device=f.device),
+        }
+
+    def logify(self, x: torch.Tensor):
+        return x.sign() * torch.log(x.abs() + 1)
+
+
+class SupervisedBiggerFrequencyAE(
+    SupervisedNet(16 * 7 * 7, num_classes=5), BiggerFrequencyAE
+):
+    pass

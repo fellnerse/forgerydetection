@@ -113,17 +113,10 @@ class LaplacianLossMixin(nn.Module):
         return F.l1_loss(recon_x_laplacian, x_laplacian)
 
 
-class FourierLossMixin(nn.Module):
+class FourierLoggingMixin:
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.circles = self.generate_circles(112, 112, bins=4, dist_exponent=3)
-
-    def fourier_loss(self, recon_x, x):
-        complex_recon_x, complex_x = rfft(recon_x), rfft(x)
-        loss = torch.mean(
-            torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
-        )
-        return loss
 
     def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
         x = rfft(x[:4])
@@ -172,6 +165,15 @@ class FourierLossMixin(nn.Module):
         )
         circles = circles.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # add b x 2 x c
         return circles
+
+
+class FourierLossMixin(FourierLoggingMixin, nn.Module):
+    def fourier_loss(self, recon_x, x):
+        complex_recon_x, complex_x = rfft(recon_x), rfft(x)
+        loss = torch.mean(
+            torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
+        )
+        return loss
 
 
 def PretrainedNet(path_to_model: str):
