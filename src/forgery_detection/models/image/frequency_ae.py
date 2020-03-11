@@ -199,4 +199,17 @@ class BiggerFrequencyAElog(BiggerFrequencyAE):
 class SupervisedBiggerFrequencyAE(
     SupervisedNet(16 * 7 * 7, num_classes=5), BiggerFrequencyAE
 ):
-    pass
+    def forward(self, f):
+        # input is b x 2 x c x w x h -> combine fourier and colour channels
+        f = f.reshape((f.shape[0], -1, *f.shape[-2:]))
+        # encode
+        h = self.encode(f)
+        # decode
+        d = self.decode(h)
+
+        # add the fourier channel
+        d = d.reshape((d.shape[0], 2, 3, *d.shape[-2:]))
+        return {RECON_X: d, PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 100

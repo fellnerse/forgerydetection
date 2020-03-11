@@ -19,6 +19,7 @@ from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import TwoHeadedSupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
+from forgery_detection.models.mixins import WeightedFourierLoss
 from forgery_detection.models.utils import ACC
 from forgery_detection.models.utils import CLASS_ACC
 from forgery_detection.models.utils import CLASSIFICATION_LOSS
@@ -595,3 +596,30 @@ class SupervisedBiggerAEL1(
 
     def loss(self, logits, labels):
         return super().loss(logits, labels) * 20 * 4
+
+
+class BiggerWeightedFourierAE(WeightedFourierLoss([1, 1, 10, 20]), BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class PretrainedBiggerFourierAE(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/fourier/fourier_faulty_loss.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerL1AE(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/fourier/l1.ckpt"
+    ),
+    BiggerL1AE,
+):
+    pass
+
+
+class WeightedBiggerFourierAE(WeightedFourierLoss([1, 1, 2, 2]), BiggerFourierAE):
+    pass

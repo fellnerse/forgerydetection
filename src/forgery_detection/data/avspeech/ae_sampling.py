@@ -17,7 +17,9 @@ class AESampler:
     def __init__(self, ae: GeneralAE):
         self.ae = ae
         self.latent_vector = torch.zeros_like(
-            self.ae.encode(torch.zeros(1, self.ae.sequence_length, 3, 112, 112))
+            self.ae.encode(
+                torch.zeros(1, self.ae.sequence_length, 3, 112, 112).squeeze(1)
+            )
         )
         self.latent_vector.normal_()
 
@@ -37,7 +39,7 @@ class AESampler:
         return sample
 
 
-def get_faces():
+def get_faces(sequence_length=8):
     image = cv2.cv2.imread("./../../../me2.png")
     image_gray = cv2.cv2.cvtColor(image, cv2.cv2.COLOR_RGB2GRAY)
     detector = dlib.get_frontal_face_detector()
@@ -67,14 +69,18 @@ def get_faces():
         ]
     )
     face_images = [trans(face_images[0]), trans(face_images[1])]
-    face_images = torch.stack(
-        (torch.stack([face_images[0]] * 8), torch.stack([face_images[1]] * 8))
-    )
+    if sequence_length > 1:
+        face_images = [
+            torch.stack([face_images[0]] * sequence_length),
+            torch.stack([face_images[1]] * sequence_length),
+        ]
+    face_images = torch.stack(face_images)
     return face_images
 
 
 def sample():
 
+    # ae = PretrainedBiggerFourierAE().eval()
     ae = PretrainedSmallerVideoAE()
     # ae_sampler = AESampler(ae)
 
@@ -91,7 +97,7 @@ def sample():
     # cv2.imwrite(f"sampled_images_random.png", d)
 
     # reconstruct
-    face_image = get_faces()
+    face_image = get_faces(sequence_length=ae.sequence_length)
     latent_code = ae.encode(face_image)
 
     sample_images = []
@@ -103,7 +109,10 @@ def sample():
                 + latent_code[0] * ((10 - idx) / 10)
             ).unsqueeze(0)
         )
-        sample_images += [image for image in images]
+        if ae.sequence_length == 1:
+            sample_images.append(images)
+        else:
+            sample_images += [image for image in images]
 
     sample_images = torch.cat(sample_images, dim=0)
     datapoints = make_grid(sample_images, nrow=8, range=(-1, 1), normalize=True)
@@ -111,7 +120,7 @@ def sample():
     d = datapoints.detach().permute(1, 2, 0).numpy() * 255
     d = cv2.cvtColor(d, cv2.COLOR_BGR2RGB)
 
-    cv2.imwrite(f"sampled_images_random_interpolated_me_esa.png", d)
+    cv2.imwrite(f"asdf.png", d)
 
 
 def do_laplace_stuff():

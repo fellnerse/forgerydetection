@@ -1,5 +1,6 @@
 import logging
 from collections import OrderedDict
+from typing import List
 
 import numpy as np
 import torch
@@ -172,8 +173,41 @@ class FourierLossMixin(FourierLoggingMixin, nn.Module):
         complex_recon_x, complex_x = rfft(recon_x), rfft(x)
         loss = torch.mean(
             torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
-        )
+        )  # todo this dimension is pretty sure completely wrong
         return loss
+
+
+def WeightedFourierLoss(weights: List[float]):
+    class WeightedFourierLossMixin(FourierLossMixin):
+        __weights = np.array(weights, dtype=float)
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # self.__weights /= np.sum(self.__weights)
+            # last circle entry is full mask, we can ignore it
+            if len(self.__weights) != self.circles.shape[0] - 1:
+                raise ValueError(
+                    f"Number of weights need to be the same as number of circles, "
+                    f"but only {len(self.__weights)}/{self.circles.shape[0]} given."
+                )
+            self.weight = torch.zeros_like(self.circles[0])
+            for idx, weight in enumerate(self.__weights):
+                self.weight += self.circles[idx] * weight
+            self.weight = self.weight
+            self.weight.requires_grad = False
+
+        def fourier_loss(self, recon_x, x):
+            if recon_x.device != self.weight.device:
+                self.weight = self.weight.to(recon_x.device)
+
+            complex_recon_x, complex_x = rfft(recon_x), rfft(x)
+            loss = torch.sqrt(
+                torch.sum(self.weight * (complex_recon_x - complex_x) ** 2, dim=-1)
+            )
+            # loss = loss * self.weight
+            return loss.mean()
+
+    return WeightedFourierLossMixin
 
 
 def PretrainedNet(path_to_model: str):

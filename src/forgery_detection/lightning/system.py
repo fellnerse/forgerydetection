@@ -53,9 +53,11 @@ from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
 from forgery_detection.models.image.ae import BiggerFourierAE
 from forgery_detection.models.image.ae import BiggerL1AE
+from forgery_detection.models.image.ae import BiggerWeightedFourierAE
 from forgery_detection.models.image.ae import FourierAE
 from forgery_detection.models.image.ae import KrakenAE
 from forgery_detection.models.image.ae import LaplacianLossNet
+from forgery_detection.models.image.ae import PretrainedBiggerFourierAE
 from forgery_detection.models.image.ae import PretrainedLaplacianLossNet
 from forgery_detection.models.image.ae import SimpleAE
 from forgery_detection.models.image.ae import SimpleAEL1
@@ -69,6 +71,7 @@ from forgery_detection.models.image.ae import SupervisedAEVgg
 from forgery_detection.models.image.ae import SupervisedBiggerAEL1
 from forgery_detection.models.image.ae import SupervisedBiggerFourierAE
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
+from forgery_detection.models.image.ae import WeightedBiggerFourierAE
 from forgery_detection.models.image.aegan import AEGAN
 from forgery_detection.models.image.frequency_ae import BiggerFrequencyAE
 from forgery_detection.models.image.frequency_ae import BiggerFrequencyAElog
@@ -194,6 +197,9 @@ class Supervised(pl.LightningModule):
         "bigger_frequency_ae_log": BiggerFrequencyAElog,
         "fourier_ae": FourierAE,
         "bigger_fourier_ae": BiggerFourierAE,
+        "pretrained_bigger_fourier_ae": PretrainedBiggerFourierAE,
+        "weighted_bigger_fourier_ae": WeightedBiggerFourierAE,
+        "bigger_weighted_fourier_ae": BiggerWeightedFourierAE,
         "supervised_bigger_fourier_ae": SupervisedBiggerFourierAE,
         "supervised_bigger_l1_ae": SupervisedBiggerAEL1,
         "bigger_l1_ae": BiggerL1AE,

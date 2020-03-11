@@ -9,7 +9,7 @@ mpl.rcParams["figure.dpi"] = 300
 
 
 def get_image(grey=True):
-    image = cv2.imread("./../../../me2.png")
+    image = cv2.imread("../../../me2.png")
     if grey:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
@@ -18,7 +18,7 @@ def get_image(grey=True):
 
 
 def get_image_fake(grey=True):
-    image = cv2.imread("./../../../fakerones.png")
+    image = cv2.imread("../../../fakerones.png")
     if grey:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
@@ -27,7 +27,7 @@ def get_image_fake(grey=True):
 
 
 def get_image_real(grey=True):
-    image = cv2.imread("./../../../realones.png")
+    image = cv2.imread("../../../realones.png")
     if grey:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
