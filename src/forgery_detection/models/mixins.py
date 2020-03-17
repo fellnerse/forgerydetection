@@ -172,19 +172,20 @@ class FourierLoggingMixin:
 class FourierLossMixin(FourierLoggingMixin, nn.Module):
     def fourier_loss(self, recon_x, x):
         complex_recon_x, complex_x = rfft(recon_x), rfft(x)
-        loss = torch.mean(
-            torch.sum(
-                torch.sqrt(
-                    torch.sum(
-                        torch.pow(complex_recon_x - complex_x, 2),
-                        dim=(1,),  # dim=(-4, -3, -2 ,- 1)
-                    )
-                ),
-                dim=(1, 2, 3),
-            )
-        )  # todo this dimension is pretty sure completely wrong
+        # loss = torch.mean(
+        #     torch.sum(
+        #         torch.sqrt(
+        #             torch.sum(
+        #                 torch.pow(complex_recon_x - complex_x, 2),
+        #                 dim=(1,),  # dim=(-4, -3, -2 ,- 1)
+        #             )
+        #         ),
+        #         dim=(1, 2, 3),
+        #     )
+        # )  # todo this dimension is pretty sure completely wrong
         # old loss:
         # torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
+        loss = torch.mean(torch.norm(complex_recon_x - complex_x, p=2, dim=1))
         return loss
 
 
