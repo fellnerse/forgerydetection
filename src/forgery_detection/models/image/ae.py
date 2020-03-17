@@ -20,6 +20,7 @@ from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import TwoHeadedSupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
 from forgery_detection.models.mixins import WeightedFourierLoss
+from forgery_detection.models.mixins import WindowedFourierLossMixin
 from forgery_detection.models.utils import ACC
 from forgery_detection.models.utils import CLASS_ACC
 from forgery_detection.models.utils import CLASSIFICATION_LOSS
@@ -561,6 +562,11 @@ class BiggerFourierAE(FourierLossMixin, BiggerAE):
 class BiggerL1AE(FourierLoggingMixin, L1LossMixin, BiggerAE):
     def reconstruction_loss(self, recon_x, x):
         return {"l1_loss": self.l1_loss(recon_x, x)}
+
+
+class BiggerWindowedFourierAE(WindowedFourierLossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.windowed_fourier_loss(recon_x, x)}
 
 
 class SupervisedBiggerFourierAE(

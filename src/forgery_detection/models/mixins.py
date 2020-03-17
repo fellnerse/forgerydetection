@@ -10,6 +10,7 @@ from torchvision.utils import make_grid
 
 from forgery_detection.data.utils import irfft
 from forgery_detection.data.utils import rfft
+from forgery_detection.data.utils import windowed_rfft
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.sliced_nets import FaceNet
 from forgery_detection.models.sliced_nets import SlicedNet
@@ -208,6 +209,17 @@ def WeightedFourierLoss(weights: List[float]):
             return loss.mean()
 
     return WeightedFourierLossMixin
+
+
+class WindowedFourierLossMixin(FourierLoggingMixin):
+    def windowed_fourier_loss(self, recon_x: torch.tensor, x: torch.tensor):
+        complex_recon_x, complex_x = windowed_rfft(recon_x), windowed_rfft(x)
+        loss = torch.mean(
+            torch.sqrt(
+                torch.sum((complex_recon_x - complex_x) ** 2, dim=(-4, -3, -2, -1))
+            )
+        )
+        return loss
 
 
 def PretrainedNet(path_to_model: str):

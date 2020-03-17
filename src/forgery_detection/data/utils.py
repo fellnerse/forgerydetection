@@ -121,6 +121,30 @@ def irfft(x: torch.tensor):
     return torch.irfft(x.permute(permute), 3, onesided=False, normalized=False)
 
 
+def windowed_rfft(x: torch.tensor):
+    """Applies windowed torch.rfft to input (in 3 dimensions).
+
+    First the input is unfolded to generate 8 x 8 patches. Then the 3d rfft is performed
+    on the channel, width and height dimension
+
+    Also permutes fourier space in front of c x 8 x 8.
+    i.e. input shape: b x c x w x h -> output shape: b x w // 8 x h // 8 x 2 x c x 8 x 8
+
+    Args:
+        x: tensor that should fourier transform applied to
+
+    Returns:
+        Fourier windowed transform of input
+
+    """
+    # create patches and put channel dimension on 3rd last place
+    x = x.unfold(2, 8, 8).unfold(3, 8, 8).permute(0, 2, 3, 1, 4, 5)
+    x_rfft = torch.rfft(x, 3, onesided=False, normalized=False).permute(
+        0, 1, 2, 6, 3, 4, 5
+    )
+    return x_rfft
+
+
 def rfft_transform():
     return [rfft]
 
