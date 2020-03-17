@@ -244,7 +244,7 @@ def visualize_circles():
     reconstructed_images = []
     for mask in circles:
         reconstructed_images.append(
-            reconstruct_rgb_image_with_mask_and_torch(img, mask)
+            reconstruct_rgb_image_with_mask_and_torch_dft_8x8_windows(img, mask)
         )
 
     fig = plt.figure(figsize=(8, 8))
@@ -295,26 +295,17 @@ def reconstruct_rgb_image_with_mask_and_torch_dft_8x8_windows(
 ):
     img = torch.from_numpy(img).double()
     img = img.unfold(0, 8, 8).unfold(1, 8, 8)
-    f = torch.rfft(img, 3, onesided=False, normalized=False)
-    folded_f = torch.zeros((3, 112, 112, 2))
-    for row, w in enumerate(f):
-        for column, patch in enumerate(w):
-            folded_f[:, row * 8 : row * 8 + 8, column * 8 : column * 8 + 8, :] = patch
+    f = torch.rfft(img, 3, onesided=False, normalized=False)  # 14, 14, 3, 8, 8, 2
+    folded_f = f.permute(2, 0, 3, 1, 4, 5).reshape(3, 112, 112, 2)
     mask = torch.from_numpy(mask).unsqueeze(-1).unsqueeze(0)
-    # mask = shift(mask, backwards=True)
     fshift = folded_f * mask
 
     fshift = fshift.unfold(1, 8, 8).unfold(2, 8, 8).permute(1, 2, 0, 4, 5, 3)
 
     img_back = torch.irfft(fshift, 3, onesided=False, normalized=False).permute(
-        0, 1, 3, 4, 2
+        0, 3, 1, 4, 2
     )
-    image_back_unfolded = torch.zeros((112, 112, 3))
-    for row, w in enumerate(img_back):
-        for column, patch in enumerate(w):
-            image_back_unfolded[
-                row * 8 : row * 8 + 8, column * 8 : column * 8 + 8, :
-            ] = patch
+    image_back_unfolded = img_back.reshape(112, 112, 3)
     img_back = torch.abs(image_back_unfolded).numpy()
     img_back = (img_back / img_back.max()) * 255 // 1
     return img_back.astype(int)
