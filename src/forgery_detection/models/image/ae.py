@@ -621,5 +621,5 @@ class PretrainedBiggerL1AE(
     pass
 
 
-class WeightedBiggerFourierAE(WeightedFourierLoss([1, 1, 2, 2]), BiggerFourierAE):
+class WeightedBiggerFourierAE(WeightedFourierLoss([1, 1, 4, 4]), BiggerFourierAE):
     pass

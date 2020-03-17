@@ -212,4 +212,4 @@ class SupervisedBiggerFrequencyAE(
         return {RECON_X: d, PRED: self.classifier(h.flatten(1))}
 
     def loss(self, logits, labels):
-        return super().loss(logits, labels) * 100
+        return super().loss(logits, labels)

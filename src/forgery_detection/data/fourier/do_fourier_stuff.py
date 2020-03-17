@@ -263,7 +263,7 @@ def visualize_circles():
     reconstruction = reconstruct_rgb_image_with_mask_and_torch(img, mask)
     plt.imshow(reconstruction, cmap="gray")
 
-    # visualize difference between input and reconstructed image
+    # visualize_frequencies difference between input and reconstructed image
     fig.add_subplot(rows, columns, (len(circles) + 2) * 2 - 1)
     residual = img - reconstruction
     plt.imshow(residual * 255, cmap="gray")
