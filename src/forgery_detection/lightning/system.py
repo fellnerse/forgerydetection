@@ -71,6 +71,7 @@ from forgery_detection.models.image.ae import SupervisedAEL1
 from forgery_detection.models.image.ae import SupervisedAEVgg
 from forgery_detection.models.image.ae import SupervisedBiggerAEL1
 from forgery_detection.models.image.ae import SupervisedBiggerFourierAE
+from forgery_detection.models.image.ae import SupervisedResnetAE
 from forgery_detection.models.image.ae import SupervisedTwoHeadedAEVGG
 from forgery_detection.models.image.ae import WeightedBiggerFourierAE
 from forgery_detection.models.image.aegan import AEGAN
@@ -205,6 +206,7 @@ class Supervised(pl.LightningModule):
         "supervised_bigger_l1_ae": SupervisedBiggerAEL1,
         "bigger_l1_ae": BiggerL1AE,
         "bigger_windowed_fourier_ae": BiggerWindowedFourierAE,
+        "supervised_resnet_ae": SupervisedResnetAE,
     }
 
     CUSTOM_TRANSFORMS = {

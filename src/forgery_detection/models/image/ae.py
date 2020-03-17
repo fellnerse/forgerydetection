@@ -3,6 +3,7 @@ import logging
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torchvision.models import resnet18
 from torchvision.models.resnet import BasicBlock
 from torchvision.models.resnet import conv1x1
 from torchvision.utils import make_grid
@@ -629,3 +630,87 @@ class PretrainedBiggerL1AE(
 
 class WeightedBiggerFourierAE(WeightedFourierLoss([1, 1, 4, 4]), BiggerFourierAE):
     pass
+
+
+class ResnetAE(GeneralAE, FourierLoggingMixin):
+    def __init__(
+        self, num_classes=5, sequence_length=1, pretrained=True, contains_dropout=False
+    ):
+        super().__init__(
+            num_classes, sequence_length, contains_dropout=contains_dropout
+        )
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
+        self.resnet.layer4 = nn.Conv2d(256, 16, 3, 1, 1)
+        self.resnet.avgpool = nn.Identity()
+        self.resnet.fc = nn.Identity()
+
+        self.fct_decode = nn.Sequential(
+            self._upblock(16, 64, 3),
+            self._upblock(64, 128, 3),
+            self._upblock(128, 128, 3),
+            self._upblock(128, 16, 3),
+        )
+        self.final_decod_mean = nn.Conv2d(16, 3, (3, 3), padding=1)
+
+    def _upblock(self, in_size, out_size, num_conv, activation=nn.ReLU):
+        return nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(in_size, out_size, 3, 1, 1),
+            nn.BatchNorm2d(out_size),
+            activation(),
+            *[
+                nn.Sequential(
+                    nn.Conv2d(out_size, out_size, 3, 1, 1),
+                    nn.BatchNorm2d(out_size),
+                    activation(),
+                )
+                for _ in range(num_conv - 1)
+            ],
+        )
+
+    def encode(self, x):
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+
+        return x
+
+    def decode(self, z):
+
+        z = self.fct_decode(z)
+        z = self.final_decod_mean(z)
+        z = torch.tanh(z)
+
+        return z
+
+    def forward(self, x):
+        x = self.encode(x)
+
+        return {
+            RECON_X: self.decode(x),
+            PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+        }
+
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": F.l1_loss(recon_x, x)}
+
+    def loss(self, logits, labels):
+        return torch.zeros((1,), device=logits.device)
+
+
+class SupervisedResnetAE(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), ResnetAE
+):
+    def forward(self, x):
+        x = self.encode(x)
+
+        return {RECON_X: self.decode(x), PRED: self.classifier(x.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) / 10
