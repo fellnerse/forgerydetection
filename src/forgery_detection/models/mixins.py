@@ -225,11 +225,7 @@ def WeightedFourierLoss(weights: List[float]):
 class WindowedFourierLossMixin(FourierLoggingMixin):
     def windowed_fourier_loss(self, recon_x: torch.tensor, x: torch.tensor):
         complex_recon_x, complex_x = windowed_rfft(recon_x), windowed_rfft(x)
-        loss = torch.mean(
-            torch.sqrt(
-                torch.sum((complex_recon_x - complex_x) ** 2, dim=(-4, -3, -2, -1))
-            )
-        )
+        loss = torch.mean(torch.norm(complex_recon_x - complex_x, p=2, dim=-4))
         return loss
 
 

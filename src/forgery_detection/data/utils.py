@@ -138,7 +138,7 @@ def windowed_rfft(x: torch.tensor):
 
     """
     # create patches and put channel dimension on 3rd last place
-    x = x.unfold(2, 8, 8).unfold(3, 8, 8).permute(0, 2, 3, 1, 4, 5)
+    x = x.unfold(2, 8, 4).unfold(3, 8, 4).permute(0, 2, 3, 1, 4, 5)
     x_rfft = torch.rfft(x, 3, onesided=False, normalized=False).permute(
         0, 1, 2, 6, 3, 4, 5
     )
