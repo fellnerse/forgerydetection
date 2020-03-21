@@ -98,6 +98,7 @@ from forgery_detection.models.image.multi_class_classification import Resnet18Fr
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18MultiClassDropout,
 )
+from forgery_detection.models.image.multi_class_classification import Resnet18SameAsInAE
 from forgery_detection.models.image.multi_class_classification import (
     Resnet18UntrainedMultiClassDropout,
 )
@@ -207,6 +208,7 @@ class Supervised(pl.LightningModule):
         "bigger_l1_ae": BiggerL1AE,
         "bigger_windowed_fourier_ae": BiggerWindowedFourierAE,
         "supervised_resnet_ae": SupervisedResnetAE,
+        "resnet18_same_as_in_ae": Resnet18SameAsInAE,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -441,9 +443,14 @@ class Supervised(pl.LightningModule):
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
         )
-        static_batch_data.samples_idx = static_batch_data.samples_idx[
-            :: len(static_batch_data) // 3
-        ]
+        static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
+        # this is a really shitty hack but needed for compatibility
+        # if len(static_batch_data) is divisable by 3 the resulting length is only 3
+        if len(static_batch_idx) == 3:
+            static_batch_idx += [
+                static_batch_data.samples_idx[len(static_batch_data) // 2]
+            ]
+        static_batch_data.samples_idx = static_batch_idx
         static_batch_loader = get_fixed_dataloader(
             static_batch_data,
             4,

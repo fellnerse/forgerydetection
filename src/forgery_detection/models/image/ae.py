@@ -619,11 +619,56 @@ class PretrainedBiggerFourierAE(
     pass
 
 
+class PretrainedBiggerFourierCorrectLoss(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/bigger_fourier_ae/version_3/checkpoints/_ckpt_epoch_2.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerFourierLossSummedOverLast4Dims(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/bigger_fourier_ae/version_1/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
 class PretrainedBiggerL1AE(
     PretrainedNet(
         "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/fourier/l1.ckpt"
     ),
     BiggerL1AE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAELossSummedOverLast4Dims(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_0/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerWindowedFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAECorrectLoss(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_2/checkpoints/_ckpt_epoch_1.ckpt"
+    ),
+    BiggerWindowedFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAECorrectLossStrided(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_3/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerWindowedFourierAE,
 ):
     pass
 

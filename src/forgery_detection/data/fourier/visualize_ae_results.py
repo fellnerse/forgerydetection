@@ -12,7 +12,18 @@ from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import rfft
 from forgery_detection.models.image.ae import BiggerFourierAE
 from forgery_detection.models.image.ae import PretrainedBiggerFourierAE
+from forgery_detection.models.image.ae import PretrainedBiggerFourierCorrectLoss
+from forgery_detection.models.image.ae import (
+    PretrainedBiggerFourierLossSummedOverLast4Dims,
+)
 from forgery_detection.models.image.ae import PretrainedBiggerL1AE
+from forgery_detection.models.image.ae import PretrainedBiggerWindowedAECorrectLoss
+from forgery_detection.models.image.ae import (
+    PretrainedBiggerWindowedAECorrectLossStrided,
+)
+from forgery_detection.models.image.ae import (
+    PretrainedBiggerWindowedAELossSummedOverLast4Dims,
+)
 from forgery_detection.models.image.ae import WeightedBiggerFourierAE
 from forgery_detection.models.image.frequency_ae import BiggerFrequencyAE
 from forgery_detection.models.image.frequency_ae import FrequencyAE
@@ -111,14 +122,23 @@ if __name__ == "__main__":
     print("niceroo")
 
     x = get_static_batch_faces()
+    x = x[[3, 2, 0, 1]]
 
-    models = {
+    models_old = {
         "l1": PretrainedBiggerL1AE,
         "fourier": PretrainedBiggerFourierAE,
         "fourier_loss_weighted": PretrainedWeightedBiggerFourierAE,
         "fourier_loss_relative": PretrainedRelativeBiggerFourierAE,
         "frequency_space_tanh": PretrainedFrequencyNet,
         "frequency_space_raw": PretrainedFrequencyAEraw,
+    }
+
+    models = {
+        "windowed_ae_loss_summed_over_last_4_dims": PretrainedBiggerWindowedAELossSummedOverLast4Dims,
+        "windowed_ae_correct_loss": PretrainedBiggerWindowedAECorrectLoss,
+        "windowed_ae_correct_loss_strided": PretrainedBiggerWindowedAECorrectLossStrided,
+        "fourier_ae_loss_summed_over_last_4_dims": PretrainedBiggerFourierLossSummedOverLast4Dims,
+        "fourier_ae_correct_loss": PretrainedBiggerFourierCorrectLoss,
     }
 
     for name, model in models.items():

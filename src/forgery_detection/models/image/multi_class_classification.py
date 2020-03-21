@@ -1,7 +1,11 @@
+import logging
+
 from torch import nn
 from torchvision.models import resnet18
 
 from forgery_detection.models.utils import SequenceClassificationModel
+
+logger = logging.getLogger(__file__)
 
 
 class Resnet18(SequenceClassificationModel):
@@ -107,3 +111,13 @@ class Resnet18MultiClassDropout(Resnet182D):
 class Resnet18UntrainedMultiClassDropout(Resnet18MultiClassDropout):
     def __init__(self):
         super().__init__(pretrained=False)
+
+
+class Resnet18SameAsInAE(Resnet18):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.resnet.layer4 = nn.Conv2d(256, 16, 3, 1, 1)
+        self.resnet.avgpool = nn.Identity()
+        self.resnet.fc = nn.Sequential(
+            nn.Linear(16 * 7 * 7, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
