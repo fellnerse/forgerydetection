@@ -4,7 +4,9 @@ import torch
 from torch import nn
 from torchvision.models import resnet18
 
+from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -164,7 +166,7 @@ class ImageNetResnet(Resnet18):
         if len(pred):
             return super().loss(pred, target)
         else:
-            return torch.zeros((1,)).to(pred.device)
+            return NAN_TENSOR
 
     def loss(self, pred, target):
         ff_mask = target >= 1000
@@ -188,35 +190,46 @@ class ImageNetResnet(Resnet18):
         imagenet_target = target[~ff_mask]
 
         if 0 < sum(ff_mask) < len(pred):
-            return super().calculate_accuracy(ff_pred, ff_target - 1000) / len(
-                ff_mask
-            ) + super().calculate_accuracy(imagenet_pred, imagenet_target) / (
-                len(pred) - len(ff_mask)
+            return (
+                super().calculate_accuracy(ff_pred, ff_target - 1000),
+                super().calculate_accuracy(imagenet_pred, imagenet_target),
             )
 
         if sum(ff_mask) == 0:
-            return super().calculate_accuracy(imagenet_pred, imagenet_target)
+            return (
+                NAN_TENSOR,
+                super().calculate_accuracy(imagenet_pred, imagenet_target),
+            )
         else:
-            return super().calculate_accuracy(ff_pred, ff_target - 1000)
+            return super().calculate_accuracy(ff_pred, ff_target - 1000), NAN_TENSOR
+
+    @staticmethod
+    def sum_nan_tensors(*args):
+        return sum(map(lambda _x: 0 if _x != _x else _x, args))
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
 
         pred = self.forward(x)
         ff_loss, imagenet_loss = self.loss(pred, target)
-        loss = ff_loss + imagenet_loss
+
+        loss = self.sum_nan_tensors(ff_loss, imagenet_loss)
         lightning_log = {"loss": loss}
 
         with torch.no_grad():
-            train_acc = self.calculate_accuracy(pred, target)
+            ff_acc, imagenet_acc = self.calculate_accuracy(pred, target)
 
             tensorboard_log = {
                 "loss": {"train": loss},
-                "acc": {"train": train_acc},
-                # "ff_acc": {"train": ff_acc_mean},
-                "ff_loss": {"train": ff_loss},
+                "imagnet_acc": {"train": imagenet_acc},
                 "imagenet_loss": {"train": imagenet_loss},
-            }  # todo instead of logging 0 maybe just dont log it -> could logg all stats for ff as well
+            }
+
+            if not ff_acc != ff_acc:
+                tensorboard_log["ff_acc"] = {"train": ff_acc}
+
+            if not ff_loss != ff_loss:
+                tensorboard_log["ff_loss"] = {"train": ff_loss}
 
         return tensorboard_log, lightning_log
 
@@ -232,6 +245,7 @@ class ImageNetResnet(Resnet18):
             )
 
         tensorboard_log = {
+            "loss": imagenet_loss_mean + ff_loss_mean,
             "imagnet_acc": imagenet_acc_mean,
             "imagenet_loss": imagenet_loss_mean,
             "ff_acc": ff_acc_mean,
@@ -245,18 +259,23 @@ class ImageNetResnet(Resnet18):
     def _calculate_metrics(self, output, cut_off=0, system=None):
         pred = torch.cat([x["pred"] for x in output], 0)[:, cut_off : 1000 + cut_off]
         target = torch.cat([x["target"] for x in output], 0) - cut_off
-        loss_mean = sum(self.loss(pred, target))
-        acc_mean = self.calculate_accuracy(pred, target)
+        loss_mean = self.sum_nan_tensors(*self.loss(pred, target))
+        acc_mean = self.sum_nan_tensors(*self.calculate_accuracy(pred, target))
 
         if system:
-            # todo find better way for class acc
-            # https://discuss.pytorch.org/t/how-to-find-individual-class-accuracy/6348/2
             return (
                 acc_mean,
                 loss_mean,
-                system.log_confusion_matrix(
-                    target.cpu(), torch.argmax(pred, dim=1).cpu()
-                ),
+                system.log_confusion_matrix(target.cpu(), pred.cpu()),
             )
         else:
             return acc_mean, loss_mean, None
+
+
+class PretrainedImageNetResnet(
+    PretrainedNet(
+        "/home/sebastian/log/debug/version_79/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    ImageNetResnet,
+):
+    pass

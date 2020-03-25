@@ -149,6 +149,8 @@ class DictHolder(dict):
 def log_confusion_matrix(
     _logger, global_step, target: torch.tensor, pred: torch.tensor, class_to_idx
 ) -> Dict[str, np.float]:
+    # todo find better way for class acc
+    # https://discuss.pytorch.org/t/how-to-find-individual-class-accuracy/6348/2
     if len(class_to_idx) > 50:
         # assume that only the last 5 classes are relevant for logging
         disregarded_classes = len(class_to_idx) - 5
