@@ -10,9 +10,8 @@ import torch
 from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
 from sklearn.preprocessing import LabelBinarizer
 from torch import optim
-from torch.utils.data import DataLoader
 from torch.utils.data.sampler import RandomSampler
-from torch.utils.data.sampler import SequentialSampler
+from torchvision import transforms
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
@@ -20,8 +19,6 @@ from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
 from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.loading import get_sequence_collate_fn
-from forgery_detection.data.loading import SequenceBatchSampler
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
@@ -83,7 +80,9 @@ from forgery_detection.models.image.frequency_ae import FrequencyAEMagnitude
 from forgery_detection.models.image.frequency_ae import FrequencyAEtanh
 from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.frequency_ae import SupervisedBiggerFrequencyAE
+from forgery_detection.models.image.multi_class_classification import ImageNetResnet
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
+from forgery_detection.models.image.multi_class_classification import Resnet18
 from forgery_detection.models.image.multi_class_classification import Resnet182D
 from forgery_detection.models.image.multi_class_classification import Resnet182d1Block
 from forgery_detection.models.image.multi_class_classification import (
@@ -138,6 +137,7 @@ logger = logging.getLogger(__file__)
 
 class Supervised(pl.LightningModule):
     MODEL_DICT = {
+        "resnet18": Resnet18,
         "resnet182d": Resnet182D,
         "resnet182d2blocks": Resnet182d2Blocks,
         "resnet182d1block": Resnet182d1Block,
@@ -153,6 +153,7 @@ class Supervised(pl.LightningModule):
         "resnet183dnodropout": Resnet183DNoDropout,
         "resnet18fully3d": Resnet18Fully3D,
         "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
+        "resnet18_imagenet": ImageNetResnet,
         "r2plus1": R2Plus1,
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
@@ -234,6 +235,7 @@ class Supervised(pl.LightningModule):
         "random_rotation_greyscale": random_rotation_greyscale(),
         "random_flip_rotation_greyscale": random_flip_rotation_greyscale(),
         "rfft": rfft_transform(),
+        "imagenet_val": [transforms.Resize(256), transforms.CenterCrop(224)],
     }
 
     def _get_transforms(self, transforms: str):
@@ -413,10 +415,11 @@ class Supervised(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(
+        optimizer = optim.SGD(
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.hparams["lr"],
             weight_decay=self.hparams["weight_decay"],
+            momentum=0.9,
         )
         return optimizer
 
@@ -436,28 +439,28 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        static_batch_data = self.file_list.get_dataset(
-            VAL_NAME,
-            image_transforms=self.resize_transform,
-            tensor_transforms=self.tensor_augmentation_transforms,
-            sequence_length=self.model.sequence_length,
-            audio_file=self.hparams["audio_file"],
-        )
-        static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
-        # this is a really shitty hack but needed for compatibility
-        # if len(static_batch_data) is divisable by 3 the resulting length is only 3
-        if len(static_batch_idx) == 3:
-            static_batch_idx += [
-                static_batch_data.samples_idx[len(static_batch_data) // 2]
-            ]
-        static_batch_data.samples_idx = static_batch_idx
-        static_batch_loader = get_fixed_dataloader(
-            static_batch_data,
-            4,
-            sampler=SequentialSampler,  # use sequence sampler
-            num_workers=self.hparams["n_cpu"],
-            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
-        )
+        # static_batch_data = self.file_list.get_dataset(
+        #     VAL_NAME,
+        #     image_transforms=self.resize_transform,
+        #     tensor_transforms=self.tensor_augmentation_transforms,
+        #     sequence_length=self.model.sequence_length,
+        #     audio_file=self.hparams["audio_file"],
+        # )
+        # static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
+        # # this is a really shitty hack but needed for compatibility
+        # # if len(static_batch_data) is divisable by 3 the resulting length is only 3
+        # if len(static_batch_idx) == 3:
+        #     static_batch_idx += [
+        #         static_batch_data.samples_idx[len(static_batch_data) // 2]
+        #     ]
+        # static_batch_data.samples_idx = static_batch_idx
+        # static_batch_loader = get_fixed_dataloader(
+        #     static_batch_data,
+        #     4,
+        #     sampler=SequentialSampler,  # use sequence sampler
+        #     num_workers=self.hparams["n_cpu"],
+        #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+        # )
         return [
             get_fixed_dataloader(
                 self.val_data,
@@ -466,28 +469,15 @@ class Supervised(pl.LightningModule):
                 num_workers=self.hparams["n_cpu"],
                 worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             ),
-            static_batch_loader,
-        ]
-
-    @pl.data_loader
-    def test_dataloader(self):
-        sampler = SequenceBatchSampler(
-            self.sampler_cls(self.test_data, replacement=True),
-            batch_size=self.hparams["batch_size"],
-            drop_last=False,
-            sequence_length=self.test_data.sequence_length,
-            samples_idx=self.test_data.samples_idx,
-        )
-        # we want to make sure test data follows the same distribution like the benchmark
-        loader = DataLoader(
-            dataset=self.test_data,
-            batch_sampler=sampler,
-            num_workers=self.hparams["n_cpu"],
-            collate_fn=get_sequence_collate_fn(
-                sequence_length=self.test_data.sequence_length
+            # use static batch for autoencoders
+            get_fixed_dataloader(
+                self.test_data,
+                self.hparams["batch_size"],
+                sampler=self.sampler_cls,
+                num_workers=self.hparams["n_cpu"],
+                worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             ),
-        )
-        return loader
+        ]
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
         if self.hparams["log_roc_values"]:

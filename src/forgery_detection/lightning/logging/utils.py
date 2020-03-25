@@ -147,13 +147,24 @@ class DictHolder(dict):
 
 
 def log_confusion_matrix(
-    logger, global_step, target: torch.tensor, pred: torch.tensor, class_to_idx
+    _logger, global_step, target: torch.tensor, pred: torch.tensor, class_to_idx
 ) -> Dict[str, np.float]:
+    if len(class_to_idx) > 50:
+        # assume that only the last 5 classes are relevant for logging
+        disregarded_classes = len(class_to_idx) - 5
+        class_to_idx = {
+            x: class_to_idx[x] - disregarded_classes
+            for x in list(class_to_idx.keys())[-5:]
+        }
+
     cm = confusion_matrix(target, pred, labels=list(class_to_idx.values()))
+
     figure = plot_cm(cm, class_names=class_to_idx.keys())
+
     cm_image = plot_to_image(figure)
+
     plt.close()
-    logger.experiment.add_image(
+    _logger.experiment.add_image(
         "metrics/cm", cm_image, dataformats="HWC", global_step=global_step
     )
 
