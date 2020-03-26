@@ -3,18 +3,25 @@ import logging
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torchvision.models import resnet18
+from torchvision.models.resnet import BasicBlock
+from torchvision.models.resnet import conv1x1
 from torchvision.utils import make_grid
 
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import FaceNetLossMixin
+from forgery_detection.models.mixins import FourierLoggingMixin
+from forgery_detection.models.mixins import FourierLossMixin
 from forgery_detection.models.mixins import L1LossMixin
 from forgery_detection.models.mixins import LaplacianLossMixin
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.mixins import TwoHeadedSupervisedNet
 from forgery_detection.models.mixins import VGGLossMixin
+from forgery_detection.models.mixins import WeightedFourierLoss
+from forgery_detection.models.mixins import WindowedFourierLossMixin
 from forgery_detection.models.utils import ACC
 from forgery_detection.models.utils import CLASS_ACC
 from forgery_detection.models.utils import CLASSIFICATION_LOSS
@@ -487,3 +494,268 @@ class KrakenAE(GeneralAE, L1LossMixin):
             dataformats="CHW",
             global_step=system.global_step,
         )
+
+
+class FourierAE(FourierLossMixin, SimpleAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class BiggerAE(SimpleAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.block1 = BasicBlock(
+            3, 64, 2, downsample=self._downsample(3, 64 * 1, 2)
+        )  # 64
+        self.block2 = BasicBlock(
+            64, 128, 2, downsample=self._downsample(64, 128, 2)
+        )  # 32
+        self.block3 = BasicBlock(
+            128, 256, 2, downsample=self._downsample(128, 256, 2)
+        )  # 16
+        self.block4 = BasicBlock(
+            256, 16, 2, downsample=self._downsample(256, 16, 2)
+        )  # 8
+
+        self.fct_decode = nn.Sequential(
+            self._upblock(16, 64, 3),
+            self._upblock(64, 128, 3),
+            self._upblock(128, 128, 3),
+            self._upblock(128, 16, 3),
+        )
+
+    def _downsample(self, in_planes, out_planes, stride):
+        return nn.Sequential(
+            conv1x1(in_planes, out_planes, stride), nn.BatchNorm2d(out_planes)
+        )
+
+    def _upblock(self, in_size, out_size, num_conv, activation=nn.ReLU):
+        return nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(in_size, out_size, 3, 1, 1),
+            nn.BatchNorm2d(out_size),
+            activation(),
+            *[
+                nn.Sequential(
+                    nn.Conv2d(out_size, out_size, 3, 1, 1),
+                    nn.BatchNorm2d(out_size),
+                    activation(),
+                )
+                for _ in range(num_conv - 1)
+            ],
+        )
+
+    def encode(self, x):
+
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+
+        return x
+
+
+class BiggerFourierAE(FourierLossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class BiggerL1AE(FourierLoggingMixin, L1LossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": self.l1_loss(recon_x, x)}
+
+
+class BiggerWindowedFourierAE(WindowedFourierLossMixin, BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.windowed_fourier_loss(recon_x, x)}
+
+
+class SupervisedBiggerFourierAE(
+    SupervisedNet(16 * 7 * 7, num_classes=5), BiggerFourierAE
+):
+    avgpool = nn.AdaptiveAvgPool2d((1, 1))
+
+    def forward(self, x):
+        h = self.encode(x)
+        # avg = self.avgpool(h)
+        # return {RECON_X: self.decode(h), PRED: self.classifier(avg.flatten(1))}
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 100
+
+
+class SupervisedBiggerAEL1(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5),
+    FourierLoggingMixin,
+    BiggerAE,
+    L1LossMixin,
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": self.l1_loss(recon_x, x) * 200 * 4}
+
+    def forward(self, x):
+        h = self.encode(x)
+        return {RECON_X: self.decode(h), PRED: self.classifier(h.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) * 20 * 4
+
+
+class BiggerWeightedFourierAE(WeightedFourierLoss([1, 1, 10, 20]), BiggerAE):
+    def reconstruction_loss(self, recon_x, x):
+        return {"complex_loss": self.fourier_loss(recon_x, x)}
+
+
+class PretrainedBiggerFourierAE(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/fourier/fourier_faulty_loss.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerFourierCorrectLoss(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/bigger_fourier_ae/version_3/checkpoints/_ckpt_epoch_2.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerFourierLossSummedOverLast4Dims(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/bigger_fourier_ae/version_1/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerL1AE(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/avspeech_ff_100/image/ae/fourier/l1.ckpt"
+    ),
+    BiggerL1AE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAELossSummedOverLast4Dims(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_0/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerWindowedFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAECorrectLoss(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_2/checkpoints/_ckpt_epoch_1.ckpt"
+    ),
+    BiggerWindowedFourierAE,
+):
+    pass
+
+
+class PretrainedBiggerWindowedAECorrectLossStrided(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/windowed_fourier_ae/version_3/checkpoints/_ckpt_epoch_5.ckpt"
+    ),
+    BiggerWindowedFourierAE,
+):
+    pass
+
+
+class WeightedBiggerFourierAE(WeightedFourierLoss([1, 1, 4, 4]), BiggerFourierAE):
+    pass
+
+
+class ResnetAE(GeneralAE, FourierLoggingMixin):
+    def __init__(
+        self, num_classes=5, sequence_length=1, pretrained=True, contains_dropout=False
+    ):
+        super().__init__(
+            num_classes, sequence_length, contains_dropout=contains_dropout
+        )
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
+        self.resnet.layer4 = nn.Conv2d(256, 16, 3, 1, 1)
+        self.resnet.avgpool = nn.Identity()
+        self.resnet.fc = nn.Identity()
+
+        self.fct_decode = nn.Sequential(
+            self._upblock(16, 64, 3),
+            self._upblock(64, 128, 3),
+            self._upblock(128, 128, 3),
+            self._upblock(128, 16, 3),
+        )
+        self.final_decod_mean = nn.Conv2d(16, 3, (3, 3), padding=1)
+
+    def _upblock(self, in_size, out_size, num_conv, activation=nn.ReLU):
+        return nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(in_size, out_size, 3, 1, 1),
+            nn.BatchNorm2d(out_size),
+            activation(),
+            *[
+                nn.Sequential(
+                    nn.Conv2d(out_size, out_size, 3, 1, 1),
+                    nn.BatchNorm2d(out_size),
+                    activation(),
+                )
+                for _ in range(num_conv - 1)
+            ],
+        )
+
+    def encode(self, x):
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+
+        return x
+
+    def decode(self, z):
+
+        z = self.fct_decode(z)
+        z = self.final_decod_mean(z)
+        z = torch.tanh(z)
+
+        return z
+
+    def forward(self, x):
+        x = self.encode(x)
+
+        return {
+            RECON_X: self.decode(x),
+            PRED: torch.ones((x.shape[0], self.num_classes), device=x.device),
+        }
+
+    def reconstruction_loss(self, recon_x, x):
+        return {"l1_loss": F.l1_loss(recon_x, x)}
+
+    def loss(self, logits, labels):
+        return torch.zeros((1,), device=logits.device)
+
+
+class SupervisedResnetAE(
+    SupervisedNet(input_units=16 * 7 * 7, num_classes=5), ResnetAE
+):
+    def forward(self, x):
+        x = self.encode(x)
+
+        return {RECON_X: self.decode(x), PRED: self.classifier(x.flatten(1))}
+
+    def loss(self, logits, labels):
+        return super().loss(logits, labels) / 10

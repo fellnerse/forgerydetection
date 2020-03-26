@@ -1,12 +1,9 @@
 from pathlib import Path
-from typing import Callable
 from typing import List
 
 import numpy as np
+import torch
 from torchvision import transforms
-from torchvision.datasets import ImageFolder
-
-from forgery_detection.data.set import SafeImageFolder
 
 
 def crop(size=299):
@@ -73,22 +70,83 @@ def random_flip_rotation_greyscale():
     ]
 
 
-def get_data(
-    data_dir, custom_transforms: Callable[[], List[Callable]] = crop
-) -> ImageFolder:
-    """Get initialized ImageFolder with faceforensics data"""
-    return SafeImageFolder(
-        str(data_dir),
-        transform=transforms.Compose(
-            custom_transforms()
-            + [
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        ),
+def rfft(x: torch.tensor):
+    """Applies torch.rfft to input (in 3 dimensions).
+
+    Also permutes fourier space in front of c x w x h.
+    i.e. input shape: b x c x w x h -> output shape: b x 2 x c x w x h
+
+    Args:
+        x: tensor that should fourier transform applied to
+
+    Returns:
+        Fourier transform of input
+
+    """
+    # insert last dimension infront of c x w x h
+    # b x c x w x h x fourier -> b x fourier x c x w x h
+    original_permutation = range(len(x.shape))
+    permute = [
+        *original_permutation[:-3],
+        len(original_permutation),
+        *original_permutation[-3:],
+    ]
+    return torch.rfft(x, 3, onesided=False, normalized=False).permute(permute)
+
+
+def irfft(x: torch.tensor):
+    """Applies torch.irfft to input (in 3 dimensions).
+
+    First input is permuted so that fourier space is last dim. Assumes fourier space is
+    4th last position.
+    i.e.:
+        input shape b x 2 x c x w x h -> (intermediate shape b x c x w x h x 2) ->
+        output shape b x c x w x h
+
+    Args:
+        x: tensor that should be used for inverse fourier transform
+
+    Returns:
+        Spatial domain output
+
+    """
+    # move 4th last dimension to end
+    # b x fourier x c x w x h x fourier -> b x c x w x h x 2
+    original_permutation = range(len(x.shape))
+    permute = [
+        *original_permutation[:-4],
+        *original_permutation[-3:],
+        original_permutation[-4],
+    ]
+    return torch.irfft(x.permute(permute), 3, onesided=False, normalized=False)
+
+
+def windowed_rfft(x: torch.tensor):
+    """Applies windowed torch.rfft to input (in 3 dimensions).
+
+    First the input is unfolded to generate 8 x 8 patches. Then the 3d rfft is performed
+    on the channel, width and height dimension
+
+    Also permutes fourier space in front of c x 8 x 8.
+    i.e. input shape: b x c x w x h -> output shape: b x w // 8 x h // 8 x 2 x c x 8 x 8
+
+    Args:
+        x: tensor that should fourier transform applied to
+
+    Returns:
+        Fourier windowed transform of input
+
+    """
+    # create patches and put channel dimension on 3rd last place
+    x = x.unfold(2, 8, 4).unfold(3, 8, 4).permute(0, 2, 3, 1, 4, 5)
+    x_rfft = torch.rfft(x, 3, onesided=False, normalized=False).permute(
+        0, 1, 2, 6, 3, 4, 5
     )
+    return x_rfft
+
+
+def rfft_transform():
+    return [rfft]
 
 
 def img_name_to_int(img: Path):

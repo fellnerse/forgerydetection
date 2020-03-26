@@ -1,10 +1,16 @@
 import logging
 from collections import OrderedDict
+from typing import List
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision.utils import make_grid
 
+from forgery_detection.data.utils import irfft
+from forgery_detection.data.utils import rfft
+from forgery_detection.data.utils import windowed_rfft
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.sliced_nets import FaceNet
 from forgery_detection.models.sliced_nets import SlicedNet
@@ -107,6 +113,120 @@ class LaplacianLossMixin(nn.Module):
         ).view(-1, 3, *x.shape[-2:])
 
         return F.l1_loss(recon_x_laplacian, x_laplacian)
+
+
+class FourierLoggingMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.circles = self.generate_circles(112, 112, bins=4, dist_exponent=3)
+
+    def _log_reconstructed_images(self, system, x, x_recon, suffix="train"):
+        x = rfft(x[:4])
+        x_recon = rfft(x_recon[:4].contiguous())
+
+        self.circles = self.circles.to(x.device)
+        x_frequencies = torch.cat([irfft(x * mask) for mask in self.circles])
+        x_recon_frequencies = torch.cat(
+            [irfft(x_recon * mask) for mask in self.circles]
+        )
+
+        x = torch.cat((x_frequencies, x_recon_frequencies), dim=2)
+        datapoints = make_grid(
+            x, nrow=self.sequence_length * 4, range=(-1, 1), normalize=True
+        )
+        system.logger.experiment.add_image(
+            f"reconstruction/{suffix}",
+            datapoints,
+            dataformats="CHW",
+            global_step=system.global_step,
+        )
+
+    def generate_circles(self, rows, cols, bins=10, dist_exponent=2):
+        x, y = np.meshgrid(
+            np.linspace(-cols // 2, cols // 2, cols),
+            np.linspace(-rows // 2, rows // 2, rows),
+        )
+        d = np.sqrt(x * x + y * y)
+        circles = []
+        biggest_dist = d.max()
+        for i in range(bins):
+            inner_dist = i ** dist_exponent * biggest_dist / bins ** dist_exponent
+            outer_dist = (i + 1) ** dist_exponent * biggest_dist / bins ** dist_exponent
+            circles.append(
+                torch.from_numpy(((inner_dist < d) & (d <= outer_dist))).float()
+            )
+
+        # add one mask with only 1 for full reconstruction
+        circles.append(circles[-1] * 0 + 1)
+
+        circles = torch.stack(circles)
+        circles = torch.roll(
+            circles,
+            [-1 * (dim // 2) for dim in circles.shape[1:]],
+            tuple(range(1, len(circles.shape))),
+        )
+        circles = circles.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # add b x 2 x c
+        return circles
+
+
+class FourierLossMixin(FourierLoggingMixin, nn.Module):
+    def fourier_loss(self, recon_x, x):
+        complex_recon_x, complex_x = rfft(recon_x), rfft(x)
+        # loss = torch.mean(
+        #     torch.sum(
+        #         torch.sqrt(
+        #             torch.sum(
+        #                 torch.pow(complex_recon_x - complex_x, 2),
+        #                 dim=(1,),  # dim=(-4, -3, -2 ,- 1)
+        #             )
+        #         ),
+        #         dim=(1, 2, 3),
+        #     )
+        # )  # todo this dimension is pretty sure completely wrong
+        # old loss:
+        # torch.sqrt(torch.sum((complex_recon_x - complex_x) ** 2, dim=-1))
+        loss = torch.mean(torch.norm(complex_recon_x - complex_x, p=2, dim=1))
+        return loss
+
+
+def WeightedFourierLoss(weights: List[float]):
+    class WeightedFourierLossMixin(FourierLossMixin):
+        __weights = np.array(weights, dtype=float)
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # self.__weights /= np.sum(self.__weights)
+            # last circle entry is full mask, we can ignore it
+            if len(self.__weights) != self.circles.shape[0] - 1:
+                raise ValueError(
+                    f"Number of weights need to be the same as number of circles, "
+                    f"but only {len(self.__weights)}/{self.circles.shape[0]} given."
+                )
+            self.weight = torch.zeros_like(self.circles[0])
+            for idx, weight in enumerate(self.__weights):
+                self.weight += self.circles[idx] * weight
+            self.weight = self.weight
+            self.weight.requires_grad = False
+
+        def fourier_loss(self, recon_x, x):
+            if recon_x.device != self.weight.device:
+                self.weight = self.weight.to(recon_x.device)
+
+            complex_recon_x, complex_x = rfft(recon_x), rfft(x)
+            loss = torch.sqrt(
+                torch.sum(self.weight * (complex_recon_x - complex_x) ** 2, dim=-1)
+            )
+            # loss = loss * self.weight
+            return loss.mean()
+
+    return WeightedFourierLossMixin
+
+
+class WindowedFourierLossMixin(FourierLoggingMixin):
+    def windowed_fourier_loss(self, recon_x: torch.tensor, x: torch.tensor):
+        complex_recon_x, complex_x = windowed_rfft(recon_x), windowed_rfft(x)
+        loss = torch.mean(torch.norm(complex_recon_x - complex_x, p=2, dim=-4))
+        return loss
 
 
 def PretrainedNet(path_to_model: str):
