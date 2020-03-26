@@ -274,7 +274,7 @@ class ImageNetResnet(Resnet18):
 
 class PretrainedImageNetResnet(
     PretrainedNet(
-        "/home/sebastian/log/debug/version_79/checkpoints/_ckpt_epoch_5.ckpt"
+        "/mnt/raid5/sebastian/model_checkpoints/imagenet_net/5_epochs_sgd_1.3e-4/model.ckpt"
     ),
     ImageNetResnet,
 ):
