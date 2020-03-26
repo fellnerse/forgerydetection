@@ -5,14 +5,7 @@ from moviepy.editor import VideoFileClip
 from python_speech_features.base import logfbank
 from tqdm import tqdm
 
-
-def normalize_filter_banks(filter_banks: dict):
-    b = list(filter_banks.values())
-    c = np.concatenate(b, axis=0)
-    mean, std = c.mean(axis=0), c.std(axis=0)
-    for key, value in filter_banks.items():
-        filter_banks[key] = (value - mean) / std
-
+from forgery_detection.data.audio.utils import normalize_dict
 
 audio_videos_folder = Path("/data/hdd/resampled_audio_videos")
 
@@ -32,7 +25,7 @@ for video in tqdm(sorted(audio_videos_folder.iterdir())):
     video: Path
     filter_banks[video.with_suffix("").name] = fb.astype(np.float32)
 
-normalize_filter_banks(filter_banks)
+normalize_dict(filter_banks)
 
 audio_features_output_path = Path("/data/hdd/audio_features")
 audio_features_output_path.mkdir(exist_ok=True)
