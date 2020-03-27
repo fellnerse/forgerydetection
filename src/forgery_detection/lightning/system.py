@@ -2,6 +2,7 @@ import logging
 import pickle
 from argparse import Namespace
 from functools import partial
+from typing import Dict
 from typing import Union
 
 import numpy as np
@@ -513,6 +514,19 @@ class Supervised(pl.LightningModule):
                 pred[:, self.positive_class],
                 self.positive_class,
             )
+
+    def dictify_list_with_class_names(
+        self, class_acc: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
+        class_accuracies_dict = {}
+        for key, value in self.file_list.class_to_idx.items():
+            try:
+                class_accuracies_dict[str(key)] = class_acc[value]
+            except IndexError:
+                # can happen when there were no samples in batch
+                # will just not logg anything for that step then
+                pass
+        return class_accuracies_dict
 
     @staticmethod
     def _construct_lightning_log(

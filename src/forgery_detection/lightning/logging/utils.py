@@ -17,7 +17,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 from sklearn import metrics
 from sklearn.metrics import auc
-from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_auc_score
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
@@ -25,6 +24,7 @@ from torch.utils.tensorboard.summary import hparams
 from torchvision.utils import make_grid
 
 from forgery_detection.data.set import FileListDataset
+from forgery_detection.lightning.confusion_matrix import confusion_matrix
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
 from forgery_detection.lightning.utils import NAN_TENSOR
@@ -148,9 +148,7 @@ class DictHolder(dict):
 
 def log_confusion_matrix(
     _logger, global_step, target: torch.tensor, pred: torch.tensor, class_to_idx
-) -> Dict[str, np.float]:
-    # todo find better way for class acc
-    # https://discuss.pytorch.org/t/how-to-find-individual-class-accuracy/6348/2
+) -> Dict[str, torch.Tensor]:
     if len(class_to_idx) > 50:
         # assume that only the last 5 classes are relevant for logging
         disregarded_classes = len(class_to_idx) - 5
@@ -159,7 +157,7 @@ def log_confusion_matrix(
             for x in list(class_to_idx.keys())[-5:]
         }
 
-    cm = confusion_matrix(target, pred, labels=list(class_to_idx.values()))
+    cm = confusion_matrix(target, pred, num_classes=len(class_to_idx))
 
     figure = plot_cm(cm, class_names=class_to_idx.keys())
 
@@ -171,7 +169,7 @@ def log_confusion_matrix(
     )
 
     # use cm to calculate class accuracies
-    class_accuracies = cm.diagonal() / cm.sum(axis=1)
+    class_accuracies = cm.diagonal() / cm.sum(dim=1)
     class_accuracies_dict = {}
     for key, value in class_to_idx.items():
         class_accuracies_dict[str(key)] = class_accuracies[value]
