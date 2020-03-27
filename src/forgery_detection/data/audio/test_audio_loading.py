@@ -9,12 +9,12 @@ from forgery_detection.data.utils import resized_crop
 f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
 a = f.get_dataset(
     "test",
-    audio_file="/data/hdd/audio_features/audio_features.npy",
+    audio_file="/data/hdd/audio_features/audio_features_deep_speech.npy",
     sequence_length=8,
     image_transforms=resized_crop(112),
 )
 path = Path(
-    "/data/ssd1/set/tracked_resampled_faces/original_sequences/youtube/c40/face_images_tracked"
+    "/data/ssd1/set/tracked_resampled_faces_112/original_sequences/youtube/c40/face_images_tracked"
 )
 for p in sorted(path.iterdir()):
     if p.is_dir():
@@ -29,10 +29,10 @@ from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import resized_crop
 
-f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces_.json")
+f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
 a = f.get_dataset(
     "val",
-    audio_file="/data/hdd/audio_features/audio_features.npy",
+    audio_file="/data/hdd/audio_features/audio_features_deep_speech.npy",
     sequence_length=8,
     image_transforms=[],
 )

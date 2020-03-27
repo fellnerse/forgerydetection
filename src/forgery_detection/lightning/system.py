@@ -44,6 +44,7 @@ from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
+from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
@@ -163,6 +164,7 @@ class Supervised(pl.LightningModule):
         "r2plus1small": R2Plus1Small,
         "mc3": MC3,
         "audionet": AudioNet,
+        "audionet_frozen": AudioNetFrozen,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
@@ -474,13 +476,13 @@ class Supervised(pl.LightningModule):
                 worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             ),
             # use static batch for autoencoders
-            get_fixed_dataloader(
-                self.test_data,
-                self.hparams["batch_size"],
-                sampler=self.sampler_cls,
-                num_workers=self.hparams["n_cpu"],
-                worker_init_fn=lambda worker_id: np.random.seed(worker_id),
-            ),
+            # get_fixed_dataloader(
+            #     self.test_data,
+            #     self.hparams["batch_size"],
+            #     sampler=self.sampler_cls,
+            #     num_workers=self.hparams["n_cpu"],
+            #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+            # ),
         ]
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
