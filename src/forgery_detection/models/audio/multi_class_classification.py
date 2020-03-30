@@ -4,6 +4,7 @@ from torchvision.models.resnet import _resnet
 from torchvision.models.resnet import BasicBlock
 from torchvision.models.video import r2plus1d_18
 
+from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -53,6 +54,24 @@ class AudioNetFrozen(AudioNet):
         super().__init__(*args, **kwargs)
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
         self._set_requires_grad_for_module(self.resnet, requires_grad=False)
+
+
+class PretrainedAudioNet(
+    PretrainedNet(
+        "/data/hdd/model_checkpoints/audionet/11_epochs_sgd_1.3e-3/model.ckpt"
+    ),
+    AudioNet,
+):
+    pass
+
+
+class AudioNetLayer2Unfrozen(PretrainedAudioNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.r2plus1.layer2, requires_grad=True)
+        self._set_requires_grad_for_module(self.resnet, requires_grad=False)
+        self._set_requires_grad_for_module(self.resnet.layer2, requires_grad=True)
 
 
 class AudioOnly(SequenceClassificationModel):

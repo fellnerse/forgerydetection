@@ -46,7 +46,11 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
+from forgery_detection.models.audio.multi_class_classification import (
+    AudioNetLayer2Unfrozen,
+)
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -118,6 +122,9 @@ from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import R2Plus1Frozen
 from forgery_detection.models.video.multi_class_classification import R2Plus1Small
+from forgery_detection.models.video.multi_class_classification import (
+    R2Plus1SmallAudioLikePretrain,
+)
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
@@ -163,9 +170,12 @@ class Supervised(pl.LightningModule):
         "r2plus1": R2Plus1,
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
+        "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
         "mc3": MC3,
         "audionet": AudioNet,
         "audionet_frozen": AudioNetFrozen,
+        "audionet_pretrained": PretrainedAudioNet,
+        "audionet_layer2unfrozen": AudioNetLayer2Unfrozen,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
