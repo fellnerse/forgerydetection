@@ -158,6 +158,15 @@ class R2Plus1SmallAudioLikePretrain(
         self._set_requires_grad_for_module(self.r2plus1.fc, requires_grad=True)
 
 
+class R2Plus1SmallAudiolikePretrained(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/ff/r2plus1_with_mlp/model_epoch_4.ckpt"
+    ),
+    R2Plus1SmallAudiolike,
+):
+    pass
+
+
 class MC3(SequenceClassificationModel):
     def __init__(self, num_classes=5, sequence_length=8):
         super().__init__(

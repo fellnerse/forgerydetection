@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torchvision.models.resnet import _resnet
 from torchvision.models.resnet import BasicBlock
+from torchvision.models.resnet import resnet18
 from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.models.mixins import PretrainedNet
@@ -18,14 +19,7 @@ class AudioNet(SequenceClassificationModel):
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Identity()
 
-        self.resnet = _resnet(
-            "resnet18",
-            BasicBlock,
-            [1, 1, 1, 1],
-            pretrained=False,
-            progress=True,
-            num_classes=1000,
-        )
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
         self.resnet.layer3 = nn.Identity()
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Identity()

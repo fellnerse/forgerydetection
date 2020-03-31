@@ -87,10 +87,10 @@ from forgery_detection.models.image.frequency_ae import FrequencyAEMagnitude
 from forgery_detection.models.image.frequency_ae import FrequencyAEtanh
 from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.frequency_ae import SupervisedBiggerFrequencyAE
-from forgery_detection.models.image.multi_class_classification import ImageNetResnet
-from forgery_detection.models.image.multi_class_classification import (
-    PretrainedImageNetResnet,
-)
+from forgery_detection.models.image.imagenet import ImageNetResnet
+from forgery_detection.models.image.imagenet import ImageNetResnet152
+from forgery_detection.models.image.imagenet import PretrainedImageNetResnet
+from forgery_detection.models.image.imagenet import PretrainFFFCResnet152
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet18
 from forgery_detection.models.image.multi_class_classification import Resnet182D
@@ -125,6 +125,9 @@ from forgery_detection.models.video.multi_class_classification import R2Plus1Fro
 from forgery_detection.models.video.multi_class_classification import R2Plus1Small
 from forgery_detection.models.video.multi_class_classification import (
     R2Plus1SmallAudioLikePretrain,
+)
+from forgery_detection.models.video.multi_class_classification import (
+    R2Plus1SmallAudiolikePretrained,
 )
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
@@ -168,10 +171,13 @@ class Supervised(pl.LightningModule):
         "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
         "resnet18_imagenet": ImageNetResnet,
         "pretrained_resnet18_imagenet": PretrainedImageNetResnet,
+        "pretrain_ff_fc_resnet152": PretrainFFFCResnet152,
+        "resnet152_imagenet": ImageNetResnet152,
         "r2plus1": R2Plus1,
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
         "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
+        "r2plus1small_audiolike": R2Plus1SmallAudiolikePretrained,
         "mc3": MC3,
         "audionet": AudioNet,
         "audionet_frozen": AudioNetFrozen,
@@ -391,7 +397,10 @@ class Supervised(pl.LightningModule):
         x, target = batch
         pred = self.forward(x)
 
-        return {"pred": pred, "target": target, "x": x}
+        return {
+            "pred": pred,
+            "target": target,
+        }  # todo this is needed for autoencoders "x": x}
 
     def _log_metrics_for_hparams(self, tensorboard_log: dict):
         acc = tensorboard_log["acc"]
