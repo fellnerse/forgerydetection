@@ -256,6 +256,30 @@ class ImageNetResnet(Resnet18):
 
         return tensorboard_log, lightning_log
 
+    def aggregate_outputs_test(self, outputs, system):
+
+        # imagenet_val_loader_batch, ff_val_loader_batch = outputs
+        ff_val_loader_batch = outputs
+        with torch.no_grad():
+            # imagenet_acc_mean, imagenet_loss_mean, _ = self._calculate_metrics(
+            #     imagenet_val_loader_batch, cut_off=0
+            # )
+            ff_acc_mean, ff_loss_mean, class_accuracies = self._calculate_metrics(
+                ff_val_loader_batch, cut_off=1000, system=system
+            )
+
+        tensorboard_log = {
+            # "loss": imagenet_loss_mean + ff_loss_mean,
+            # "imagnet_acc": imagenet_acc_mean,
+            # "imagenet_loss": imagenet_loss_mean,
+            "ff_acc": ff_acc_mean,
+            "ff_loss": ff_loss_mean,
+            "class_acc": class_accuracies,
+        }
+        lightning_log = {}  # {VAL_ACC: imagenet_acc_mean}
+
+        return tensorboard_log, lightning_log
+
     def _calculate_metrics(self, output, cut_off=0, system=None):
         pred = torch.cat([x["pred"] for x in output], 0)[:, cut_off : 1000 + cut_off]
         target = torch.cat([x["target"] for x in output], 0) - cut_off

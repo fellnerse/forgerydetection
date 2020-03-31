@@ -12,6 +12,7 @@ from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
 from sklearn.preprocessing import LabelBinarizer
 from torch import optim
 from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import SequentialSampler
 from torchvision import transforms
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
@@ -419,17 +420,23 @@ class Supervised(pl.LightningModule):
         )
 
     def test_step(self, batch, batch_nb):
-        return self.validation_step(batch, batch_nb)
+        with torch.no_grad():
+            val_out = self.validation_step(batch, batch_nb)
+            val_out.pop("x")
+            for key, value in val_out.items():
+                val_out[key] = value.cpu()
+            return val_out
 
     def test_end(self, outputs):
-        with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
-            pickle.dump(outputs, f)
+        with torch.no_grad():
+            with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
+                pickle.dump(outputs, f)
 
-        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-        logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
-        return self._construct_lightning_log(
-            tensorboard_log, lightning_log, suffix="test"
-        )
+            tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+            logger.info(f"Test accuracy is: {tensorboard_log}")
+            return self._construct_lightning_log(
+                tensorboard_log, lightning_log, suffix="test"
+            )
 
     def configure_optimizers(self):
         optimizer = optim.SGD(
@@ -495,6 +502,44 @@ class Supervised(pl.LightningModule):
             #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             # ),
         ]
+
+    @pl.data_loader
+    def test_dataloader(self):
+        self.file_list = FileList.load(
+            "/data/ssd1/file_lists/c40/tracked_resampled_faces_224.json"
+        )
+        static_batch_data = self.file_list.get_dataset(
+            VAL_NAME,  # TEST_NAME,
+            image_transforms=self.resize_transform,
+            tensor_transforms=self.tensor_augmentation_transforms,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
+        )
+        # static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
+        static_batch_idx = static_batch_data.samples_idx[::1]
+        # this is a really shitty hack but needed for compatibility
+        # if len(static_batch_data) is divisable by 3 the resulting length is only 3
+        if len(static_batch_idx) == 3:
+            static_batch_idx += [
+                static_batch_data.samples_idx[len(static_batch_data) // 2]
+            ]
+        static_batch_data.samples_idx = static_batch_idx
+        static_batch_loader = get_fixed_dataloader(
+            static_batch_data,
+            16,  # 4,
+            sampler=SequentialSampler,  # use sequence sampler
+            num_workers=self.hparams["n_cpu"],
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+        )
+        return static_batch_loader
+        loader = get_fixed_dataloader(
+            self.test_data,
+            self.hparams["batch_size"],
+            sampler=self.sampler_cls,
+            num_workers=self.hparams["n_cpu"],
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+        )
+        return loader
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
         if self.hparams["log_roc_values"]:
@@ -563,6 +608,12 @@ class Supervised(pl.LightningModule):
 
         hparams = load_hparams_from_tags_csv(tags_csv)
         hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", "None"))
+
+        if str(hparams.sampling_probs) == "nan":
+            hparams.__dict__["sampling_probs"] = None
+
+        if str(hparams.audio_file) == "nan":
+            hparams.__dict__["audio_file"] = None
 
         hparams.__setattr__("on_gpu", False)
         hparams.__dict__.update(overwrite_hparams)
