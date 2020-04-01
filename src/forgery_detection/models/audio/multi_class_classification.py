@@ -51,10 +51,7 @@ class AudioNetFrozen(AudioNet):
 
 
 class PretrainedAudioNet(
-    PretrainedNet(
-        "/data/hdd/model_checkpoints/audionet/11_epochs_sgd_1.3e-3/model.ckpt"
-    ),
-    AudioNet,
+    PretrainedNet("/data/hdd/model_checkpoints/audionet/13_epochs/model.ckpt"), AudioNet
 ):
     pass
 
