@@ -167,6 +167,22 @@ class R2Plus1SmallAudiolikePretrained(
     pass
 
 
+class R2Plus1Smallest(R2Plus1):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
+        )
+
+        self.r2plus1.layer2 = nn.Identity()
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(64, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
+
+
 class MC3(SequenceClassificationModel):
     def __init__(self, num_classes=5, sequence_length=8):
         super().__init__(

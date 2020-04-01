@@ -130,6 +130,7 @@ from forgery_detection.models.video.multi_class_classification import (
 from forgery_detection.models.video.multi_class_classification import (
     R2Plus1SmallAudiolikePretrained,
 )
+from forgery_detection.models.video.multi_class_classification import R2Plus1Smallest
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
@@ -180,6 +181,7 @@ class Supervised(pl.LightningModule):
         "r2plus1small": R2Plus1Small,
         "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
         "r2plus1small_audiolike": R2Plus1SmallAudiolikePretrained,
+        "r2plus1smallest": R2Plus1Smallest,
         "mc3": MC3,
         "audionet": AudioNet,
         "audionet_frozen": AudioNetFrozen,
