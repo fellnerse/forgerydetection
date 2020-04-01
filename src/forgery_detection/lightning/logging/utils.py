@@ -253,10 +253,12 @@ def log_dataset_preview(
         # this means there is audio data as well
         audio = [x[1] for x in datapoints]
         audio = np.stack(audio, axis=0)
+        if audio.shape[1] != 1:
+            audio = np.expand_dims(audio, 1)
         audio -= audio.min()
         audio /= audio.max()
 
-        _logger.experiment.add_image(name, audio, dataformats="HW", global_step=2)
+        _logger.experiment.add_image(name, audio, dataformats="NCHW", global_step=2)
 
         datapoints = [x[0] for x in datapoints]
 

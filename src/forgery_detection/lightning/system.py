@@ -51,7 +51,9 @@ from forgery_detection.models.audio.multi_class_classification import (
     AudioNetLayer2Unfrozen,
 )
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
+from forgery_detection.models.audio.multi_class_classification import SimilarityNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -238,6 +240,8 @@ class Supervised(pl.LightningModule):
         "bigger_windowed_fourier_ae": BiggerWindowedFourierAE,
         "supervised_resnet_ae": SupervisedResnetAE,
         "resnet18_same_as_in_ae": Resnet18SameAsInAE,
+        "frame_net": FrameNet,
+        "similarity_net": SimilarityNet,
     }
 
     CUSTOM_TRANSFORMS = {
