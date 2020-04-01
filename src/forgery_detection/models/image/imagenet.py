@@ -251,6 +251,20 @@ class PretrainFFFCResnet152(SequenceClassificationModel):
         return self.resnet.forward(x)
 
 
+class PretrainedFFFCResnet152(ImageNetResnet152):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        state_dict = torch.load(
+            "/data/hdd/model_checkpoints/imagenet_net/resnext/model.ckpt"
+        )["state_dict"]
+        self.ff_classifier.load_state_dict(
+            {
+                "weight": state_dict["model.resnet.fc.weight"],
+                "bias": state_dict["model.resnet.fc.bias"],
+            }
+        )
+
+
 class PretrainedImageNetResnet(
     PretrainedNet(
         "/mnt/raid5/sebastian/model_checkpoints/imagenet_net/5_epochs_sgd_1.3e-4/model.ckpt"

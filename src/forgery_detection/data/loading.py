@@ -150,7 +150,7 @@ class SequenceBatchSampler(BatchSampler):
         batch = []
         for idx in self.sampler:
             idx = self.samples_idx[idx]
-            batch += range(idx + 1 - self.sequence_length, idx + 1)
+            batch += [(x, idx) for x in range(idx + 1 - self.sequence_length, idx + 1)]
             if len(batch) == self.batch_size * self.sequence_length:
                 yield batch
                 batch = []

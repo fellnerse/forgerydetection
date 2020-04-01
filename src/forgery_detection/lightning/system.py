@@ -89,6 +89,7 @@ from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.frequency_ae import SupervisedBiggerFrequencyAE
 from forgery_detection.models.image.imagenet import ImageNetResnet
 from forgery_detection.models.image.imagenet import ImageNetResnet152
+from forgery_detection.models.image.imagenet import PretrainedFFFCResnet152
 from forgery_detection.models.image.imagenet import PretrainedImageNetResnet
 from forgery_detection.models.image.imagenet import PretrainFFFCResnet152
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
@@ -173,6 +174,7 @@ class Supervised(pl.LightningModule):
         "pretrained_resnet18_imagenet": PretrainedImageNetResnet,
         "pretrain_ff_fc_resnet152": PretrainFFFCResnet152,
         "resnet152_imagenet": ImageNetResnet152,
+        "resnet152_imagenet_pretrained": PretrainedFFFCResnet152,
         "r2plus1": R2Plus1,
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
