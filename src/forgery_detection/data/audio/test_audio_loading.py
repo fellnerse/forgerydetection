@@ -50,41 +50,32 @@ for x in tqdm(iter):
     pass
 #%%
 
-from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.set import FileList
-from forgery_detection.data.utils import resized_crop
 
-f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces_.json")
-print(f.root)
 
-#%%
-from torchsummary import summary
-from torchvision.models.resnet import _resnet, BasicBlock
-from torch import nn
-
-resnet10 = _resnet(
-    "resnet18",
-    BasicBlock,
-    [1, 1, 1, 1],
-    pretrained=False,
-    progress=True,
-    num_classes=256,
+f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
+d = f.get_dataset(
+    "train",
+    audio_file="/data/hdd/audio_features/audio_features_deep_speech.npy",
+    sequence_length=8,
+    image_transforms=[],
 )
-resnet10.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False)
-resnet10.bn1 = nn.BatchNorm2d(32)
-resnet10.layer4 = nn.Identity()
-resnet10.fc = nn.Linear(256, 256)
-resnet10.cuda()
-summary(resnet10, (1, 8, 40))
 
 #%%
-import numpy as np
+p_idx = 1117399 + 7
+nt_a_idx = 870468 + 7
+nt_b_idx = nt_a_idx + 6696 + 7
 
-a = np.load("/data/hdd/audio_features/audio_features.npy", allow_pickle=True)[()]
-b = list(a.values())
-c = np.concatenate(b, axis=0)
-print(c.mean(), c.std(), c.min(), c.max())
-# c -= c.mean(axis=0)
-# c /= c.std(axis=0)
-print(c.mean(), c.std(), c.min(), c.max())
+pristine_data = d[p_idx, p_idx][0]
+nt_a_data = d[nt_a_idx, nt_a_idx][0]
+nt_b_data = d[nt_b_idx, nt_b_idx][0]
+
+print(d._samples[p_idx])
+print(d._samples[nt_a_idx])
+print(d._samples[nt_b_idx])
+
+import matplotlib.pyplot as plt
+
+plt.imshow(pristine_data[0].permute(1, 2, 0)), plt.show()
+plt.imshow(nt_a_data[0].permute(1, 2, 0)), plt.show()
+plt.imshow(nt_b_data[0].permute(1, 2, 0)), plt.show()

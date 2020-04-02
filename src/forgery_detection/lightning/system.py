@@ -53,6 +53,9 @@ from forgery_detection.models.audio.multi_class_classification import (
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
+from forgery_detection.models.audio.multi_class_classification import (
+    PretrainedSimilarityNet,
+)
 from forgery_detection.models.audio.multi_class_classification import SimilarityNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
@@ -242,6 +245,7 @@ class Supervised(pl.LightningModule):
         "resnet18_same_as_in_ae": Resnet18SameAsInAE,
         "frame_net": FrameNet,
         "similarity_net": SimilarityNet,
+        "pretrained_similarity_net": PretrainedSimilarityNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -323,6 +327,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
@@ -330,6 +335,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
@@ -338,6 +344,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
@@ -396,12 +403,16 @@ class Supervised(pl.LightningModule):
         return self.model.forward(x)
 
     def training_step(self, batch, batch_nb):
+        # x, target = batch
+        # batch = x, (target - 1) % 5
         tensorboard_log, lightning_log = self.model.training_step(batch, batch_nb, self)
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="train"
         )
 
     def validation_step(self, batch, batch_nb, dataloader_id=-1):
+        # x, target = batch
+        # batch = x, (target - 1) % 5
         x, target = batch
         pred = self.forward(x)
 

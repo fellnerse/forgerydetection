@@ -170,7 +170,9 @@ class FrameNet(SequenceClassificationModel):
         self.audio_extractor = Audio2ExpressionNet(1)  # want output for each frame
 
         self.out = nn.Sequential(
-            nn.Linear(self.sequence_length * 2 * 64, 50),
+            nn.Linear(
+                self.sequence_length * 2 * 64, 50
+            ),  # maybe convolution over time would make sense here
             nn.LeakyReLU(0.02),
             nn.Linear(50, self.num_classes),
         )
@@ -205,6 +207,8 @@ class SimilarityNet(SequenceClassificationModel):
 
         self.audio_extractor = Audio2ExpressionNet(8)
 
+        self.c_loss = ContrastiveLoss(1)
+
     def forward(self, x):
         video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
         # def forward(self, video, audio):
@@ -213,8 +217,8 @@ class SimilarityNet(SequenceClassificationModel):
 
     def loss(self, logits, labels):
         video_logits, audio_logits = logits
-        mask = labels == 4
-        return F.cosine_embedding_loss(video_logits, audio_logits, mask.float() * 2 - 1)
+        mask = (labels == 4).float()
+        return self.c_loss(video_logits, audio_logits, mask)
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
@@ -238,6 +242,117 @@ class SimilarityNet(SequenceClassificationModel):
             target = torch.cat([x["target"] for x in outputs], 0)
             loss_mean = self.loss((video_logits, audio_logtis), target)
 
-            tensorboard_log = {"loss": loss_mean}
+            class_loss = self.loss_per_class(video_logits, audio_logtis, target)
+
+            # tensorboard only works if number of samples logged does not change ->
+            # ignore pre training routine
+            if system.global_step:
+                self.log_embedding(video_logits, audio_logtis, target, system)
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "class_acc": {str(idx): val for idx, val in enumerate(class_loss)},
+            }
 
         return tensorboard_log, {}
+
+    def loss_per_class(self, video_logits, audio_logits, targets):
+        class_loss = torch.zeros((5,))
+        class_counts = torch.zeros((5,))
+        distances = (video_logits - audio_logits).pow(2).sum(1)
+        for target, logit in zip(targets, distances):
+            class_loss[target] += logit
+            class_counts[target] += 1
+        return class_loss / class_counts
+
+    @staticmethod
+    def get_meta_data(target: torch.Tensor):
+        def _get_prefixed_meta_data(_target, prefix):
+            return list(map(lambda x: str(x) + prefix, target))
+
+        return _get_prefixed_meta_data(target, "_v")
+        # return _get_prefixed_meta_data(target, "_v") + _get_prefixed_meta_data(
+        #     target, "_a"
+        # )
+
+    @staticmethod
+    def get_colour(target, video=True):
+        base_value = 255 if video else 128
+        colour_dict = [
+            torch.ones((3, 32, 32))
+            * torch.tensor([base_value * 1, base_value * 0, base_value * 0])
+            .unsqueeze(1)
+            .unsqueeze(1),
+            torch.ones((3, 32, 32))
+            * torch.tensor([base_value * 0, base_value * 1, base_value * 1])
+            .unsqueeze(1)
+            .unsqueeze(1),
+            torch.ones((3, 32, 32))
+            * torch.tensor([base_value * 1, base_value * 0, base_value * 1])
+            .unsqueeze(1)
+            .unsqueeze(1),
+            torch.ones((3, 32, 32))
+            * torch.tensor([base_value * 0, base_value * 1, base_value * 0])
+            .unsqueeze(1)
+            .unsqueeze(1),
+            torch.ones((3, 32, 32))
+            * torch.tensor([base_value * 0, base_value * 0, base_value * 1])
+            .unsqueeze(1)
+            .unsqueeze(1),
+        ]
+        return torch.stack(list(map(lambda x: colour_dict[x], target)))
+
+    def log_embedding(
+        self,
+        video_logits: torch.Tensor,
+        audio_logits: torch.Tensor,
+        target: torch.Tensor,
+        system,
+    ):
+        metadata = self.get_meta_data(target)
+        # label_img = torch.cat(
+        #     (self.get_colour(target, video=True), self.get_colour(target, video=False))
+        # )
+        label_img = self.get_colour(target, video=True)
+        # system.logger.experiment.add_embedding(
+        #     torch.cat((video_logits, audio_logits)),
+        #     metadata=metadata,
+        #     label_img=label_img,
+        #     global_step=0,
+        # )
+        system.logger.experiment.add_embedding(
+            video_logits,
+            metadata=metadata,
+            label_img=label_img,
+            global_step=system.global_step,
+        )
+
+
+class PretrainedSimilarityNet(
+    PretrainedNet(
+        "/home/sebastian/log/debug/version_29/checkpoints/_ckpt_epoch_2.ckpt"
+    ),
+    SimilarityNet,
+):
+    pass
+
+
+class ContrastiveLoss(nn.Module):
+    """
+    Contrastive loss
+    Takes embeddings of two samples and a target label == 1 if samples are from the same class and label == 0 otherwise
+    """
+
+    def __init__(self, margin):
+        super(ContrastiveLoss, self).__init__()
+        self.margin = margin
+        self.eps = 1e-9
+
+    def forward(self, output1, output2, target, size_average=True):
+        distances = (output2 - output1).pow(2).sum(1)  # squared distances
+        losses = 0.5 * (
+            target.float() * distances
+            + (1 + -1 * target).float()
+            * F.relu(self.margin - (distances + self.eps).sqrt()).pow(2)
+        )
+        return losses.mean() if size_average else losses.sum()

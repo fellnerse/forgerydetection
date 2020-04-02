@@ -188,7 +188,11 @@ class ImageNetResnet(Resnet18, ImageNet):
 
 class ImageNetResnet152(ImageNet):
     def __init__(
-        self, num_classes, sequence_length=1, pretrained=True, contains_dropout=False
+        self,
+        num_classes=1000,
+        sequence_length=1,
+        pretrained=True,
+        contains_dropout=False,
     ):
         num_classes = 1000
         super().__init__(
@@ -251,18 +255,24 @@ class PretrainFFFCResnet152(SequenceClassificationModel):
         return self.resnet.forward(x)
 
 
-class PretrainedFFFCResnet152(ImageNetResnet152):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        state_dict = torch.load(
-            "/data/hdd/model_checkpoints/imagenet_net/resnext/model.ckpt"
-        )["state_dict"]
-        self.ff_classifier.load_state_dict(
-            {
-                "weight": state_dict["model.resnet.fc.weight"],
-                "bias": state_dict["model.resnet.fc.bias"],
-            }
-        )
+class PretrainedFFFCResnet152(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/imagenet_ff/version_4/checkpoints/_ckpt_epoch_2.ckpt"
+    ),
+    ImageNetResnet152,
+):
+    pass
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     state_dict = torch.load(
+    #         "/data/hdd/model_checkpoints/imagenet_net/resnext/model.ckpt"
+    #     )["state_dict"]
+    #     self.ff_classifier.load_state_dict(
+    #         {
+    #             "weight": state_dict["model.resnet.fc.weight"],
+    #             "bias": state_dict["model.resnet.fc.bias"],
+    #         }
+    #     )
 
 
 class PretrainedImageNetResnet(
