@@ -57,6 +57,9 @@ from forgery_detection.models.audio.multi_class_classification import (
     PretrainedSimilarityNet,
 )
 from forgery_detection.models.audio.multi_class_classification import SimilarityNet
+from forgery_detection.models.audio.multi_class_classification import (
+    SimilarityNetClassification,
+)
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -246,6 +249,7 @@ class Supervised(pl.LightningModule):
         "frame_net": FrameNet,
         "similarity_net": SimilarityNet,
         "pretrained_similarity_net": PretrainedSimilarityNet,
+        "similarity_net_classification": SimilarityNetClassification,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -533,9 +537,9 @@ class Supervised(pl.LightningModule):
 
     @pl.data_loader
     def test_dataloader(self):
-        self.file_list = FileList.load(
-            "/data/ssd1/file_lists/c40/tracked_resampled_faces_224.json"
-        )
+        # self.file_list = FileList.load(
+        #     "/data/ssd1/file_lists/c40/tracked_resampled_faces_224.json"
+        # )
         static_batch_data = self.file_list.get_dataset(
             VAL_NAME,  # TEST_NAME,
             image_transforms=self.resize_transform,

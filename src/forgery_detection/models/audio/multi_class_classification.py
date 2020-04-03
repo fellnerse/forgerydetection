@@ -2,13 +2,14 @@ import logging
 
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torchvision.models.resnet import _resnet
 from torchvision.models.resnet import BasicBlock
 from torchvision.models.resnet import resnet18
 from torchvision.models.video import r2plus1d_18
 
+from forgery_detection.models.audio.utils import ContrastiveLoss
 from forgery_detection.models.mixins import PretrainedNet
+from forgery_detection.models.mixins import SupervisedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 
 logger = logging.getLogger(__file__)
@@ -209,6 +210,8 @@ class SimilarityNet(SequenceClassificationModel):
 
         self.c_loss = ContrastiveLoss(1)
 
+        self.log_class_loss = False
+
     def forward(self, x):
         video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
         # def forward(self, video, audio):
@@ -228,6 +231,12 @@ class SimilarityNet(SequenceClassificationModel):
         lightning_log = {"loss": loss}
 
         tensorboard_log = {"loss": {"train": loss}}
+        if self.log_class_loss or True:
+            class_loss = self.loss_per_class(pred[0], pred[1], target)
+            tensorboard_log["class_acc_train"] = {
+                str(idx): val for idx, val in enumerate(class_loss)
+            }
+            self.log_class_loss = False
 
         return tensorboard_log, lightning_log
 
@@ -246,13 +255,15 @@ class SimilarityNet(SequenceClassificationModel):
 
             # tensorboard only works if number of samples logged does not change ->
             # ignore pre training routine
-            if system.global_step:
-                self.log_embedding(video_logits, audio_logtis, target, system)
+            # if system.global_step:
+            #     self.log_embedding(video_logits, audio_logtis, target, system)
 
             tensorboard_log = {
                 "loss": loss_mean,
                 "class_acc": {str(idx): val for idx, val in enumerate(class_loss)},
             }
+        # if system.global_step > 0:
+        self.log_class_loss = True
 
         return tensorboard_log, {}
 
@@ -270,10 +281,10 @@ class SimilarityNet(SequenceClassificationModel):
         def _get_prefixed_meta_data(_target, prefix):
             return list(map(lambda x: str(x) + prefix, target))
 
-        return _get_prefixed_meta_data(target, "_v")
-        # return _get_prefixed_meta_data(target, "_v") + _get_prefixed_meta_data(
-        #     target, "_a"
-        # )
+        # return _get_prefixed_meta_data(target, "_v")
+        return _get_prefixed_meta_data(target, "_v") + _get_prefixed_meta_data(
+            target, "_a"
+        )
 
     @staticmethod
     def get_colour(target, video=True):
@@ -310,49 +321,97 @@ class SimilarityNet(SequenceClassificationModel):
         system,
     ):
         metadata = self.get_meta_data(target)
-        # label_img = torch.cat(
-        #     (self.get_colour(target, video=True), self.get_colour(target, video=False))
-        # )
-        label_img = self.get_colour(target, video=True)
-        # system.logger.experiment.add_embedding(
-        #     torch.cat((video_logits, audio_logits)),
-        #     metadata=metadata,
-        #     label_img=label_img,
-        #     global_step=0,
-        # )
+        label_img = torch.cat(
+            (self.get_colour(target, video=True), self.get_colour(target, video=False))
+        )
+        # label_img = self.get_colour(target, video=True)
         system.logger.experiment.add_embedding(
-            video_logits,
+            torch.cat((video_logits, audio_logits)),
             metadata=metadata,
             label_img=label_img,
-            global_step=system.global_step,
+            global_step=0,
         )
+        # system.logger.experiment.add_embedding(
+        #     video_logits,
+        #     metadata=metadata,
+        #     label_img=label_img,
+        #     global_step=system.global_step,
+        # )
 
 
 class PretrainedSimilarityNet(
     PretrainedNet(
-        "/home/sebastian/log/debug/version_29/checkpoints/_ckpt_epoch_2.ckpt"
+        "/home/sebastian/log/debug/version_29/checkpoints/_ckpt_epoch_8.ckpt"
     ),
     SimilarityNet,
 ):
     pass
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.c_loss = ContrastiveLoss(2)
 
 
-class ContrastiveLoss(nn.Module):
-    """
-    Contrastive loss
-    Takes embeddings of two samples and a target label == 1 if samples are from the same class and label == 0 otherwise
-    """
+class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.classifier[1] = nn.LeakyReLU(0.02)
 
-    def __init__(self, margin):
-        super(ContrastiveLoss, self).__init__()
-        self.margin = margin
-        self.eps = 1e-9
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.audio_extractor, requires_grad=False)
 
-    def forward(self, output1, output2, target, size_average=True):
-        distances = (output2 - output1).pow(2).sum(1)  # squared distances
-        losses = 0.5 * (
-            target.float() * distances
-            + (1 + -1 * target).float()
-            * F.relu(self.margin - (distances + self.eps).sqrt()).pow(2)
-        )
-        return losses.mean() if size_average else losses.sum()
+    def forward(self, x):
+        embedding = super().forward(x)
+        concat_embedding = torch.cat(embedding, dim=1)
+        return embedding, self.classifier(concat_embedding)
+
+    def loss(self, logits, labels):
+        embedding, predictions = logits
+        total_loss = super().loss(predictions, (labels == 4).long())
+        # super(SupervisedNet, self).loss(
+        # embedding, labels
+        # ) * 0 +
+        return total_loss
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+
+        pred = self.forward(x)
+        loss = self.loss(pred, target)
+        lightning_log = {"loss": loss}
+        acc = self.calculate_accuracy(pred[1], (target == 4).long())
+        tensorboard_log = {"loss": {"train": loss}, "acc": {"train": acc}}
+
+        return tensorboard_log, lightning_log
+
+    def aggregate_outputs(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            video_logits = torch.cat([x["pred"][0][0] for x in outputs], 0)
+            audio_logtis = torch.cat([x["pred"][0][1] for x in outputs], 0)
+            predictions = torch.cat([x["pred"][1] for x in outputs], 0)
+
+            target = torch.cat([x["target"] for x in outputs], 0)
+            loss_mean = self.loss(((video_logits, audio_logtis), predictions), target)
+
+            class_loss = self.loss_per_class(video_logits, audio_logtis, target)
+
+            class_accuracies = system.log_confusion_matrix(
+                (target == 4).long(), predictions
+            )
+            acc = self.calculate_accuracy(predictions, (target == 4).long())
+            # tensorboard only works if number of samples logged does not change ->
+            # ignore pre training routine
+            # if system.global_step:
+            #     self.log_embedding(video_logits, audio_logtis, target, system)
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "class_acc": {str(idx): val for idx, val in enumerate(class_loss)},
+                "class_acc2": class_accuracies,
+                "acc": acc,
+            }
+
+        return tensorboard_log, {}

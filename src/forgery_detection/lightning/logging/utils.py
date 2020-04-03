@@ -156,7 +156,6 @@ def log_confusion_matrix(
             x: class_to_idx[x] - disregarded_classes
             for x in list(class_to_idx.keys())[-5:]
         }
-
     cm = confusion_matrix(target, pred, num_classes=len(class_to_idx))
 
     figure = plot_cm(cm, class_names=class_to_idx.keys())
