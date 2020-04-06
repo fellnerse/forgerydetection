@@ -212,15 +212,32 @@ class SimilarityNet(SequenceClassificationModel):
 
         self.log_class_loss = False
 
+    def _shuffle_audio(self, audio: torch.Tensor):
+        middle = audio.shape[0] // 2
+        audio[:middle] = audio[torch.randperm(middle)]
+        # # swap two consecutive entries
+        # idx = torch.randint(0, self.sequence_length - 1, (1,))
+        # x[:middle, [idx, idx + 1]] = x[:middle, [idx + 1, idx]]
+
+    def _get_targets(self, logits: torch.Tensor):
+        nb_items_neg = logits.shape[0] // 2
+        return torch.cat(
+            (
+                torch.zeros((nb_items_neg,)).long(),
+                torch.ones((logits.shape[0] - nb_items_neg,)).long(),
+            )
+        ).to(logits.device)
+
     def forward(self, x):
         video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
         # def forward(self, video, audio):
+        self._shuffle_audio(audio)
         video = video.permute(0, 2, 1, 3, 4)
         return self.r2plus1(video), self.audio_extractor(audio)
 
     def loss(self, logits, labels):
         video_logits, audio_logits = logits
-        mask = (labels == 4).float()
+        mask = self._get_targets(audio_logits)
         return self.c_loss(video_logits, audio_logits, mask)
 
     def training_step(self, batch, batch_nb, system):
@@ -236,6 +253,7 @@ class SimilarityNet(SequenceClassificationModel):
             tensorboard_log["class_acc_train"] = {
                 str(idx): val for idx, val in enumerate(class_loss)
             }
+            # self.log_embedding(pred[0], pred[1], target, system)
             self.log_class_loss = False
 
         return tensorboard_log, lightning_log
@@ -256,7 +274,7 @@ class SimilarityNet(SequenceClassificationModel):
             # tensorboard only works if number of samples logged does not change ->
             # ignore pre training routine
             # if system.global_step:
-            #     self.log_embedding(video_logits, audio_logtis, target, system)
+            # self.log_embedding(video_logits, audio_logtis, target, system)
 
             tensorboard_log = {
                 "loss": loss_mean,
@@ -268,6 +286,7 @@ class SimilarityNet(SequenceClassificationModel):
         return tensorboard_log, {}
 
     def loss_per_class(self, video_logits, audio_logits, targets):
+        targets = self._get_targets(logits=audio_logits)
         class_loss = torch.zeros((5,))
         class_counts = torch.zeros((5,))
         distances = (video_logits - audio_logits).pow(2).sum(1)
@@ -320,28 +339,29 @@ class SimilarityNet(SequenceClassificationModel):
         target: torch.Tensor,
         system,
     ):
-        metadata = self.get_meta_data(target)
-        label_img = torch.cat(
-            (self.get_colour(target, video=True), self.get_colour(target, video=False))
-        )
-        # label_img = self.get_colour(target, video=True)
-        system.logger.experiment.add_embedding(
-            torch.cat((video_logits, audio_logits)),
-            metadata=metadata,
-            label_img=label_img,
-            global_step=0,
-        )
+        # metadata = self.get_meta_data(target)
+        # label_img = torch.cat(
+        #     (self.get_colour(target, video=True), self.get_colour(target, video=False))
+        # )
         # system.logger.experiment.add_embedding(
-        #     video_logits,
+        #     torch.cat((video_logits, audio_logits)),
         #     metadata=metadata,
         #     label_img=label_img,
-        #     global_step=system.global_step,
+        #     global_step=0,
         # )
+        metadata = self.get_meta_data(target)[: target.shape[0]]
+        label_img = self.get_colour(target, video=True)
+        system.logger.experiment.add_embedding(
+            video_logits,
+            metadata=metadata,
+            label_img=label_img,
+            global_step=system.global_step,
+        )
 
 
 class PretrainedSimilarityNet(
     PretrainedNet(
-        "/home/sebastian/log/debug/version_29/checkpoints/_ckpt_epoch_8.ckpt"
+        "/home/sebastian/log/runs/TRAIN/similarity_net/version_4/checkpoints/_ckpt_epoch_7.ckpt"
     ),
     SimilarityNet,
 ):
@@ -354,7 +374,14 @@ class PretrainedSimilarityNet(
 class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.classifier[1] = nn.LeakyReLU(0.02)
+
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(128, 50),
+            nn.Dropout(p=0.5),
+            nn.LeakyReLU(0.02),
+            nn.Linear(50, 2),
+        )
 
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
         self._set_requires_grad_for_module(self.audio_extractor, requires_grad=False)
@@ -415,3 +442,6 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
             }
 
         return tensorboard_log, {}
+
+
+# only yt filelist: /mnt/ssd1/sebastian/file_lists/c40/tracked_resampled_faces_yt_only_112_8_sequence_length.json
