@@ -517,11 +517,15 @@ class Supervised(pl.LightningModule):
         #     num_workers=self.hparams["n_cpu"],
         #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         # )
+        if self.sampling_probs is None:
+            sampler = self.sampler_cls
+        else:
+            sampler = partial(self.sampler_cls, predefined_weights=self.sampling_probs)
         return [
             get_fixed_dataloader(
                 self.val_data,
                 self.hparams["batch_size"],
-                sampler=self.sampler_cls,
+                sampler=sampler,
                 num_workers=self.hparams["n_cpu"],
                 worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             ),
