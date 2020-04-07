@@ -96,13 +96,13 @@ class AudioOnly(SequenceClassificationModel):
 
 
 class Audio2ExpressionNet(nn.Module):
-    def __init__(self, T):
+    def __init__(self, T, input_dim=29):
         super(Audio2ExpressionNet, self).__init__()
 
         self.T = T
 
         self.convs = nn.Sequential(
-            nn.Conv1d(29, 32, 3, stride=2, padding=1),
+            nn.Conv1d(input_dim, 32, 3, stride=2, padding=1),
             nn.LeakyReLU(0.02),
             nn.Conv1d(32, 32, 3, stride=2, padding=1),
             nn.LeakyReLU(0.02),
@@ -110,6 +110,10 @@ class Audio2ExpressionNet(nn.Module):
             nn.LeakyReLU(0.02),
             nn.Conv1d(64, 64, 3, stride=2, padding=1),
             nn.LeakyReLU(0.02),
+            # nn.Conv1d(64, 64, 3, stride=2, padding=1),
+            # nn.LeakyReLU(0.02),
+            # nn.Conv1d(64, 64, 3, stride=2, padding=1),
+            # nn.LeakyReLU(0.02), needed for mfcc_features_stacked.npy
         )
 
         self.fcs = nn.Sequential(
@@ -206,18 +210,21 @@ class SimilarityNet(SequenceClassificationModel):
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Identity()
 
-        self.audio_extractor = Audio2ExpressionNet(8)
+        self.audio_extractor = resnet18(pretrained=pretrained, num_classes=1000)
+        self.audio_extractor.layer2 = nn.Identity()
+        self.audio_extractor.layer3 = nn.Identity()
+        self.audio_extractor.layer4 = nn.Identity()
+        self.audio_extractor.fc = nn.Identity()
 
         self.c_loss = ContrastiveLoss(1)
 
         self.log_class_loss = False
 
     def _shuffle_audio(self, audio: torch.Tensor):
-        middle = audio.shape[0] // 2
-        audio[:middle] = audio[torch.randperm(middle)]
-        # # swap two consecutive entries
-        # idx = torch.randint(0, self.sequence_length - 1, (1,))
-        # x[:middle, [idx, idx + 1]] = x[:middle, [idx + 1, idx]]
+        with torch.no_grad():
+            middle = audio.shape[0] // 2
+            audio[:middle] = audio[torch.randperm(middle)]
+            return audio
 
     def _get_targets(self, logits: torch.Tensor):
         nb_items_neg = logits.shape[0] // 2
@@ -231,19 +238,23 @@ class SimilarityNet(SequenceClassificationModel):
     def forward(self, x):
         video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
         # def forward(self, video, audio):
-        self._shuffle_audio(audio)
+        audio = self._shuffle_audio(audio)
+        audio = (
+            audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1).expand(-1, 3, -1, -1)
+        )
+
         video = video.permute(0, 2, 1, 3, 4)
         return self.r2plus1(video), self.audio_extractor(audio)
 
     def loss(self, logits, labels):
         video_logits, audio_logits = logits
-        mask = self._get_targets(audio_logits)
-        return self.c_loss(video_logits, audio_logits, mask)
+        return self.c_loss(video_logits, audio_logits, labels)
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
 
         pred = self.forward(x)
+        target = self._get_targets(target)
         loss = self.loss(pred, target)
         lightning_log = {"loss": loss}
 
@@ -266,7 +277,14 @@ class SimilarityNet(SequenceClassificationModel):
         with torch.no_grad():
             video_logits = torch.cat([x["pred"][0] for x in outputs], 0)
             audio_logtis = torch.cat([x["pred"][1] for x in outputs], 0)
-            target = torch.cat([x["target"] for x in outputs], 0)
+
+            # i will have to change this so because the targets are wrong
+            # here several batches are concatenated, and after that the targets are calculated
+            # but we have to calculate the targets before, or do all the stuff batchwise
+            target_list = [x["target"] for x in outputs]
+            calculated_targets = [self._get_targets(x) for x in target_list]
+            target = torch.cat(calculated_targets, dim=0)
+
             loss_mean = self.loss((video_logits, audio_logtis), target)
 
             class_loss = self.loss_per_class(video_logits, audio_logtis, target)
@@ -286,9 +304,8 @@ class SimilarityNet(SequenceClassificationModel):
         return tensorboard_log, {}
 
     def loss_per_class(self, video_logits, audio_logits, targets):
-        targets = self._get_targets(logits=audio_logits)
-        class_loss = torch.zeros((5,))
-        class_counts = torch.zeros((5,))
+        class_loss = torch.zeros((2,))
+        class_counts = torch.zeros((2,))
         distances = (video_logits - audio_logits).pow(2).sum(1)
         for target, logit in zip(targets, distances):
             class_loss[target] += logit
@@ -442,6 +459,3 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
             }
 
         return tensorboard_log, {}
-
-
-# only yt filelist: /mnt/ssd1/sebastian/file_lists/c40/tracked_resampled_faces_yt_only_112_8_sequence_length.json
