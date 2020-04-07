@@ -256,9 +256,12 @@ def log_dataset_preview(
             audio = np.expand_dims(audio, 1)
         audio -= audio.min()
         audio /= audio.max()
-
-        _logger.experiment.add_image(name, audio, dataformats="NCHW", global_step=2)
-
+        try:
+            _logger.experiment.add_image(name, audio, dataformats="NCHW", global_step=2)
+        except AssertionError:
+            logger.warning(
+                f"Could not log preview for audio data due to assertion error."
+            )
         datapoints = [x[0] for x in datapoints]
 
     datapoints = torch.stack(datapoints, dim=0)
