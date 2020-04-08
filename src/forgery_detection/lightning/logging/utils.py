@@ -242,11 +242,16 @@ def log_dataset_preview(
     datapoints, labels = list(zip(*(dataset[idx, idx] for idx in datapoints_idx)))
 
     # log labels
-    labels = torch.tensor(labels, dtype=torch.float).reshape(
-        (nb_images // nrow, nrow)
-    ).unsqueeze(0) / (len(dataset.classes) - 1)
-    _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
-
+    try:
+        labels = torch.tensor(labels, dtype=torch.float).reshape(
+            (nb_images // nrow, nrow)
+        ).unsqueeze(0) / (len(dataset.classes) - 1)
+        _logger.experiment.add_image(name, labels, dataformats="CHW", global_step=0)
+    except RuntimeError:
+        logger.warning(
+            f"there was a runtime error during logging labels. Probably because nrow"
+            f"does not devide number of images to log."
+        )
     # log images
     if isinstance(datapoints[0], tuple):
         # this means there is audio data as well

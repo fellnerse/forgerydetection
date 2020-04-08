@@ -1,6 +1,7 @@
 import logging
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torchvision.models.resnet import _resnet
 from torchvision.models.resnet import BasicBlock
@@ -200,9 +201,11 @@ class FrameNet(SequenceClassificationModel):
 
 
 class SimilarityNet(SequenceClassificationModel):
-    def __init__(self, num_classes=5, pretrained=True):
+    def __init__(self, num_classes=5, sequence_length=8, pretrained=True):
         super().__init__(
-            num_classes=num_classes, sequence_length=8, contains_dropout=False
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
         )
         self.r2plus1 = r2plus1d_18(pretrained=pretrained)
         self.r2plus1.layer2 = nn.Identity()
@@ -378,7 +381,7 @@ class SimilarityNet(SequenceClassificationModel):
 
 class PretrainedSimilarityNet(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/similarity_net/version_4/checkpoints/_ckpt_epoch_7.ckpt"
+        "/home/sebastian/log/debug/version_117/checkpoints/_ckpt_epoch_2.ckpt"
     ),
     SimilarityNet,
 ):
@@ -388,14 +391,102 @@ class PretrainedSimilarityNet(
     #     self.c_loss = ContrastiveLoss(2)
 
 
+class SyncNet(SimilarityNet):
+    def __init__(self, num_layers_in_fc_layers=1024, *args, **kwargs):
+        super().__init__(sequence_length=5, *args, **kwargs)
+
+        self.__nFeatures__ = 24
+        self.__nChs__ = 32
+        self.__midChs__ = 32
+        self.num_layers_in_fc_layers = num_layers_in_fc_layers
+
+        self.netcnnaud = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=(1, 1), stride=(1, 1)),
+            nn.Conv2d(64, 192, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(192),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(1, 2)),
+            nn.Conv2d(192, 384, kernel_size=(3, 3), padding=(1, 1)),
+            nn.BatchNorm2d(384),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=(3, 3), padding=(1, 1)),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=(3, 3), padding=(1, 1)),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(2, 2)),
+            nn.Conv2d(256, 512, kernel_size=(5, 4), padding=(0, 0)),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+        )
+
+        self.netfcaud = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, num_layers_in_fc_layers),
+        )
+
+        self.netcnnlip = nn.Sequential(
+            nn.Conv3d(3, 96, kernel_size=(5, 7, 7), stride=(1, 2, 2), padding=0),
+            nn.BatchNorm3d(96),
+            nn.ReLU(inplace=True),
+            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2)),
+            nn.Conv3d(
+                96, 256, kernel_size=(1, 5, 5), stride=(1, 2, 2), padding=(0, 1, 1)
+            ),
+            nn.BatchNorm3d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
+            nn.Conv3d(256, 256, kernel_size=(1, 3, 3), padding=(0, 1, 1)),
+            nn.BatchNorm3d(256),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(256, 256, kernel_size=(1, 3, 3), padding=(0, 1, 1)),
+            nn.BatchNorm3d(256),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(256, 256, kernel_size=(1, 3, 3), padding=(0, 1, 1)),
+            nn.BatchNorm3d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2)),
+            nn.Conv3d(256, 512, kernel_size=(1, 6, 6), padding=0),
+            nn.BatchNorm3d(512),
+            nn.ReLU(inplace=True),
+        )
+
+        self.netfclip = nn.Sequential(
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, num_layers_in_fc_layers),
+        )
+
+        self.r2plus1 = nn.Sequential(self.netcnnlip, nn.Flatten(), self.netfclip)
+        self.audio_extractor = nn.Sequential(
+            self.netcnnaud, nn.Flatten(), self.netfcaud
+        )
+
+    def forward(self, x):
+        video, audio = x  # bs x 5 x 3 x 112 x 112 , bs x 5 x 4 x 13
+        # def forward(self, video, audio):
+        audio = self._shuffle_audio(audio)
+        audio = (audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1)).transpose(-2, -1)
+
+        video = video.permute(0, 2, 1, 3, 4)
+        return self.r2plus1(video), self.audio_extractor(audio)
+
+
 class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.classifier = nn.Sequential(
-            nn.Dropout(p=0.5),
+            # nn.Dropout(p=0.5),
             nn.Linear(128, 50),
-            nn.Dropout(p=0.5),
+            # nn.Dropout(p=0.5),
             nn.LeakyReLU(0.02),
             nn.Linear(50, 2),
         )
@@ -403,26 +494,38 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
         self._set_requires_grad_for_module(self.audio_extractor, requires_grad=False)
 
+    def _shuffle_audio(self, audio: torch.Tensor):
+        return audio
+
+    def _get_targets(self, targets: torch.Tensor):
+        return (targets == 4).long()
+
     def forward(self, x):
-        embedding = super().forward(x)
+        video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
+
+        audio = (
+            audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1).expand(-1, 3, -1, -1)
+        )
+
+        video = video.permute(0, 2, 1, 3, 4)
+        embedding = self.r2plus1(video), self.audio_extractor(audio)
         concat_embedding = torch.cat(embedding, dim=1)
         return embedding, self.classifier(concat_embedding)
 
     def loss(self, logits, labels):
         embedding, predictions = logits
-        total_loss = super().loss(predictions, (labels == 4).long())
-        # super(SupervisedNet, self).loss(
-        # embedding, labels
-        # ) * 0 +
+        total_loss = F.cross_entropy(predictions, labels)
+
         return total_loss
 
     def training_step(self, batch, batch_nb, system):
         x, target = batch
 
         pred = self.forward(x)
+        target = self._get_targets(target)
         loss = self.loss(pred, target)
         lightning_log = {"loss": loss}
-        acc = self.calculate_accuracy(pred[1], (target == 4).long())
+        acc = self.calculate_accuracy(pred[1], target)
         tensorboard_log = {"loss": {"train": loss}, "acc": {"train": acc}}
 
         return tensorboard_log, lightning_log
@@ -438,14 +541,13 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
             predictions = torch.cat([x["pred"][1] for x in outputs], 0)
 
             target = torch.cat([x["target"] for x in outputs], 0)
+            target = self._get_targets(target)
             loss_mean = self.loss(((video_logits, audio_logtis), predictions), target)
 
             class_loss = self.loss_per_class(video_logits, audio_logtis, target)
 
-            class_accuracies = system.log_confusion_matrix(
-                (target == 4).long(), predictions
-            )
-            acc = self.calculate_accuracy(predictions, (target == 4).long())
+            class_accuracies = system.log_confusion_matrix(target, predictions)
+            acc = self.calculate_accuracy(predictions, target)
             # tensorboard only works if number of samples logged does not change ->
             # ignore pre training routine
             # if system.global_step:
@@ -459,3 +561,12 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
             }
 
         return tensorboard_log, {}
+
+    def loss_per_class(self, video_logits, audio_logits, targets):
+        class_loss = torch.zeros((2,))
+        class_counts = torch.zeros((2,))
+        distances = (video_logits - audio_logits).pow(2).sum(1)
+        for target, logit in zip(targets, distances):
+            class_loss[target] += logit
+            class_counts[target] += 1
+        return class_loss / class_counts

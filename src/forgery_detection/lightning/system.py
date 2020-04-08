@@ -60,6 +60,7 @@ from forgery_detection.models.audio.multi_class_classification import Similarity
 from forgery_detection.models.audio.multi_class_classification import (
     SimilarityNetClassification,
 )
+from forgery_detection.models.audio.multi_class_classification import SyncNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -250,6 +251,7 @@ class Supervised(pl.LightningModule):
         "similarity_net": SimilarityNet,
         "pretrained_similarity_net": PretrainedSimilarityNet,
         "similarity_net_classification": SimilarityNetClassification,
+        "syncnet": SyncNet,
     }
 
     CUSTOM_TRANSFORMS = {

@@ -5,8 +5,12 @@ from forgery_detection.models.audio.multi_class_classification import (
     PretrainedSimilarityNet,
 )
 
-p = PretrainedSimilarityNet()
-f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
+p = PretrainedSimilarityNet().eval()
+p._shuffle_audio = lambda x: x
+# f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
+f = FileList.load(
+    "/data/ssd1/file_lists/c40/tracked_resampled_faces_yt_only_112_8_sequence_length.json"
+)
 
 
 #%%
@@ -14,9 +18,7 @@ import torch
 from forgery_detection.data.loading import get_fixed_dataloader
 
 d = f.get_dataset(
-    "val",
-    sequence_length=8,
-    audio_file="/data/hdd/audio_features/audio_features_deep_speech.npy",
+    "val", sequence_length=8, audio_file="/data/hdd/audio_features/mfcc_features.npy"
 )
 loader = get_fixed_dataloader(d, batch_size=10, num_workers=1)
 
@@ -30,19 +32,23 @@ def get_sample(idx):
 
 
 with torch.no_grad():
-    idx = 1189500 * 1 + 100 + 1000 - 309
+    idx = 2247 + 20 + 100 + 300 + 600  # 1189500 * 1 + 100 + 1000 - 309
 
-    # samples = [get_sample(idx + i * 8) for i in range(10)]
+    # samples = [get_sample(idx + i) for i in range(20)]
     # samples = (
     #     torch.cat([sample[0] for sample in samples]),
     #     torch.cat([sample[1] for sample in samples]),
     # )
-    samples, target = next(loader.__iter__())
+    # samples, target = next(loader.__iter__())
+
     out = p(samples)
     printerones = torch.sum((out[0] - out[1]).pow(2), dim=1)
 
-    four = printerones[target == 4]
-    unfour = printerones[target != 4]
+    # four = printerones[target == 4]
+    # unfour = printerones[target != 4]
+
+    four = torch.zeros((1,))
+    unfour = printerones
 
     print("four", torch.mean(four), torch.std(four), four)
     print("unfour", torch.mean(unfour), torch.std(unfour), unfour)
