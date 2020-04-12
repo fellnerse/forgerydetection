@@ -177,7 +177,7 @@ class FileListDataset(VisionDataset):
             file_list.root, transform=transform, target_transform=target_transform
         )
         self.extended_default_loader = ExtendedDefaultLoader(audio_file=audio_file)
-        self.loader = self.extended_default_loader.load_data
+        self.should_sample_audio = audio_file is not None
 
         self.classes = file_list.classes
         self.class_to_idx = file_list.class_to_idx
@@ -193,7 +193,7 @@ class FileListDataset(VisionDataset):
             if len(self.relative_bbs) == 0:
                 raise ValueError("Trying to align faces without relative bbs.")
 
-    def __getitem__(self, index: Tuple[int, int]):
+    def __getitem__(self, index: Tuple[Tuple[int, int], int]):
         """
         Args:
             index (int): Index
@@ -201,22 +201,30 @@ class FileListDataset(VisionDataset):
         Returns:
             tuple: (sample, target) where target is class_index of the target class.
         """
-        img_idx, align_idx = index
+        (img_idx, align_idx), audio_idx = index
 
         path, target = self._samples[img_idx]
-        sample = self.loader(f"{self.root}/{path}")
+        vid = self.extended_default_loader.load_image(f"{self.root}/{path}")
 
         if self.should_align_faces:
             relative_bb = self.relative_bbs[align_idx]
-            sample = self.align_face(sample, relative_bb)
+            vid = self.align_face(vid, relative_bb)
 
         if self.transform is not None:
-            if isinstance(sample, tuple):
-                sample = self.transform(sample[0]), sample[1]
-            else:
-                sample = self.transform(sample)
+            vid = self.transform(vid)
+
         if self.target_transform is not None:
             target = self.target_transform(target)
+
+        if self.should_sample_audio:
+            aud_path, _ = self._samples[audio_idx]
+            aud = self.extended_default_loader.load_audio(f"{self.root}/{aud_path}")
+            sample = vid, aud
+
+            # this indicates if the audio and the images are in sync
+            target = int(audio_idx == img_idx)
+        else:
+            sample = vid
 
         return sample, target
 
@@ -248,3 +256,54 @@ class FileListDataset(VisionDataset):
         size_bb = min(total_height - y, size_bb)
 
         return x, y, size_bb, size_bb
+
+    def _get_possible_audio_shifts_with_min_distance(
+        self, idx, min_offset=16, audio_length=8
+    ):
+        frame_number_in_video, video_length = self._get_video_length_and_frame_idx(idx)
+
+        indices = np.array(
+            list(
+                range(
+                    audio_length - 1,
+                    max(audio_length, frame_number_in_video - min_offset + 1),
+                )
+            )
+            + list(
+                range(
+                    min(
+                        video_length - 1,
+                        frame_number_in_video + min_offset + audio_length,
+                    ),
+                    video_length,
+                )
+            )
+        )
+        return indices - frame_number_in_video
+
+    def _get_possible_audio_shifts_with_max_distance(
+        self, idx, max_distance=50, audio_length=8
+    ):
+        frame_number_in_video, video_length = self._get_video_length_and_frame_idx(idx)
+        indices = np.array(
+            list(
+                range(
+                    max(audio_length, frame_number_in_video - max_distance),
+                    frame_number_in_video,
+                )
+            )
+            + list(
+                range(
+                    frame_number_in_video + 1,
+                    min(frame_number_in_video + 1 + max_distance, video_length),
+                )
+            )
+        )
+        return indices - frame_number_in_video
+
+    def _get_video_length_and_frame_idx(self, idx):
+        path, _ = self._samples[idx]
+        abs_path = Path(f"{self.root}/{path}")
+        frame_number_in_video = int(abs_path.with_suffix("").name)
+        video_length = len(sorted(abs_path.parent.glob("*" + abs_path.suffix)))
+        return frame_number_in_video, video_length

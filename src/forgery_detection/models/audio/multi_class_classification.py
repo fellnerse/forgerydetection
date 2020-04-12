@@ -219,29 +219,13 @@ class SimilarityNet(SequenceClassificationModel):
         self.audio_extractor.layer4 = nn.Identity()
         self.audio_extractor.fc = nn.Identity()
 
-        self.c_loss = ContrastiveLoss(1)
+        self.c_loss = ContrastiveLoss(20)
 
         self.log_class_loss = False
-
-    def _shuffle_audio(self, audio: torch.Tensor):
-        with torch.no_grad():
-            middle = audio.shape[0] // 2
-            audio[:middle] = audio[torch.randperm(middle)]
-            return audio
-
-    def _get_targets(self, logits: torch.Tensor):
-        nb_items_neg = logits.shape[0] // 2
-        return torch.cat(
-            (
-                torch.zeros((nb_items_neg,)).long(),
-                torch.ones((logits.shape[0] - nb_items_neg,)).long(),
-            )
-        ).to(logits.device)
 
     def forward(self, x):
         video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
         # def forward(self, video, audio):
-        audio = self._shuffle_audio(audio)
         audio = (
             audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1).expand(-1, 3, -1, -1)
         )
@@ -257,7 +241,6 @@ class SimilarityNet(SequenceClassificationModel):
         x, target = batch
 
         pred = self.forward(x)
-        target = self._get_targets(target)
         loss = self.loss(pred, target)
         lightning_log = {"loss": loss}
 
@@ -267,6 +250,11 @@ class SimilarityNet(SequenceClassificationModel):
             tensorboard_log["class_acc_train"] = {
                 str(idx): val for idx, val in enumerate(class_loss)
             }
+            tensorboard_log["class_loss_diff"] = {
+                "train": class_loss[0] - class_loss[1]
+            }
+            tensorboard_log["vid_std"] = {"train": torch.std(pred[0])}
+            tensorboard_log["aud_std"] = {"train": torch.std(pred[1])}
             # self.log_embedding(pred[0], pred[1], target, system)
             self.log_class_loss = False
 
@@ -285,8 +273,8 @@ class SimilarityNet(SequenceClassificationModel):
             # here several batches are concatenated, and after that the targets are calculated
             # but we have to calculate the targets before, or do all the stuff batchwise
             target_list = [x["target"] for x in outputs]
-            calculated_targets = [self._get_targets(x) for x in target_list]
-            target = torch.cat(calculated_targets, dim=0)
+            # calculated_targets = [self._get_targets(x) for x in target_list]
+            target = torch.cat(target_list, dim=0)
 
             loss_mean = self.loss((video_logits, audio_logtis), target)
 
@@ -300,6 +288,9 @@ class SimilarityNet(SequenceClassificationModel):
             tensorboard_log = {
                 "loss": loss_mean,
                 "class_acc": {str(idx): val for idx, val in enumerate(class_loss)},
+                "class_loss_diff": class_loss[0] - class_loss[1],
+                "vid_std": torch.std(video_logits),
+                "aud_std": torch.std(audio_logtis),
             }
         # if system.global_step > 0:
         self.log_class_loss = True
@@ -381,7 +372,8 @@ class SimilarityNet(SequenceClassificationModel):
 
 class PretrainedSimilarityNet(
     PretrainedNet(
-        "/home/sebastian/log/debug/version_117/checkpoints/_ckpt_epoch_2.ckpt"
+        # "/home/sebastian/log/runs/TRAIN/binary_similarity_net/margin_1/checkpoints/_ckpt_epoch_5.ckpt"
+        "/home/sebastian/log/runs/TRAIN/binary_similarity_net/margin_20/checkpoints/_ckpt_epoch_8.ckpt"
     ),
     SimilarityNet,
 ):
@@ -394,11 +386,6 @@ class PretrainedSimilarityNet(
 class SyncNet(SimilarityNet):
     def __init__(self, num_layers_in_fc_layers=1024, *args, **kwargs):
         super().__init__(sequence_length=5, *args, **kwargs)
-
-        self.__nFeatures__ = 24
-        self.__nChs__ = 32
-        self.__midChs__ = 32
-        self.num_layers_in_fc_layers = num_layers_in_fc_layers
 
         self.netcnnaud = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
@@ -472,7 +459,6 @@ class SyncNet(SimilarityNet):
     def forward(self, x):
         video, audio = x  # bs x 5 x 3 x 112 x 112 , bs x 5 x 4 x 13
         # def forward(self, video, audio):
-        audio = self._shuffle_audio(audio)
         audio = (audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1)).transpose(-2, -1)
 
         video = video.permute(0, 2, 1, 3, 4)
@@ -570,3 +556,40 @@ class SimilarityNetClassification(SupervisedNet(128, 2), PretrainedSimilarityNet
             class_loss[target] += logit
             class_counts[target] += 1
         return class_loss / class_counts
+
+
+class PretrainedSyncNet(SyncNet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._load_pretrained_weights()
+        self.c_loss = ContrastiveLoss(20)
+
+        self._set_requires_grad_for_module(self.audio_extractor, requires_grad=False)
+
+        self.mean = torch.FloatTensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+        self.std = torch.FloatTensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+
+    def _load_pretrained_weights(self):
+        loaded_state = torch.load(
+            "/mnt/raid5/sebastian/model_checkpoints/syncnet/model.pth",
+            map_location=lambda storage, loc: storage,
+        )
+        self_state = self.state_dict()
+        for name, param in loaded_state.items():
+            self_state[name].copy_(param)
+
+    def unnormalize(self, vid_batch: torch.Tensor):
+        self.std = self.std.to(vid_batch.device)
+        self.mean = self.mean.to(vid_batch.device)
+        vid_batch *= self.std
+        return vid_batch + self.mean
+
+    def forward(self, x):
+        video, audio = x  # bs x 5 x 3 x 112 x 112 , bs x 5 x 4 x 13
+        audio = (audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1)).transpose(-2, -1)
+
+        video = self.unnormalize(video)
+
+        video = video.permute(0, 2, 1, 3, 4)
+        return self.r2plus1(video), self.audio_extractor(audio)

@@ -239,7 +239,9 @@ def log_dataset_preview(
     datapoints_idx = list(itertools.chain.from_iterable(datapoints_idx))
     np.random.seed()
 
-    datapoints, labels = list(zip(*(dataset[idx, idx] for idx in datapoints_idx)))
+    datapoints, labels = list(
+        zip(*(dataset[(idx, idx), idx] for idx in datapoints_idx))
+    )
 
     # log labels
     try:

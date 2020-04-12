@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from typing import Dict
 from typing import TYPE_CHECKING
 
@@ -75,6 +76,7 @@ def get_fixed_dataloader(
         drop_last=True,
         sequence_length=dataset.sequence_length,
         samples_idx=dataset.samples_idx,
+        dataset=dataset,
     )
 
     class _RepeatSampler(torch.utils.data.Sampler):
@@ -140,22 +142,60 @@ class BalancedSampler(WeightedRandomSampler):
 
 class SequenceBatchSampler(BatchSampler):
     def __init__(
-        self, sampler, batch_size, drop_last, sequence_length: int, samples_idx
+        self,
+        sampler,
+        batch_size,
+        drop_last,
+        sequence_length: int,
+        samples_idx,
+        dataset: FileListDataset,
     ):
         super().__init__(sampler, batch_size, drop_last)
         self.sequence_length = sequence_length
         self.samples_idx = samples_idx
+        self.d = dataset
+
+        self.should_sample_audio = dataset.should_sample_audio
 
     def __iter__(self):
         batch = []
         for idx in self.sampler:
             idx = self.samples_idx[idx]
-            batch += [(x, idx) for x in range(idx + 1 - self.sequence_length, idx + 1)]
+
+            vid_idx = [(x, idx) for x in range(idx + 1 - self.sequence_length, idx + 1)]
+
+            if self.should_sample_audio:
+                aud_idx = self._sample_audio(idx)
+            else:
+                aud_idx = [None] * self.sequence_length
+
+            batch += list(zip(vid_idx, aud_idx))
+
             if len(batch) == self.batch_size * self.sequence_length:
                 yield batch
                 batch = []
         if len(batch) > 0 and not self.drop_last:
             yield batch
+
+    def _sample_audio(self, idx):
+        if int(random.random() + (1.0 / 2.0)):
+            # 50% matching
+            aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
+        elif int(random.random() + (1.0 / 2.0)) or True:
+            # offset = np.random.choice(
+            #     self.d._get_possible_audio_shifts_with_min_distance(idx)
+            # )
+            offset = np.random.choice(
+                self.d._get_possible_audio_shifts_with_max_distance(idx)
+            )
+            aud_idx = [
+                x + offset for x in range(idx + 1 - self.sequence_length, idx + 1)
+            ]
+        else:
+            # random sample
+            idx = np.random.choice(self.samples_idx)
+            aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
+        return aud_idx
 
 
 class ExtendedDefaultLoader:
@@ -167,9 +207,7 @@ class ExtendedDefaultLoader:
     """
 
     def __init__(self, audio_file: str = None):
-        self.should_load_audio = audio_file is not None
-
-        if self.should_load_audio:
+        if audio_file is not None:
             try:
                 # this weird access is only because of numpy saving a dict behaves
                 # strange
@@ -177,13 +215,10 @@ class ExtendedDefaultLoader:
             except FileNotFoundError:
                 raise FileNotFoundError(f"Could not find {audio_file}.")
 
-    def load_data(self, path: str):
-        if self.should_load_audio:
-            return default_loader(path), self._load_audio(path)
-        else:
-            return default_loader(path)
+    def load_image(self, path: str):
+        return default_loader(path)
 
-    def _load_audio(self, path):
+    def load_audio(self, path):
         parts = path.split("/")
         video_name = parts[-2]
         image_name = parts[-1].split(".")[0]
