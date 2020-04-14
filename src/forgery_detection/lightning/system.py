@@ -53,6 +53,10 @@ from forgery_detection.models.audio.multi_class_classification import (
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
+from forgery_detection.models.audio.multi_class_classification import (
+    PretrainSyncAudioNet,
+)
+from forgery_detection.models.audio.multi_class_classification import SyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
@@ -250,6 +254,8 @@ class Supervised(pl.LightningModule):
         "similarity_net_classification": SimilarityNetClassification,
         "syncnet": SyncNet,
         "pretrained_syncnet": PretrainedSyncNet,
+        "pretrain_sync_audio_net": PretrainSyncAudioNet,
+        "sync_audio_net": SyncAudioNet,
     }
 
     CUSTOM_TRANSFORMS = {

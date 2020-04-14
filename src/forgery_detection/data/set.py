@@ -222,7 +222,7 @@ class FileListDataset(VisionDataset):
             sample = vid, aud
 
             # this indicates if the audio and the images are in sync
-            target = int(audio_idx == img_idx)
+            target = (target, int(audio_idx == img_idx))
         else:
             sample = vid
 

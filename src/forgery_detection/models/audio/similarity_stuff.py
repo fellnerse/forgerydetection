@@ -48,7 +48,7 @@ class SimilarityNet(SequenceClassificationModel):
         return self.c_loss(video_logits, audio_logits, labels)
 
     def training_step(self, batch, batch_nb, system):
-        x, target = batch
+        x, (_, target) = batch
 
         pred = self.forward(x)
         loss = self.loss(pred, target)
@@ -82,7 +82,7 @@ class SimilarityNet(SequenceClassificationModel):
             # i will have to change this so because the targets are wrong
             # here several batches are concatenated, and after that the targets are calculated
             # but we have to calculate the targets before, or do all the stuff batchwise
-            target_list = [x["target"] for x in outputs]
+            target_list = [x["target"][1] for x in outputs]
             # calculated_targets = [self._get_targets(x) for x in target_list]
             target = torch.cat(target_list, dim=0)
 
@@ -382,7 +382,7 @@ class PretrainedSyncNet(SyncNet):
 
     def _load_pretrained_weights(self):
         loaded_state = torch.load(
-            "/mnt/raid5/sebastian/model_checkpoints/syncnet/model.pth",
+            "/mnt/raid/sebastian/model_checkpoints/syncnet/model.pth",
             map_location=lambda storage, loc: storage,
         )
         self_state = self.state_dict()

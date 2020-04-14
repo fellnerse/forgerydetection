@@ -47,17 +47,22 @@ def get_sequence_collate_fn(sequence_length):
 
         def sequence_collate(batch):
             x, y = default_collate(batch)
+            if isinstance(y, list):
+                y = torch.stack(y)
+                y = y[:, ::sequence_length]
+            else:
+                y = y[::sequence_length]
             if isinstance(x, list):
                 viwed_x = []
                 for _x in x:
                     x_shape = list(_x.shape)
                     x_shape = [-1, sequence_length] + x_shape[1:]
                     viwed_x.append(_x.view(x_shape))
-                return viwed_x, y[::sequence_length]
+                return viwed_x, y
             else:
                 x_shape = list(x.shape)
                 x_shape = [-1, sequence_length] + x_shape[1:]
-                return x.view(x_shape), y[::sequence_length]
+                return x.view(x_shape), y
 
         return sequence_collate
 
@@ -178,7 +183,7 @@ class SequenceBatchSampler(BatchSampler):
             yield batch
 
     def _sample_audio(self, idx):
-        if int(random.random() + (1.0 / 2.0)):
+        if int(random.random() + (1.0 / 2.0)) or True:
             # 50% matching
             aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
         elif int(random.random() + (1.0 / 2.0)) or True:

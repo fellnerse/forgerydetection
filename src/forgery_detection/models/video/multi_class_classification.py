@@ -160,7 +160,7 @@ class R2Plus1SmallAudioLikePretrain(
 
 class R2Plus1SmallAudiolikePretrained(
     PretrainedNet(
-        "/mnt/raid5/sebastian/model_checkpoints/ff/r2plus1_with_mlp/model_epoch_4.ckpt"
+        "/mnt/raid/sebastian/model_checkpoints/ff/r2plus1_with_mlp/model_epoch_4.ckpt"
     ),
     R2Plus1SmallAudiolike,
 ):
