@@ -11,7 +11,7 @@ from forgery_detection.data.set import FileList
 resampled_file_list = FileList.load(
     "/data/ssd1/file_lists/c40/tracked_resampled_faces_224.json"
 )
-imagenet = FileList.load("/data/ssd1/file_lists/imagenet/ssd_raw.json")
+imagenet = FileList.load("/data/ssd1/file_lists/imagenet/ssd_256_center_crop_224.json")
 
 resampled_root = Path(resampled_file_list.root)
 imagenet_root = Path(imagenet.root)
@@ -104,7 +104,7 @@ print(
 )
 
 resampled_file_list.root = common_path
-file_path = "/data/ssd1/file_lists/imagenet/merged_224_.json"
+file_path = "/data/ssd1/file_lists/imagenet/merged_224_test_is_ff_all_transformed.json"
 resampled_file_list.save(file_path)
 
 merged = FileList.load(file_path)

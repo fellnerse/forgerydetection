@@ -105,30 +105,31 @@ class SequenceClassificationModel(LightningModel, ABC):
         if len(system.val_dataloader()) > 1:
             outputs = outputs[0]
 
-        pred = torch.cat([x["pred"] for x in outputs], 0)
-        target = torch.cat([x["target"] for x in outputs], 0)
+        with torch.no_grad():
+            pred = torch.cat([x["pred"] for x in outputs], 0)
+            target = torch.cat([x["target"] for x in outputs], 0)
 
-        loss_mean = self.loss(pred, target)
-        pred = pred.cpu()
-        target = target.cpu()
-        pred = F.softmax(pred, dim=1)
-        acc_mean = self.calculate_accuracy(pred, target)
+            loss_mean = self.loss(pred, target)
+            pred = pred.cpu()
+            target = target.cpu()
+            pred = F.softmax(pred, dim=1)
+            acc_mean = self.calculate_accuracy(pred, target)
 
-        # confusion matrix
-        class_accuracies = system.log_confusion_matrix(target, pred)
+            # confusion matrix
+            class_accuracies = system.log_confusion_matrix(target, pred)
 
-        # roc_auc_score
-        system.log_roc_graph(target, pred)
+            # roc_auc_score
+            system.log_roc_graph(target, pred)
 
-        roc_auc = system.multiclass_roc_auc_score(target, pred)
+            roc_auc = system.multiclass_roc_auc_score(target, pred)
 
-        tensorboard_log = {
-            "loss": loss_mean,
-            "acc": acc_mean,
-            "roc_auc": roc_auc,
-            "class_acc": class_accuracies,
-        }
-        lightning_log = {VAL_ACC: acc_mean}
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "roc_auc": roc_auc,
+                "class_acc": class_accuracies,
+            }
+            lightning_log = {VAL_ACC: acc_mean}
 
         return tensorboard_log, lightning_log
 

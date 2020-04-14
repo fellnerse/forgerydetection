@@ -2,6 +2,7 @@ import logging
 import pickle
 from argparse import Namespace
 from functools import partial
+from typing import Dict
 from typing import Union
 
 import numpy as np
@@ -11,6 +12,7 @@ from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
 from sklearn.preprocessing import LabelBinarizer
 from torch import optim
 from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import SequentialSampler
 from torchvision import transforms
 
 from forgery_detection.data.face_forensics.splits import TEST_NAME
@@ -44,7 +46,22 @@ from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
+from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
+from forgery_detection.models.audio.multi_class_classification import (
+    AudioNetLayer2Unfrozen,
+)
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
+from forgery_detection.models.audio.multi_class_classification import FrameNet
+from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
+from forgery_detection.models.audio.multi_class_classification import (
+    PretrainSyncAudioNet,
+)
+from forgery_detection.models.audio.multi_class_classification import SyncAudioNet
+from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
+from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
+from forgery_detection.models.audio.similarity_stuff import SimilarityNet
+from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
+from forgery_detection.models.audio.similarity_stuff import SyncNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -80,10 +97,11 @@ from forgery_detection.models.image.frequency_ae import FrequencyAEMagnitude
 from forgery_detection.models.image.frequency_ae import FrequencyAEtanh
 from forgery_detection.models.image.frequency_ae import PretrainedFrequencyNet
 from forgery_detection.models.image.frequency_ae import SupervisedBiggerFrequencyAE
-from forgery_detection.models.image.multi_class_classification import ImageNetResnet
-from forgery_detection.models.image.multi_class_classification import (
-    PretrainedImageNetResnet,
-)
+from forgery_detection.models.image.imagenet import ImageNetResnet
+from forgery_detection.models.image.imagenet import ImageNetResnet152
+from forgery_detection.models.image.imagenet import PretrainedFFFCResnet152
+from forgery_detection.models.image.imagenet import PretrainedImageNetResnet
+from forgery_detection.models.image.imagenet import PretrainFFFCResnet152
 from forgery_detection.models.image.multi_class_classification import ResidualResnet
 from forgery_detection.models.image.multi_class_classification import Resnet18
 from forgery_detection.models.image.multi_class_classification import Resnet182D
@@ -116,6 +134,13 @@ from forgery_detection.models.video.multi_class_classification import MC3
 from forgery_detection.models.video.multi_class_classification import R2Plus1
 from forgery_detection.models.video.multi_class_classification import R2Plus1Frozen
 from forgery_detection.models.video.multi_class_classification import R2Plus1Small
+from forgery_detection.models.video.multi_class_classification import (
+    R2Plus1SmallAudioLikePretrain,
+)
+from forgery_detection.models.video.multi_class_classification import (
+    R2Plus1SmallAudiolikePretrained,
+)
+from forgery_detection.models.video.multi_class_classification import R2Plus1Smallest
 from forgery_detection.models.video.multi_class_classification import Resnet183D
 from forgery_detection.models.video.multi_class_classification import (
     Resnet183DNoDropout,
@@ -158,11 +183,20 @@ class Supervised(pl.LightningModule):
         "resnet18fully3dpretrained": Resnet18Fully3DPretrained,
         "resnet18_imagenet": ImageNetResnet,
         "pretrained_resnet18_imagenet": PretrainedImageNetResnet,
+        "pretrain_ff_fc_resnet152": PretrainFFFCResnet152,
+        "resnet152_imagenet": ImageNetResnet152,
+        "resnet152_imagenet_pretrained": PretrainedFFFCResnet152,
         "r2plus1": R2Plus1,
         "r2plus1frozen": R2Plus1Frozen,
         "r2plus1small": R2Plus1Small,
+        "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
+        "r2plus1small_audiolike": R2Plus1SmallAudiolikePretrained,
+        "r2plus1smallest": R2Plus1Smallest,
         "mc3": MC3,
         "audionet": AudioNet,
+        "audionet_frozen": AudioNetFrozen,
+        "audionet_pretrained": PretrainedAudioNet,
+        "audionet_layer2unfrozen": AudioNetLayer2Unfrozen,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
@@ -214,6 +248,14 @@ class Supervised(pl.LightningModule):
         "bigger_windowed_fourier_ae": BiggerWindowedFourierAE,
         "supervised_resnet_ae": SupervisedResnetAE,
         "resnet18_same_as_in_ae": Resnet18SameAsInAE,
+        "frame_net": FrameNet,
+        "similarity_net": SimilarityNet,
+        "pretrained_similarity_net": PretrainedSimilarityNet,
+        "similarity_net_classification": SimilarityNetClassification,
+        "syncnet": SyncNet,
+        "pretrained_syncnet": PretrainedSyncNet,
+        "pretrain_sync_audio_net": PretrainSyncAudioNet,
+        "sync_audio_net": SyncAudioNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -295,6 +337,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
@@ -302,6 +345,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
@@ -310,6 +354,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file=self.hparams["audio_file"],
+            # should_align_faces=True,
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
@@ -368,16 +413,23 @@ class Supervised(pl.LightningModule):
         return self.model.forward(x)
 
     def training_step(self, batch, batch_nb):
+        # x, target = batch
+        # batch = x, (target - 1) % 5
         tensorboard_log, lightning_log = self.model.training_step(batch, batch_nb, self)
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="train"
         )
 
     def validation_step(self, batch, batch_nb, dataloader_id=-1):
+        # x, target = batch
+        # batch = x, (target - 1) % 5
         x, target = batch
         pred = self.forward(x)
 
-        return {"pred": pred, "target": target, "x": x}
+        return {
+            "pred": pred,
+            "target": target,
+        }  # todo this is needed for autoencoders "x": x}
 
     def _log_metrics_for_hparams(self, tensorboard_log: dict):
         acc = tensorboard_log["acc"]
@@ -406,17 +458,23 @@ class Supervised(pl.LightningModule):
         )
 
     def test_step(self, batch, batch_nb):
-        return self.validation_step(batch, batch_nb)
+        with torch.no_grad():
+            val_out = self.validation_step(batch, batch_nb)
+            val_out.pop("x")
+            for key, value in val_out.items():
+                val_out[key] = value.cpu()
+            return val_out
 
     def test_end(self, outputs):
-        with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
-            pickle.dump(outputs, f)
+        with torch.no_grad():
+            with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
+                pickle.dump(outputs, f)
 
-        tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-        logger.info(f"Test accuracy is: {tensorboard_log['acc']}")
-        return self._construct_lightning_log(
-            tensorboard_log, lightning_log, suffix="test"
-        )
+            tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
+            logger.info(f"Test accuracy is: {tensorboard_log}")
+            return self._construct_lightning_log(
+                tensorboard_log, lightning_log, suffix="test"
+            )
 
     def configure_optimizers(self):
         optimizer = optim.SGD(
@@ -465,23 +523,65 @@ class Supervised(pl.LightningModule):
         #     num_workers=self.hparams["n_cpu"],
         #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         # )
+        if self.sampling_probs is None:
+            sampler = self.sampler_cls
+        else:
+            sampler = partial(self.sampler_cls, predefined_weights=self.sampling_probs)
         return [
             get_fixed_dataloader(
                 self.val_data,
                 self.hparams["batch_size"],
-                sampler=self.sampler_cls,
+                sampler=sampler,
                 num_workers=self.hparams["n_cpu"],
                 worker_init_fn=lambda worker_id: np.random.seed(worker_id),
             ),
             # use static batch for autoencoders
-            get_fixed_dataloader(
-                self.test_data,
-                self.hparams["batch_size"],
-                sampler=self.sampler_cls,
-                num_workers=self.hparams["n_cpu"],
-                worker_init_fn=lambda worker_id: np.random.seed(worker_id),
-            ),
+            # get_fixed_dataloader(
+            #     self.test_data,
+            #     self.hparams["batch_size"],
+            #     sampler=self.sampler_cls,
+            #     num_workers=self.hparams["n_cpu"],
+            #     worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+            # ),
         ]
+
+    @pl.data_loader
+    def test_dataloader(self):
+        # self.file_list = FileList.load(
+        #     "/data/ssd1/file_lists/c40/tracked_resampled_faces_224.json"
+        # )
+        static_batch_data = self.file_list.get_dataset(
+            VAL_NAME,  # TEST_NAME,
+            image_transforms=self.resize_transform,
+            tensor_transforms=self.tensor_augmentation_transforms,
+            sequence_length=self.model.sequence_length,
+            audio_file=self.hparams["audio_file"],
+        )
+        # static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
+        static_batch_idx = static_batch_data.samples_idx[::1]
+        # this is a really shitty hack but needed for compatibility
+        # if len(static_batch_data) is divisable by 3 the resulting length is only 3
+        if len(static_batch_idx) == 3:
+            static_batch_idx += [
+                static_batch_data.samples_idx[len(static_batch_data) // 2]
+            ]
+        static_batch_data.samples_idx = static_batch_idx
+        static_batch_loader = get_fixed_dataloader(
+            static_batch_data,
+            16,  # 4,
+            sampler=SequentialSampler,  # use sequence sampler
+            num_workers=self.hparams["n_cpu"],
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+        )
+        return static_batch_loader
+        loader = get_fixed_dataloader(
+            self.test_data,
+            self.hparams["batch_size"],
+            sampler=self.sampler_cls,
+            num_workers=self.hparams["n_cpu"],
+            worker_init_fn=lambda worker_id: np.random.seed(worker_id),
+        )
+        return loader
 
     def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
         if self.hparams["log_roc_values"]:
@@ -512,6 +612,19 @@ class Supervised(pl.LightningModule):
                 self.positive_class,
             )
 
+    def dictify_list_with_class_names(
+        self, class_acc: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
+        class_accuracies_dict = {}
+        for key, value in self.file_list.class_to_idx.items():
+            try:
+                class_accuracies_dict[str(key)] = class_acc[value]
+            except IndexError:
+                # can happen when there were no samples in batch
+                # will just not logg anything for that step then
+                pass
+        return class_accuracies_dict
+
     @staticmethod
     def _construct_lightning_log(
         tensorboard_log: dict,
@@ -537,6 +650,12 @@ class Supervised(pl.LightningModule):
 
         hparams = load_hparams_from_tags_csv(tags_csv)
         hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", "None"))
+
+        if str(hparams.sampling_probs) == "nan":
+            hparams.__dict__["sampling_probs"] = None
+
+        if str(hparams.audio_file) == "nan":
+            hparams.__dict__["audio_file"] = None
 
         hparams.__setattr__("on_gpu", False)
         hparams.__dict__.update(overwrite_hparams)

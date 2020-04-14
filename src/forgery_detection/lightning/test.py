@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import click
@@ -9,6 +10,8 @@ from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
 from forgery_detection.lightning.utils import get_latest_checkpoint
 from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
+
+logger = logging.getLogger(__file__)
 
 
 @click.command()
@@ -41,13 +44,13 @@ def run_lightning_test(*args, **kwargs):
 
     logger_info = model.hparams.get("logger", None)
 
-    _, logger = get_logger_and_checkpoint_callback(
+    _, _logger = get_logger_and_checkpoint_callback(
         kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
     )
-
+    model.logger = _logger
     trainer = Trainer(
         gpus=kwargs["gpus"],
-        logger=logger,
+        logger=_logger,
         default_save_path=kwargs["log_dir"],
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1

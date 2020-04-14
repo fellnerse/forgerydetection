@@ -5,10 +5,10 @@ from pathlib import Path
 import click
 import torch
 
+logger = logging.getLogger(__file__)
 
 VAL_ACC = "val_acc"
-
-logger = logging.getLogger(__file__)
+NAN_TENSOR = torch.Tensor([float("NaN")])
 
 
 def get_latest_checkpoint(checkpoint_folder: Path) -> str:
@@ -36,6 +36,3 @@ class PythonLiteralOptionGPUs(click.Option):
             return gpus
         except ValueError:
             raise click.BadParameter(value)
-
-
-NAN_TENSOR = torch.Tensor([float("NaN")])

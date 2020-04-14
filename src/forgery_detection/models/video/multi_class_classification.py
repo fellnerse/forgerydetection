@@ -3,6 +3,7 @@ from torch import nn
 from torchvision.models import resnet18
 from torchvision.models.video.resnet import mc3_18
 
+from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video import resnet_fully_3d
 
@@ -91,8 +92,12 @@ class Resnet18Fully3DPretrained(Resnet18Fully3D):
 
 
 class R2Plus1(SequenceClassificationModel):
-    def __init__(self,):
-        super().__init__(num_classes=5, sequence_length=8, contains_dropout=False)
+    def __init__(self, num_classes=5, sequence_length=8, contains_dropout=False):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=contains_dropout,
+        )
         self.r2plus1 = torch.hub.load(
             "moabitcoin/ig65m-pytorch",
             "r2plus1d_34_8_kinetics",
@@ -123,6 +128,58 @@ class R2Plus1Small(R2Plus1):
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Sequential(
             nn.Dropout(0.5), nn.Linear(128, self.num_classes)
+        )
+
+
+class R2Plus1SmallAudiolike(R2Plus1):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
+        )
+
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(128, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
+
+
+class R2Plus1SmallAudioLikePretrain(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/pretrain_r2plus1/version_0/checkpoints/_ckpt_epoch_2.ckpt"
+    ),
+    R2Plus1SmallAudiolike,
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.r2plus1.fc, requires_grad=True)
+
+
+class R2Plus1SmallAudiolikePretrained(
+    PretrainedNet(
+        "/mnt/raid/sebastian/model_checkpoints/ff/r2plus1_with_mlp/model_epoch_4.ckpt"
+    ),
+    R2Plus1SmallAudiolike,
+):
+    pass
+
+
+class R2Plus1Smallest(R2Plus1):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
+        )
+
+        self.r2plus1.layer2 = nn.Identity()
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(64, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
         )
 
 

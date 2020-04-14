@@ -3,7 +3,6 @@ import itertools
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
 
 # https://www.tensorflow.org/tensorboard/image_summaries
 
@@ -25,14 +24,21 @@ def plot_cm(cm, class_names):
     plt.yticks(tick_marks, class_names)
 
     # Normalize the confusion matrix.
-    cm = np.around(cm.astype("float") / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+    # cm = np.around(cm.astype("float") / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+    cm = torch.round(cm.float() / cm.sum(dim=1, keepdim=True) * 100) / 100
 
     # Use white text if squares are dark; otherwise black.
     threshold = cm.max() / 2.0
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         # first row always should be black
         color = "white" if i > 0 and cm[i, j] > threshold else "black"
-        plt.text(j, i, cm[i, j], horizontalalignment="center", color=color)
+        plt.text(
+            j,
+            i,
+            str(cm[i, j]).split("(")[1][:-1],
+            horizontalalignment="center",
+            color=color,
+        )
 
     plt.ylabel("True label")
     plt.xlabel("Predicted label")
@@ -64,15 +70,10 @@ def plot_to_image(fig):
     return image_from_plot
 
 
-def generate_confusion_matrix_image(pred, target):
-    cm = confusion_matrix(pred.cpu(), torch.argmax(target, dim=1).cpu())
-    figure = plot_cm(cm, class_names=["fake", "real"])
-    cm_image = plot_to_image(figure)
-    return cm_image
-
-
-def log_confusion_matrix_image(global_step, pred, target, logger):
-    cm_image = generate_confusion_matrix_image(target, pred)
-    logger.experiment.add_image(
-        "confusion matrix", cm_image, dataformats="HWC", global_step=global_step
-    )
+def confusion_matrix(
+    target: torch.Tensor, pred: torch.Tensor, num_classes: int
+) -> torch.Tensor:
+    cm = torch.zeros(num_classes, num_classes)
+    for t, p in zip(target.view(-1), pred.view(-1)):
+        cm[t.long(), p.long()] += 1
+    return cm
