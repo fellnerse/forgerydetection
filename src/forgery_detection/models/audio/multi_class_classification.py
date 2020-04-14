@@ -208,15 +208,15 @@ class SimilarityNet(SequenceClassificationModel):
             contains_dropout=False,
         )
         self.r2plus1 = r2plus1d_18(pretrained=pretrained)
-        self.r2plus1.layer2 = nn.Identity()
-        self.r2plus1.layer3 = nn.Identity()
-        self.r2plus1.layer4 = nn.Identity()
+        # self.r2plus1.layer2 = nn.Identity()
+        # self.r2plus1.layer3 = nn.Identity()
+        # self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Identity()
 
         self.audio_extractor = resnet18(pretrained=pretrained, num_classes=1000)
-        self.audio_extractor.layer2 = nn.Identity()
-        self.audio_extractor.layer3 = nn.Identity()
-        self.audio_extractor.layer4 = nn.Identity()
+        # self.audio_extractor.layer2 = nn.Identity()
+        # self.audio_extractor.layer3 = nn.Identity()
+        # self.audio_extractor.layer4 = nn.Identity()
         self.audio_extractor.fc = nn.Identity()
 
         self.c_loss = ContrastiveLoss(20)

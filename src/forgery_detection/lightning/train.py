@@ -27,7 +27,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     required=True,
     type=click.Path(exists=True),
     help="Folder used for logging.",
-    default="/log",
+    default="/mnt/raid/sebastian/log",
 )
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
 @click.option("--weight_decay", default=0.0, help="Weight-decay used by optimizer")
@@ -88,7 +88,7 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 )
 @click.option(
     "--n_cpu",
-    default=2,
+    default=6,
     help="Number of cpus used for data loading."
     " -1 corresponds to using all cpus available.",
 )
