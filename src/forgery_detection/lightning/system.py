@@ -53,15 +53,11 @@ from forgery_detection.models.audio.multi_class_classification import (
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
-from forgery_detection.models.audio.multi_class_classification import (
-    PretrainedSimilarityNet,
-)
-from forgery_detection.models.audio.multi_class_classification import PretrainedSyncNet
-from forgery_detection.models.audio.multi_class_classification import SimilarityNet
-from forgery_detection.models.audio.multi_class_classification import (
-    SimilarityNetClassification,
-)
-from forgery_detection.models.audio.multi_class_classification import SyncNet
+from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
+from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
+from forgery_detection.models.audio.similarity_stuff import SimilarityNet
+from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
+from forgery_detection.models.audio.similarity_stuff import SyncNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG

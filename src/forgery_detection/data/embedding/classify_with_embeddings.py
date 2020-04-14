@@ -6,9 +6,9 @@ from forgery_detection.data import set
 
 reload(set)
 from forgery_detection.data.utils import resized_crop
-from forgery_detection.models.audio.multi_class_classification import PretrainedSyncNet
-from forgery_detection.models.audio.multi_class_classification import (
+from forgery_detection.models.audio.similarity_stuff import (
     PretrainedSimilarityNet,
+    PretrainedSyncNet,
 )
 
 p = PretrainedSyncNet().eval()  # .to("cuda:2")
