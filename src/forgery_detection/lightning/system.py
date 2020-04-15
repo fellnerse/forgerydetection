@@ -8,7 +8,7 @@ from typing import Union
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.trainer.trainer_io import load_hparams_from_tags_csv
+from pytorch_lightning.core.saving import load_hparams_from_tags_csv
 from sklearn.preprocessing import LabelBinarizer
 from torch import optim
 from torch.utils.data.sampler import RandomSampler
@@ -448,7 +448,7 @@ class Supervised(pl.LightningModule):
             global_step=self.global_step,
         )
 
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
 
         # self._log_metrics_for_hparams(tensorboard_log)
@@ -465,7 +465,7 @@ class Supervised(pl.LightningModule):
                 val_out[key] = value.cpu()
             return val_out
 
-    def test_end(self, outputs):
+    def test_epoch_end(self, outputs):
         with torch.no_grad():
             with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
                 pickle.dump(outputs, f)

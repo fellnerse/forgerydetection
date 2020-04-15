@@ -183,7 +183,7 @@ class SequenceBatchSampler(BatchSampler):
             yield batch
 
     def _sample_audio(self, idx):
-        if int(random.random() + (1.0 / 2.0)) or True:
+        if int(random.random() + (1.0 / 2.0)):  # or True:
             # 50% matching
             aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
         elif int(random.random() + (1.0 / 2.0)) or True:
