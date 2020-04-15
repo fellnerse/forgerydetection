@@ -128,7 +128,9 @@ class FileList:
         cls, path, split, transform=None, sequence_length: int = 1
     ) -> Dataset:
         """Get dataset by loading a FileList and calling get_dataset on it."""
-        return cls.load(path).get_dataset(split, transform, sequence_length)
+        return cls.load(path).get_dataset(
+            split=split, image_transforms=transform, sequence_length=sequence_length
+        )
 
     def __str__(self):
         return pformat(self.class_to_idx, indent=4)
