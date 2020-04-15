@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pickle
 from pathlib import Path
 from pprint import pformat
 from shutil import copy2
@@ -309,3 +310,50 @@ class FileListDataset(VisionDataset):
         frame_number_in_video = int(abs_path.with_suffix("").name)
         video_length = len(sorted(abs_path.parent.glob("*" + abs_path.suffix)))
         return frame_number_in_video, video_length
+
+
+class SimpleFileList:
+    def __init__(self, root: str):
+        self.root = root
+        self.files = {}
+
+    def save(self, path):
+        """Save self.__dict__ as json."""
+        with open(path, "w") as f:
+            json.dump(self.__dict__, f)
+
+    @classmethod
+    def load(cls, path):
+        """Restore instance from json via self.__dict__."""
+        with open(path, "r") as f:
+            __dict__ = json.load(f)
+        file_list = cls.__new__(cls)
+        file_list.__dict__.update(__dict__)
+        return file_list
+
+    def load_data_in_memory(self):
+        skipper = []
+        for key, path in self.files.items():
+            with open(os.path.join(self.root, path), "rb") as f:
+                features = pickle.load(f)  # 13 x [len(video)*4]
+
+            try:
+                features = (
+                    np.transpose(features, (1, 0))
+                    .reshape((-1, 4, 13))
+                    .astype("float32")
+                )  # len(video) x 4 x 13
+            except ValueError:
+                print(f"skipping {path}, as the shape is off: {features.shape}")
+                skipper.append(os.path.join(self.root, path))
+            self.files[key] = features
+            with open(
+                "/home/sebastian/data/file_lists/avspeech_crop_tests/missing.json", "w"
+            ) as f:
+                json.dump(skipper, f)
+
+    def __repr__(self):
+        return f"""SimpleFileList:
+
+root={self.root}
+number_of_elements={len(self.files)}"""
