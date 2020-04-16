@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import os
@@ -7,6 +9,7 @@ from enum import auto
 from enum import Enum
 from pathlib import Path
 from typing import Dict
+from typing import TYPE_CHECKING
 from typing import Union
 
 import click
@@ -23,12 +26,14 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
 from torchvision.utils import make_grid
 
-from forgery_detection.data.set import FileListDataset
 from forgery_detection.lightning.confusion_matrix import confusion_matrix
 from forgery_detection.lightning.confusion_matrix import plot_cm
 from forgery_detection.lightning.confusion_matrix import plot_to_image
 from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.lightning.utils import VAL_ACC
+
+if TYPE_CHECKING:
+    from forgery_detection.data.set import FileListDataset
 
 logger = logging.getLogger(__file__)
 
@@ -40,6 +45,16 @@ class SystemMode(Enum):
     TRAIN = auto()
     TEST = auto()
     BENCHMARK = auto()
+
+    def __str__(self):
+        return self.name
+
+
+class AudioMode(str, Enum):
+    EXACT = auto()
+    DIFFERENT_VIDEO = auto()
+    SAME_VIDEO_MIN_DISTANCE = auto()
+    SAME_VIDEO_MAX_DISTANCE = auto()
 
     def __str__(self):
         return self.name

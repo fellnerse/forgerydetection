@@ -13,6 +13,8 @@ from torch.utils.data import RandomSampler
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data._utils.collate import default_collate
 
+from forgery_detection.lightning.logging.utils import AudioMode
+
 logger = logging.getLogger(__file__)
 
 if TYPE_CHECKING:
@@ -182,21 +184,24 @@ class SequenceBatchSampler(BatchSampler):
             yield batch
 
     def _sample_audio(self, idx):
-        if int(random.random() + (1.0 / 2.0)):  # or True:
-            # 50% matching
-            aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
-        elif int(random.random() + (1.0 / 2.0)) or True:
+        # 50% matching
+        if int(random.random() + (1.0 / 2.0)) or self.d.audio_mode == AudioMode.EXACT:
+            # do nothing, because audio should match
+            pass
+
+        elif self.d.audio_mode == AudioMode.DIFFERENT_VIDEO:
+            idx = np.random.choice(self.samples_idx)
+
+        elif self.d.audio_mode == AudioMode.SAME_VIDEO_MIN_DISTANCE:
             offset = np.random.choice(
                 self.d._get_possible_audio_shifts_with_min_distance(idx)
             )
-            # offset = np.random.choice(
-            #     self.d._get_possible_audio_shifts_with_max_distance(idx)
-            # )
-            aud_idx = [
-                x + offset for x in range(idx + 1 - self.sequence_length, idx + 1)
-            ]
-        else:
-            # random sample
-            idx = np.random.choice(self.samples_idx)
-            aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
+            idx += offset
+        elif self.d.audio_mode == AudioMode.SAME_VIDEO_MAX_DISTANCE:
+            offset = np.random.choice(
+                self.d._get_possible_audio_shifts_with_max_distance(idx)
+            )
+            idx += offset
+
+        aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
         return aud_idx

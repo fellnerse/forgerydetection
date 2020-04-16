@@ -17,7 +17,7 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileListDataset
-
+from forgery_detection.lightning.logging.utils import AudioMode
 
 logger = logging.getLogger(__file__)
 
@@ -153,6 +153,7 @@ class FileList:
         sequence_length: int = 1,
         should_align_faces=False,
         audio_file_list: Optional[SimpleFileList] = None,
+        audio_mode: AudioMode = AudioMode.EXACT,
     ) -> Dataset:
         """Get dataset by using this instance."""
         if sequence_length > self.min_sequence_length:
@@ -179,6 +180,7 @@ class FileList:
             should_align_faces=should_align_faces,
             transform=image_transforms,
             audio_file_list=audio_file_list,
+            audio_mode=audio_mode,
         )
 
     @classmethod

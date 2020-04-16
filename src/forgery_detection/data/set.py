@@ -13,6 +13,8 @@ from torchvision.datasets import ImageFolder
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import default_loader
 
+from forgery_detection.lightning.logging.utils import AudioMode
+
 logger = logging.getLogger(__file__)
 
 if TYPE_CHECKING:
@@ -58,12 +60,14 @@ class FileListDataset(VisionDataset):
         transform=None,
         target_transform=None,
         audio_file_list: Optional[SimpleFileList] = None,
+        audio_mode: AudioMode = AudioMode.EXACT,
     ):
         super().__init__(
             file_list.root, transform=transform, target_transform=target_transform
         )
         self.audio_file_list = audio_file_list
         self.should_sample_audio = audio_file_list is not None
+        self.audio_mode = audio_mode
 
         self.classes = file_list.classes
         self.class_to_idx = file_list.class_to_idx

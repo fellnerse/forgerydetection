@@ -36,6 +36,7 @@ from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.data.utils import rfft_transform
+from forgery_detection.lightning.logging.utils import AudioMode
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
@@ -334,12 +335,15 @@ class Supervised(pl.LightningModule):
         else:
             self.audio_file_list = None
 
+        self.audio_mode = AudioMode[self.hparams["audio_mode"]]
+
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
             image_transforms=self.resize_transform + image_augmentation_transforms,
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
+            audio_mode=self.audio_mode
             # should_align_faces=True,
         )
         self.val_data = self.file_list.get_dataset(
@@ -348,6 +352,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
+            audio_mode=self.audio_mode
             # should_align_faces=True,
         )
         # handle empty test_data better
@@ -357,6 +362,7 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
+            audio_mode=self.audio_mode
             # should_align_faces=True,
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
