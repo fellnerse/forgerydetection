@@ -461,9 +461,8 @@ class Supervised(pl.LightningModule):
     def test_step(self, batch, batch_nb):
         with torch.no_grad():
             val_out = self.validation_step(batch, batch_nb)
-            val_out.pop("x")
-            for key, value in val_out.items():
-                val_out[key] = value.cpu()
+            # for key, value in val_out.items():
+            #     val_out[key] = value.cpu()
             return val_out
 
     def test_epoch_end(self, outputs):
@@ -642,7 +641,10 @@ class Supervised(pl.LightningModule):
         hparams = load_hparams_from_tags_csv(tags_csv)
         hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", "None"))
 
-        if str(hparams.sampling_probs) == "nan":
+        if (
+            str(hparams.sampling_probs) == "nan"
+            or str(hparams.sampling_probs) == "None"
+        ):
             hparams.__dict__["sampling_probs"] = None
 
         if str(hparams.audio_file) == "nan":

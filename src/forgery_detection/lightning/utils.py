@@ -16,7 +16,10 @@ def get_latest_checkpoint(checkpoint_folder: Path) -> str:
 
     Raises FileNotFoundError if folder does not contain any .ckpt files."""
 
-    checkpoints = sorted(checkpoint_folder.glob("*.ckpt"))
+    checkpoints = sorted(
+        checkpoint_folder.glob("*.ckpt"),
+        key=lambda x: int(x.with_suffix("").name.split("_")[-1]),
+    )
     if len(checkpoints) == 0:
         raise FileNotFoundError(
             f"Could not find any .ckpt files in {checkpoint_folder}"
