@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data._utils.collate import default_collate
-from torchvision.datasets.folder import default_loader
 
 logger = logging.getLogger(__file__)
 
@@ -187,12 +186,12 @@ class SequenceBatchSampler(BatchSampler):
             # 50% matching
             aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
         elif int(random.random() + (1.0 / 2.0)) or True:
-            # offset = np.random.choice(
-            #     self.d._get_possible_audio_shifts_with_min_distance(idx)
-            # )
             offset = np.random.choice(
-                self.d._get_possible_audio_shifts_with_max_distance(idx)
+                self.d._get_possible_audio_shifts_with_min_distance(idx)
             )
+            # offset = np.random.choice(
+            #     self.d._get_possible_audio_shifts_with_max_distance(idx)
+            # )
             aud_idx = [
                 x + offset for x in range(idx + 1 - self.sequence_length, idx + 1)
             ]
@@ -201,46 +200,3 @@ class SequenceBatchSampler(BatchSampler):
             idx = np.random.choice(self.samples_idx)
             aud_idx = [x for x in range(idx + 1 - self.sequence_length, idx + 1)]
         return aud_idx
-
-
-class ExtendedDefaultLoader:
-    """Class used for loading files from disk.
-
-    Additionally to pytorchts default loader this also can load corresponding audio for
-    images (given a np-file containing such additional information).
-
-    """
-
-    def __init__(self, audio_file: str = None):
-        if audio_file is not None:
-            try:
-                # this weird access is only because of numpy saving a dict behaves
-                # strange
-                self.audio = np.load(audio_file, allow_pickle=True)[()]
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Could not find {audio_file}.")
-
-    def load_image(self, path: str):
-        return default_loader(path)
-
-    def load_audio(self, path):
-        parts = path.split("/")
-        video_name = parts[-2]
-        image_name = parts[-1].split(".")[0]
-
-        if "youtube" in path:
-            corresponding_audio = self.audio[video_name]
-        else:
-            video_names = video_name.split("_")
-            if "Deepfakes" in path or "FaceSwap" in path:
-                corresponding_audio = self.audio[video_names[0]]
-            else:
-                corresponding_audio = self.audio[video_names[1]]
-        try:
-            return corresponding_audio[int(image_name)]
-        except IndexError:
-            logger.error(
-                f"{int(image_name)} is out of bounds for {len(corresponding_audio)}.\n"
-                f"path is: {path} "
-            )
-            raise

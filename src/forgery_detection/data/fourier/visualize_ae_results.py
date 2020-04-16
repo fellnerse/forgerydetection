@@ -5,8 +5,8 @@ from matplotlib import pyplot as plt
 from torch.utils.data import RandomSampler
 from torchvision.utils import make_grid
 
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import irfft
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import rfft

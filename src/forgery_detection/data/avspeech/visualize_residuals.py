@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.set import FileListDataset
 from forgery_detection.models.image.ae import SimpleAEL1Pretrained
 from forgery_detection.models.utils import RECON_X

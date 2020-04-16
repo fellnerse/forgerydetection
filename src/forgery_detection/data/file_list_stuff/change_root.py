@@ -1,6 +1,6 @@
 import click
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 
 @click.command()

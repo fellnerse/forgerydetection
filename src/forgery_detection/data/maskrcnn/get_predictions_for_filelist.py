@@ -2,7 +2,7 @@
 #%%
 import torch
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.utils import resized_crop
 
 f = FileList.load(

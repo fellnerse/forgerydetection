@@ -6,7 +6,7 @@ import numpy as np
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 file_list_a = FileList.load(
     "/data/ssd1/file_lists/avspeech/100k_100_samples_consolidated.json"

@@ -3,8 +3,8 @@ from cv2 import cv2
 from torchvision.utils import make_grid
 
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.set import FileList
 
 matplotlib.use("agg")
 

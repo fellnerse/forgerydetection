@@ -1,5 +1,5 @@
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.set import FileList
 
 if __name__ == "__main__":
     file_list = (

@@ -2,6 +2,7 @@
 #%%
 from importlib import reload
 
+import forgery_detection.data.file_lists
 from forgery_detection.data import set
 
 reload(set)
@@ -14,7 +15,7 @@ from forgery_detection.models.audio.similarity_stuff import (
 p = PretrainedSyncNet().eval()  # .to("cuda:2")
 p._shuffle_audio = lambda x: x
 # f = FileList.load("/data/ssd1/file_lists/c40/tracked_resampled_faces.json")
-f = set.FileList.load(
+f = forgery_detection.data.file_lists.FileList.load(
     "/data/ssd1/file_lists/c40/tracked_resampled_faces_yt_only_112_16_sequence_length.json"
 )
 
@@ -29,7 +30,7 @@ from torchvision import transforms
 d = f.get_dataset(
     "test",
     sequence_length=5,
-    audio_file="/data/hdd/audio_features/mfcc_features.npy",
+    audio_file_list="/data/hdd/audio_features/mfcc_features.npy",
     image_transforms=resized_crop(224),
     tensor_transforms=[
         transforms.Normalize(

@@ -97,7 +97,6 @@ class SequenceClassificationModel(LightningModel, ABC):
                 tensorboard_log["loss"]["train_eval"] = loss_eval
                 tensorboard_log["acc"]["train_eval"] = acc_eval
 
-            tensorboard_log["roc_auc"] = system.multiclass_roc_auc_score(target, pred)
         return tensorboard_log, lightning_log
 
     def aggregate_outputs(self, outputs, system):
@@ -121,12 +120,9 @@ class SequenceClassificationModel(LightningModel, ABC):
             # roc_auc_score
             system.log_roc_graph(target, pred)
 
-            roc_auc = system.multiclass_roc_auc_score(target, pred)
-
             tensorboard_log = {
                 "loss": loss_mean,
                 "acc": acc_mean,
-                "roc_auc": roc_auc,
                 "class_acc": class_accuracies,
             }
             lightning_log = {VAL_ACC: acc_mean}

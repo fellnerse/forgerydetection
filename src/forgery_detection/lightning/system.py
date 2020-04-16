@@ -9,7 +9,6 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.core.saving import load_hparams_from_tags_csv
-from sklearn.preprocessing import LabelBinarizer
 from torch import optim
 from torch.utils.data.sampler import RandomSampler
 from torch.utils.data.sampler import SequentialSampler
@@ -18,10 +17,11 @@ from torchvision import transforms
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
+from forgery_detection.data.file_lists import FileList
+from forgery_detection.data.file_lists import SimpleFileList
 from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.loading import calculate_class_weights
 from forgery_detection.data.loading import get_fixed_dataloader
-from forgery_detection.data.set import FileList
 from forgery_detection.data.utils import colour_jitter
 from forgery_detection.data.utils import crop
 from forgery_detection.data.utils import random_erasing
@@ -42,9 +42,7 @@ from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
-from forgery_detection.lightning.logging.utils import multiclass_roc_auc_score
 from forgery_detection.lightning.logging.utils import SystemMode
-from forgery_detection.lightning.utils import NAN_TENSOR
 from forgery_detection.models.audio.multi_class_classification import AudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
 from forgery_detection.models.audio.multi_class_classification import (
@@ -331,12 +329,17 @@ class Supervised(pl.LightningModule):
             self.hparams["tensor_augmentation_transforms"]
         )
 
+        if self.hparams["audio_file"]:
+            self.audio_file_list = SimpleFileList.load(self.hparams["audio_file"])
+        else:
+            self.audio_file_list = None
+
         self.train_data = self.file_list.get_dataset(
             TRAIN_NAME,
             image_transforms=self.resize_transform + image_augmentation_transforms,
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
-            audio_file=self.hparams["audio_file"],
+            audio_file_list=self.audio_file_list,
             # should_align_faces=True,
         )
         self.val_data = self.file_list.get_dataset(
@@ -344,7 +347,7 @@ class Supervised(pl.LightningModule):
             image_transforms=self.resize_transform,
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
-            audio_file=self.hparams["audio_file"],
+            audio_file_list=self.audio_file_list,
             # should_align_faces=True,
         )
         # handle empty test_data better
@@ -353,18 +356,12 @@ class Supervised(pl.LightningModule):
             image_transforms=self.resize_transform,
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
-            audio_file=self.hparams["audio_file"],
+            audio_file_list=self.audio_file_list,
             # should_align_faces=True,
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
         self.hparams.add_dataset_size(len(self.test_data), TEST_NAME)
-
-        # label_binarizer and positive class is needed for roc_auc-multiclass
-        self.label_binarizer = LabelBinarizer()
-        self.label_binarizer.fit(list(self.file_list.class_to_idx.values()))
-        self.positive_class = list(self.file_list.class_to_idx.values())[-1]
-        self.hparams["positive_class"] = self.positive_class
 
         if self.hparams["dont_balance_data"]:
             self.sampler_cls = RandomSampler
@@ -413,8 +410,6 @@ class Supervised(pl.LightningModule):
         return self.model.forward(x)
 
     def training_step(self, batch, batch_nb):
-        # x, target = batch
-        # batch = x, (target - 1) % 5
         tensorboard_log, lightning_log = self.model.training_step(batch, batch_nb, self)
         return self._construct_lightning_log(
             tensorboard_log, lightning_log, suffix="train"
@@ -555,7 +550,7 @@ class Supervised(pl.LightningModule):
             image_transforms=self.resize_transform,
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
-            audio_file=self.hparams["audio_file"],
+            audio_file_list=self.hparams["audio_file"],
         )
         # static_batch_idx = static_batch_data.samples_idx[:: len(static_batch_data) // 3]
         static_batch_idx = static_batch_data.samples_idx[::1]
@@ -582,16 +577,6 @@ class Supervised(pl.LightningModule):
             worker_init_fn=lambda worker_id: np.random.seed(worker_id),
         )
         return loader
-
-    def multiclass_roc_auc_score(self, target: torch.Tensor, pred: torch.Tensor):
-        if self.hparams["log_roc_values"]:
-            return multiclass_roc_auc_score(
-                target.squeeze().detach().cpu(),
-                pred.detach().cpu().argmax(dim=1),
-                self.label_binarizer,
-            )
-        else:
-            return NAN_TENSOR
 
     def log_confusion_matrix(self, target: torch.Tensor, pred: torch.Tensor):
         return log_confusion_matrix(
@@ -625,8 +610,8 @@ class Supervised(pl.LightningModule):
                 pass
         return class_accuracies_dict
 
-    @staticmethod
     def _construct_lightning_log(
+        self,
         tensorboard_log: dict,
         lightning_log: dict = None,
         suffix: str = "train",

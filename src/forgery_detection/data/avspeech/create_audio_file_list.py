@@ -4,8 +4,8 @@ from pathlib import Path
 import click
 
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
-from forgery_detection.data.set import FileList
-from forgery_detection.data.set import SimpleFileList
+from forgery_detection.data.file_lists import FileList
+from forgery_detection.data.file_lists import SimpleFileList
 
 logger = logging.getLogger(__file__)
 
@@ -16,9 +16,9 @@ def _create_file_list(output_file: str, source_dir_root: str):
     source_dir_root = Path(source_dir_root)
 
     for feature in source_dir_root.glob("*.pckl"):
-        file_list.files[str(feature.with_suffix(".mp4").name)] = str(
-            feature.relative_to(file_list.root)
-        )
+        file_list.files[
+            str(feature.relative_to(file_list.root).with_suffix(".mp4").name)
+        ] = str(feature.relative_to(file_list.root))
 
     file_list.save(output_file)
     logger.info(f"{output_file} created.")
