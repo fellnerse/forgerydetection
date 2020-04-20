@@ -3,11 +3,11 @@ import multiprocessing as mp
 import click
 from pytorch_lightning import Trainer
 
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
+from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
-from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
 from forgery_detection.lightning.system import Supervised
-from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))

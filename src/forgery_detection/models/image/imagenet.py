@@ -5,8 +5,8 @@ import torch
 from torch import nn
 from torchvision.models import resnext101_32x8d
 
-from forgery_detection.lightning.utils import NAN_TENSOR
-from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.image.multi_class_classification import Resnet18
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel

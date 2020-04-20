@@ -36,26 +36,23 @@ from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.data.utils import rfft_transform
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
+from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
-from forgery_detection.lightning.logging.utils import SystemMode
-from forgery_detection.models.audio.multi_class_classification import AudioNet
-from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
-from forgery_detection.models.audio.multi_class_classification import (
-    AudioNetLayer2Unfrozen,
-)
+from forgery_detection.models.audio.audionet import AudioNet
+from forgery_detection.models.audio.audionet import AudioNetFrozen
+from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen
+from forgery_detection.models.audio.audionet import PretrainedAudioNet
+from forgery_detection.models.audio.audionet import PretrainedSyncAudioNet
+from forgery_detection.models.audio.audionet import PretrainingAudioNet34
+from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
-from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
-from forgery_detection.models.audio.multi_class_classification import (
-    PretrainSyncAudioNet,
-)
-from forgery_detection.models.audio.multi_class_classification import SyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
@@ -196,6 +193,7 @@ class Supervised(pl.LightningModule):
         "audionet_frozen": AudioNetFrozen,
         "audionet_pretrained": PretrainedAudioNet,
         "audionet_layer2unfrozen": AudioNetLayer2Unfrozen,
+        "audionet34_pretraining": PretrainingAudioNet34,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
@@ -253,8 +251,8 @@ class Supervised(pl.LightningModule):
         "similarity_net_classification": SimilarityNetClassification,
         "syncnet": SyncNet,
         "pretrained_syncnet": PretrainedSyncNet,
-        "pretrain_sync_audio_net": PretrainSyncAudioNet,
-        "sync_audio_net": SyncAudioNet,
+        "pretrain_sync_audio_net": PretrainingSyncAudioNet,
+        "sync_audio_net": PretrainedSyncAudioNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -640,14 +638,18 @@ class Supervised(pl.LightningModule):
 
         hparams = load_hparams_from_tags_csv(tags_csv)
         hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", "None"))
-
         if (
             str(hparams.sampling_probs) == "nan"
             or str(hparams.sampling_probs) == "None"
+            or len(hparams.sampling_probs) == 0
         ):
             hparams.__dict__["sampling_probs"] = None
 
-        if str(hparams.audio_file) == "nan":
+        if (
+            str(hparams.audio_file) == "nan"
+            or str(hparams.audio_file) == "None"
+            or len(hparams.audio_file) == 0
+        ):
             hparams.__dict__["audio_file"] = None
 
         hparams.__setattr__("on_gpu", False)

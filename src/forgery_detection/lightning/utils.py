@@ -1,41 +1,42 @@
-import ast
-import logging
 from pathlib import Path
 
-import click
-import torch
+from pytorch_lightning import Trainer
 
-logger = logging.getLogger(__file__)
+from forgery_detection.lightning.logging.const import SystemMode
+from forgery_detection.lightning.logging.utils import (
+    backwards_compatible_get_checkpoint,
+)
+from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
+from forgery_detection.lightning.system import Supervised
 
-VAL_ACC = "val_acc"
-NAN_TENSOR = torch.Tensor([float("NaN")])
 
+def get_model_and_trainer(_logger=None, test_percent_check=1.0, **kwargs):
+    kwargs["mode"] = SystemMode.TEST
 
-def get_latest_checkpoint(checkpoint_folder: Path) -> str:
-    """Returns the latest checkpoint in given path.
+    checkpoint_folder = Path(kwargs["checkpoint_dir"])
 
-    Raises FileNotFoundError if folder does not contain any .ckpt files."""
-
-    checkpoints = sorted(
-        checkpoint_folder.glob("*.ckpt"),
-        key=lambda x: int(x.with_suffix("").name.split("_")[-1]),
+    model: Supervised = Supervised.load_from_metrics(
+        weights_path=backwards_compatible_get_checkpoint(
+            checkpoint_folder, kwargs["checkpoint_nr"]
+        ),
+        tags_csv=Path(kwargs["checkpoint_dir"]) / "meta_tags.csv",
+        overwrite_hparams=kwargs,
     )
-    if len(checkpoints) == 0:
-        raise FileNotFoundError(
-            f"Could not find any .ckpt files in {checkpoint_folder}"
+    if _logger is None:
+        logger_info = model.hparams.get("logger", None)
+
+        _, _logger = get_logger_and_checkpoint_callback(
+            kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
         )
-    latest_checkpoint = str(checkpoints[-1])
-    logger.info(f"Using {latest_checkpoint} to load weights.")
-    return latest_checkpoint
-
-
-class PythonLiteralOptionGPUs(click.Option):
-    def type_cast_value(self, ctx, value):
-        try:
-            gpus = ast.literal_eval(value)
-            if not isinstance(gpus, list):
-                raise TypeError("gpus needs to be a list (i.e. [], [1], or [1,2].")
-            gpus = 0 if len(gpus) == 0 else gpus
-            return gpus
-        except ValueError:
-            raise click.BadParameter(value)
+    model.logger = _logger
+    trainer = Trainer(
+        gpus=kwargs["gpus"],
+        logger=_logger,
+        default_save_path=kwargs["log_dir"],
+        distributed_backend="ddp"
+        if kwargs["gpus"] and len(kwargs["gpus"]) > 1
+        else None,
+        weights_summary=None,
+        test_percent_check=test_percent_check,
+    )
+    return model, trainer

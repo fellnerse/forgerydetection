@@ -8,8 +8,8 @@ from torchvision.models.resnet import BasicBlock
 from torchvision.models.resnet import conv1x1
 from torchvision.utils import make_grid
 
-from forgery_detection.lightning.utils import NAN_TENSOR
-from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.image.utils import ConvBlock
 from forgery_detection.models.mixins import FaceNetLossMixin
 from forgery_detection.models.mixins import FourierLoggingMixin

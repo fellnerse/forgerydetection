@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torchvision.models.video import mc3_18
 from torchvision.models.video.resnet import Conv3DNoTemporal
 
-from forgery_detection.lightning.utils import NAN_TENSOR
+from forgery_detection.lightning.logging.const import NAN_TENSOR
 from forgery_detection.models.utils import GeneralVAE
 from forgery_detection.models.utils import LOG_VAR
 from forgery_detection.models.utils import MU

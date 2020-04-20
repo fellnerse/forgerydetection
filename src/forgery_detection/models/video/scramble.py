@@ -6,8 +6,8 @@ from torch import nn
 from torchvision.models.video import mc3_18
 from torchvision.utils import make_grid
 
-from forgery_detection.lightning.utils import NAN_TENSOR
-from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.utils import SequenceClassificationModel
 
 logger = logging.getLogger(__file__)

@@ -7,7 +7,7 @@ from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
 from test_tube.hpc import SlurmCluster
 
-from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.system import Supervised
 
 SLURM_LOG_FOLDER = Path("/log/test_slurm/")

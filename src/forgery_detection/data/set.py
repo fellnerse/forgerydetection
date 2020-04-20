@@ -13,7 +13,7 @@ from torchvision.datasets import ImageFolder
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import default_loader
 
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
 
 logger = logging.getLogger(__file__)
 
