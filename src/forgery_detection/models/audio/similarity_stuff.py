@@ -18,13 +18,13 @@ class SimilarityNet(SequenceClassificationModel):
             contains_dropout=False,
         )
         self.r2plus1 = r2plus1d_18(pretrained=pretrained)
-        self.r2plus1.layer2 = nn.Identity()
+        # self.r2plus1.layer2 = nn.Identity()
         self.r2plus1.layer3 = nn.Identity()
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Identity()
 
         self.audio_extractor = resnet18(pretrained=pretrained, num_classes=1000)
-        self.audio_extractor.layer2 = nn.Identity()
+        # self.audio_extractor.layer2 = nn.Identity()
         self.audio_extractor.layer3 = nn.Identity()
         self.audio_extractor.layer4 = nn.Identity()
         self.audio_extractor.fc = nn.Identity()
@@ -57,7 +57,7 @@ class SimilarityNet(SequenceClassificationModel):
         tensorboard_log = {"loss": {"train": loss}}
         if self.log_class_loss or True:
             class_loss = self.loss_per_class(pred[0], pred[1], target)
-            tensorboard_log["class_acc_train"] = {
+            tensorboard_log["class_loss_train"] = {
                 str(idx): val for idx, val in enumerate(class_loss)
             }
             tensorboard_log["class_loss_diff"] = {
@@ -97,7 +97,7 @@ class SimilarityNet(SequenceClassificationModel):
 
             tensorboard_log = {
                 "loss": loss_mean,
-                "class_acc": {str(idx): val for idx, val in enumerate(class_loss)},
+                "class_loss_val": {str(idx): val for idx, val in enumerate(class_loss)},
                 "class_loss_diff": class_loss[0] - class_loss[1],
                 "vid_std": torch.std(video_logits),
                 "aud_std": torch.std(audio_logtis),

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 root_dir = Path("/mnt/ssd2/sebastian/set/avspeech_moria_112")
 

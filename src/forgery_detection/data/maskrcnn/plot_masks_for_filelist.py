@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import torch
 from torchvision.models.detection import maskrcnn_resnet50_fpn
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 f = FileList.load(
     "/mnt/ssd1/sebastian/file_lists/c40/"

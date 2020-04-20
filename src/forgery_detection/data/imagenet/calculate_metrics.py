@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 from forgery_detection.models.image.multi_class_classification import Resnet18
 from forgery_detection.models.mixins import PretrainedNet
 

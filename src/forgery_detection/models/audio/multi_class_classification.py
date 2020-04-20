@@ -257,7 +257,12 @@ class SyncAudioNet(SequenceClassificationModel):
         return super().aggregate_outputs(outputs, system)
 
 
-class PretrainSyncAudioNet(SyncAudioNet):
+class PretrainSyncAudioNet(
+    PretrainedNet(
+        "/mnt/raid/sebastian/log/runs/TRAIN/sync_audio_net/version_1/checkpoints/_ckpt_epoch_23.ckpt"
+    ),
+    SyncAudioNet,
+):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)

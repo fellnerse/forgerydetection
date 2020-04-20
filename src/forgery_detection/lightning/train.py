@@ -3,6 +3,7 @@ import multiprocessing as mp
 import click
 from pytorch_lightning import Trainer
 
+from forgery_detection.lightning.logging.utils import AudioMode
 from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
 from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.lightning.system import Supervised
@@ -20,7 +21,13 @@ from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
     "--audio_file",
     required=False,
     type=click.Path(exists=True),
-    help="Path to np audio file containing.",
+    help="Path to json with dict of files to load.",
+)
+@click.option(
+    "--audio_mode",
+    type=click.Choice(AudioMode.__members__.keys()),
+    default=AudioMode.EXACT.name,
+    help="How the audio should be loaded.",
 )
 @click.option(
     "--log_dir",

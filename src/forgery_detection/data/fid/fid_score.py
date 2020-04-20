@@ -48,7 +48,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
 from forgery_detection.data.fid.inception import InceptionV3
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 
 class ImagesPathDataset(Dataset):

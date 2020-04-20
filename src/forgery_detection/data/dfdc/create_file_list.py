@@ -6,7 +6,7 @@ import numpy as np
 from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
-from forgery_detection.data.set import FileList
+from forgery_detection.data.file_lists import FileList
 
 root_dir = Path("/data/hdd/dfdc/extracted_images")
 

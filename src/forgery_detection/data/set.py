@@ -1,137 +1,25 @@
-import json
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from pprint import pformat
-from shutil import copy2
 from typing import List
+from typing import Optional
 from typing import Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
-from torch.utils.data import Dataset
-from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.datasets import VisionDataset
-from tqdm import tqdm
+from torchvision.datasets.folder import default_loader
 
-from forgery_detection.data.face_forensics.splits import TEST_NAME
-from forgery_detection.data.face_forensics.splits import TRAIN_NAME
-from forgery_detection.data.face_forensics.splits import VAL_NAME
-from forgery_detection.data.loading import ExtendedDefaultLoader
+from forgery_detection.lightning.logging.utils import AudioMode
 
 logger = logging.getLogger(__file__)
 
-
-class FileList:
-    def __init__(self, root: str, classes: List[str], min_sequence_length: int):
-        self.root = root
-        self.classes = classes
-        self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
-
-        self.samples = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
-        self.samples_idx = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
-        self.relative_bbs = {TRAIN_NAME: [], VAL_NAME: [], TEST_NAME: []}
-
-        self.min_sequence_length = min_sequence_length
-
-    def add_data_point(self, path: Path, target_label: str, split: str):
-        """Adds datapoint to samples.
-
-        Args:
-            path: has to be subpath of self.root. Will be saved relative to it.
-            target_label: label of the datapoints. Is converted to idx via
-                self.class_to_idx
-            split: indicates current split (train, val, test)
-
-        """
-        self.samples[split].append(
-            (str(path.relative_to(self.root)), self.class_to_idx[target_label])
-        )
-
-    def add_data_points(
-        self,
-        path_list: List[Path],
-        target_label: str,
-        split: str,
-        sampled_images_idx: np.array,
-    ):
-        nb_samples_offset = len(self.samples[split])
-        sampled_images_idx = (sampled_images_idx + nb_samples_offset).tolist()
-        self.samples_idx[split] += sampled_images_idx
-
-        for path in path_list:
-            self.add_data_point(path, target_label, split)
-
-    def save(self, path):
-        """Save self.__dict__ as json."""
-        with open(path, "w") as f:
-            json.dump(self.__dict__, f)  # be careful with self.root->Path
-
-    @classmethod
-    def load(cls, path):
-        """Restore instance from json via self.__dict__."""
-        with open(path, "r") as f:
-            __dict__ = json.load(f)
-        file_list = cls.__new__(cls)
-        file_list.__dict__.update(__dict__)
-        return file_list
-
-    def copy_to(self, new_root: Path):
-        curr_root = Path(self.root)
-        for data_points in tqdm(self.samples.values(), position=0):
-            for data_point_path, _ in tqdm(data_points, position=1):
-                target_path = new_root / data_point_path
-                target_path.parents[0].mkdir(exist_ok=True, parents=True)
-                copy2(curr_root / data_point_path, target_path)
-
-        self.root = str(new_root)
-        return self
-
-    def get_dataset(
-        self,
-        split,
-        image_transforms=None,
-        tensor_transforms=None,
-        sequence_length: int = 1,
-        should_align_faces=False,
-        audio_file: str = None,
-    ) -> Dataset:
-        """Get dataset by using this instance."""
-        if sequence_length > self.min_sequence_length:
-            logger.warning(
-                f"{sequence_length}>{self.min_sequence_length}. Trying to load data that"
-                f"does not exist might raise an error in the FileListDataset."
-            )
-        image_transforms = image_transforms or []
-        tensor_transforms = tensor_transforms or []
-        image_transforms = transforms.Compose(
-            image_transforms
-            + [
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-            + tensor_transforms
-        )
-        return FileListDataset(
-            file_list=self,
-            split=split,
-            sequence_length=sequence_length,
-            should_align_faces=should_align_faces,
-            transform=image_transforms,
-            audio_file=audio_file,
-        )
-
-    @classmethod
-    def get_dataset_form_file(
-        cls, path, split, transform=None, sequence_length: int = 1
-    ) -> Dataset:
-        """Get dataset by loading a FileList and calling get_dataset on it."""
-        return cls.load(path).get_dataset(split, transform, sequence_length)
-
-    def __str__(self):
-        return pformat(self.class_to_idx, indent=4)
+if TYPE_CHECKING:
+    from forgery_detection.data.file_lists import FileList
+    from forgery_detection.data.file_lists import SimpleFileList
 
 
 class SafeImageFolder(ImageFolder):
@@ -171,13 +59,15 @@ class FileListDataset(VisionDataset):
         should_align_faces=False,
         transform=None,
         target_transform=None,
-        audio_file: str = None,
+        audio_file_list: Optional[SimpleFileList] = None,
+        audio_mode: AudioMode = AudioMode.EXACT,
     ):
         super().__init__(
             file_list.root, transform=transform, target_transform=target_transform
         )
-        self.extended_default_loader = ExtendedDefaultLoader(audio_file=audio_file)
-        self.should_sample_audio = audio_file is not None
+        self.audio_file_list = audio_file_list
+        self.should_sample_audio = audio_file_list is not None
+        self.audio_mode = audio_mode
 
         self.classes = file_list.classes
         self.class_to_idx = file_list.class_to_idx
@@ -204,7 +94,7 @@ class FileListDataset(VisionDataset):
         (img_idx, align_idx), audio_idx = index
 
         path, target = self._samples[img_idx]
-        vid = self.extended_default_loader.load_image(f"{self.root}/{path}")
+        vid = default_loader(f"{self.root}/{path}")
 
         if self.should_align_faces:
             relative_bb = self.relative_bbs[align_idx]
@@ -218,7 +108,7 @@ class FileListDataset(VisionDataset):
 
         if self.should_sample_audio:
             aud_path, _ = self._samples[audio_idx]
-            aud = self.extended_default_loader.load_audio(f"{self.root}/{aud_path}")
+            aud = self.audio_file_list(aud_path)
             sample = vid, aud
 
             # this indicates if the audio and the images are in sync
