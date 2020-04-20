@@ -48,9 +48,9 @@ from forgery_detection.models.audio.audionet import AudioNet
 from forgery_detection.models.audio.audionet import AudioNetFrozen
 from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen
 from forgery_detection.models.audio.audionet import PretrainedAudioNet
+from forgery_detection.models.audio.audionet import PretrainedSyncAudioNet
 from forgery_detection.models.audio.audionet import PretrainingAudioNet34
-from forgery_detection.models.audio.audionet import PretrainSyncAudioNet
-from forgery_detection.models.audio.audionet import SyncAudioNet
+from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -251,8 +251,8 @@ class Supervised(pl.LightningModule):
         "similarity_net_classification": SimilarityNetClassification,
         "syncnet": SyncNet,
         "pretrained_syncnet": PretrainedSyncNet,
-        "pretrain_sync_audio_net": PretrainSyncAudioNet,
-        "sync_audio_net": SyncAudioNet,
+        "pretrain_sync_audio_net": PretrainingSyncAudioNet,
+        "sync_audio_net": PretrainedSyncAudioNet,
     }
 
     CUSTOM_TRANSFORMS = {
