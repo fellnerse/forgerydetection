@@ -134,3 +134,52 @@ class PretrainSyncAudioNet(
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+
+
+class AudioNet34(AudionetUtils):
+    def __init__(self, num_classes=5, pretrained=True):
+        super().__init__(
+            num_classes=num_classes, sequence_length=8, contains_dropout=False
+        )
+        self.r2plus1 = torch.hub.load(
+            "moabitcoin/ig65m-pytorch",
+            "r2plus1d_34_8_kinetics",
+            num_classes=400,
+            pretrained=True,
+        )
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Identity()
+
+        self.resnet = resnet18(pretrained=pretrained, num_classes=1000)
+        self.resnet.layer3 = nn.Identity()
+        self.resnet.layer4 = nn.Identity()
+        self.resnet.fc = nn.Identity()
+
+        self.relu = nn.ReLU()
+        self.out = nn.Sequential(
+            nn.Linear(256, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
+
+
+class PretrainingAudioNet34(AudioNet34):
+    def __init__(self, num_classes=5, pretrained=True):
+        super().__init__(num_classes=num_classes)
+
+        # load weight of MLP from audionet trained with smaller r2plus1 net
+        loaded_state = torch.load(
+            "/data/hdd/model_checkpoints/audionet/13_epochs/model.ckpt",
+            map_location=lambda storage, loc: storage,
+        )["state_dict"]
+
+        self_state = self.state_dict()
+        for name, param in loaded_state.items():
+            if "out" in name:
+                self_state[name.replace("model.", "")].copy_(param)
+
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.resnet, requires_grad=False)
+
+    def forward(self, x):
+        video, audio = x
+        return super().forward((video, audio.reshape((audio.shape[0], -1, 13))))

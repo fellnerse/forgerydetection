@@ -48,6 +48,7 @@ from forgery_detection.models.audio.audionet import AudioNet
 from forgery_detection.models.audio.audionet import AudioNetFrozen
 from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen
 from forgery_detection.models.audio.audionet import PretrainedAudioNet
+from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainSyncAudioNet
 from forgery_detection.models.audio.audionet import SyncAudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
@@ -192,6 +193,7 @@ class Supervised(pl.LightningModule):
         "audionet_frozen": AudioNetFrozen,
         "audionet_pretrained": PretrainedAudioNet,
         "audionet_layer2unfrozen": AudioNetLayer2Unfrozen,
+        "audionet34_pretraining": PretrainingAudioNet34,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
