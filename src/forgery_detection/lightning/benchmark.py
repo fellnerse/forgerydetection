@@ -5,7 +5,7 @@ import click
 import torch
 
 from forgery_detection.lightning.logging.const import SystemMode
-from forgery_detection.lightning.logging.utils import get_latest_checkpoint
+from forgery_detection.lightning.logging.utils import get_checkpoint
 from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
 from forgery_detection.lightning.system import Supervised
 
@@ -36,7 +36,7 @@ def run_benchmark(*args, **kwargs):
     checkpoint_folder = Path(kwargs["checkpoint_dir"]) / "checkpoints"
 
     model = Supervised.load_from_metrics(
-        weights_path=get_latest_checkpoint(checkpoint_folder),
+        weights_path=get_checkpoint(checkpoint_folder),
         tags_csv=Path(kwargs["checkpoint_dir"]) / "meta_tags.csv",
     )
     device = torch.device("cuda", kwargs["gpus"][0])

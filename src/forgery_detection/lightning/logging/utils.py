@@ -293,7 +293,7 @@ def _log_hparams(
                     w_hp.add_scalar(k, v, global_step=global_step)
 
 
-def get_latest_checkpoint(checkpoint_folder: Path) -> str:
+def get_checkpoint(checkpoint_folder: Path, checkpoint_nr: int = -1) -> str:
     """Returns the latest checkpoint in given path.
 
     Raises FileNotFoundError if folder does not contain any .ckpt files."""
@@ -306,9 +306,25 @@ def get_latest_checkpoint(checkpoint_folder: Path) -> str:
         raise FileNotFoundError(
             f"Could not find any .ckpt files in {checkpoint_folder}"
         )
-    latest_checkpoint = str(checkpoints[-1])
-    logger.info(f"Using {latest_checkpoint} to load weights.")
-    return latest_checkpoint
+
+    checkpoint = str(checkpoints[checkpoint_nr])
+    logger.info(f"Using {checkpoint} to load weights.")
+    return checkpoint
+
+
+def backwards_compatible_get_checkpoint(
+    checkpoint_folder: Path, checkpoint_nr: int = -1
+):
+    try:
+        return get_checkpoint(checkpoint_folder, checkpoint_nr)
+    except FileNotFoundError:
+        try:
+            return get_checkpoint(checkpoint_folder / CHECKPOINTS, checkpoint_nr)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Could not find any .ckpt files in {checkpoint_folder} or "
+                f"{checkpoint_folder/CHECKPOINTS}"
+            )
 
 
 class PythonLiteralOptionGPUs(click.Option):

@@ -2,6 +2,7 @@ import logging
 
 import click
 
+from forgery_detection.lightning.logging.const import AudioMode
 from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
 from forgery_detection.lightning.utils import get_model_and_trainer
 
@@ -15,6 +16,8 @@ logger = logging.getLogger(__file__)
     type=click.Path(exists=True),
     help="Folder containing logs and checkpoint.",
 )
+@click.option("--checkpoint_nr", type=int, default=-1)
+@click.option("--audio_file", required=False, type=click.Path(exists=True))
 @click.option(
     "--log_dir",
     required=True,
@@ -22,13 +25,17 @@ logger = logging.getLogger(__file__)
     help="Folder used for logging.",
     default="/log",
 )
-@click.option("--dataset_percent_check -p", type=float, default=0.1)
+@click.option("--dataset_percent_check", "-p", type=float, default=0.1)
 @click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[0]")
 @click.option("--debug", is_flag=True)
-def run_train_val_evaluation(**kwargs):
-
+def run_train_val_evaluation(dataset_percent_check, audio_file, **kwargs):
+    if audio_file:
+        kwargs["audio_file"] = audio_file
+    kwargs["audio_mode"] = AudioMode.EXACT.name
     # train data
-    model, trainer = get_model_and_trainer(test_percent_check=0.01, **kwargs)
+    model, trainer = get_model_and_trainer(
+        test_percent_check=dataset_percent_check, **kwargs
+    )
     _logger = model.logger
 
     model.test_dataloader = model.train_dataloader
@@ -37,7 +44,7 @@ def run_train_val_evaluation(**kwargs):
 
     # val data
     model, trainer = get_model_and_trainer(
-        test_percent_check=0.01, _logger=_logger, **kwargs
+        test_percent_check=dataset_percent_check, _logger=_logger, **kwargs
     )
     model.test_dataloader = model.val_dataloader
 

@@ -638,14 +638,18 @@ class Supervised(pl.LightningModule):
 
         hparams = load_hparams_from_tags_csv(tags_csv)
         hparams.__dict__["logger"] = eval(hparams.__dict__.get("logger", "None"))
-
         if (
             str(hparams.sampling_probs) == "nan"
             or str(hparams.sampling_probs) == "None"
+            or len(hparams.sampling_probs) == 0
         ):
             hparams.__dict__["sampling_probs"] = None
 
-        if str(hparams.audio_file) == "nan":
+        if (
+            str(hparams.audio_file) == "nan"
+            or str(hparams.audio_file) == "None"
+            or len(hparams.audio_file) == 0
+        ):
             hparams.__dict__["audio_file"] = None
 
         hparams.__setattr__("on_gpu", False)

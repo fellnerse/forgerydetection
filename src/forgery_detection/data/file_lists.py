@@ -63,14 +63,17 @@ class SimpleFileList:
             with open(os.path.join(self.root, path), "rb") as f:
                 features = pickle.load(f)  # 13 x [len(video)*4]
 
-            try:
-                features = (
-                    np.transpose(features, (1, 0))
-                    .reshape((-1, 4, 13))
-                    .astype("float32")
-                )  # len(video) x 4 x 13
-            except ValueError:
-                logger.error(f"skipping {path}, as the shape is off: {features.shape}")
+            if features.shape[-1] == 13:
+                try:
+                    features = (
+                        np.transpose(features, (1, 0))
+                        .reshape((-1, 4, 13))
+                        .astype("float32")
+                    )  # len(video) x 4 x 13
+                except ValueError:
+                    logger.error(
+                        f"skipping {path}, as the shape is off: {features.shape}"
+                    )
             self.files[key] = features
 
     def __repr__(self):
