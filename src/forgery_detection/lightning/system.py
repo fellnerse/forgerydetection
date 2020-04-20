@@ -44,23 +44,19 @@ from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
 from forgery_detection.lightning.logging.utils import SystemMode
-from forgery_detection.models.audio.multi_class_classification import AudioNet
-from forgery_detection.models.audio.multi_class_classification import AudioNetFrozen
-from forgery_detection.models.audio.multi_class_classification import (
-    AudioNetLayer2Unfrozen,
-)
+from forgery_detection.models.audio.audionet import AudioNet
+from forgery_detection.models.audio.audionet import AudioNetFrozen
+from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen
+from forgery_detection.models.audio.audionet import PretrainedAudioNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
-from forgery_detection.models.audio.multi_class_classification import PretrainedAudioNet
-from forgery_detection.models.audio.multi_class_classification import (
-    PretrainSyncAudioNet,
-)
-from forgery_detection.models.audio.multi_class_classification import SyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
 from forgery_detection.models.audio.similarity_stuff import SyncNet
+from forgery_detection.models.audio.syncnet import PretrainSyncAudioNet
+from forgery_detection.models.audio.syncnet import SyncAudioNet
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
