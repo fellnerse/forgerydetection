@@ -131,6 +131,7 @@ def run_lightning(*args, **kwargs):
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
         val_percent_check=kwargs["val_check_interval"],
+        val_check_interval=kwargs["val_check_interval"],
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
