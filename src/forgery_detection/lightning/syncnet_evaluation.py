@@ -27,7 +27,7 @@ logger = logging.getLogger(__file__)
 def get_model_and_trainer(**kwargs):
     kwargs["mode"] = SystemMode.TEST
 
-    checkpoint_folder = Path(kwargs["checkpoint_dir"])
+    checkpoint_folder = Path(kwargs["checkpoint_dir"])  # / CHECKPOINTS
 
     model: Supervised = Supervised.load_from_metrics(
         weights_path=get_latest_checkpoint(checkpoint_folder),
@@ -72,7 +72,8 @@ def run_inference_for_video(audio_mode, folder, model, trainer):
         num_workers=model.hparams["n_cpu"],
         worker_init_fn=lambda worker_id: np.random.seed(worker_id),
     )
-    model.test_dataloader = lambda: loader
+    model.test_dataloader = lambda: loader  # this seems not to work at all
+    print(folder, len(loader))
     trainer.test(model)
 
 
