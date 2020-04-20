@@ -36,14 +36,14 @@ from forgery_detection.data.utils import random_rotation_greyscale
 from forgery_detection.data.utils import resized_crop
 from forgery_detection.data.utils import resized_crop_flip
 from forgery_detection.data.utils import rfft_transform
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
+from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import DictHolder
 from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
 from forgery_detection.lightning.logging.utils import log_roc_graph
-from forgery_detection.lightning.logging.utils import SystemMode
 from forgery_detection.models.audio.audionet import AudioNet
 from forgery_detection.models.audio.audionet import AudioNetFrozen
 from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen

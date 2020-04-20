@@ -13,7 +13,7 @@ from torch.utils.data import RandomSampler
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data._utils.collate import default_collate
 
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
 
 logger = logging.getLogger(__file__)
 

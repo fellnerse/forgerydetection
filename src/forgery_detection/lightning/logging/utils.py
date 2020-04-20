@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import ast
 import itertools
 import logging
 import os
 from argparse import Namespace
 from copy import deepcopy
-from enum import auto
-from enum import Enum
 from pathlib import Path
 from typing import Dict
 from typing import TYPE_CHECKING
@@ -26,81 +25,19 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
 from torchvision.utils import make_grid
 
-from forgery_detection.lightning.confusion_matrix import confusion_matrix
-from forgery_detection.lightning.confusion_matrix import plot_cm
-from forgery_detection.lightning.confusion_matrix import plot_to_image
-from forgery_detection.lightning.utils import NAN_TENSOR
-from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.lightning.logging.confusion_matrix import confusion_matrix
+from forgery_detection.lightning.logging.confusion_matrix import plot_cm
+from forgery_detection.lightning.logging.confusion_matrix import plot_to_image
+from forgery_detection.lightning.logging.const import CHECKPOINTS
+from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import RUNS
+from forgery_detection.lightning.logging.const import SystemMode
+from forgery_detection.lightning.logging.const import VAL_ACC
 
 if TYPE_CHECKING:
     from forgery_detection.data.set import FileListDataset
 
 logger = logging.getLogger(__file__)
-
-CHECKPOINTS = "checkpoints"
-RUNS = "runs"
-
-
-class SystemMode(Enum):
-    TRAIN = auto()
-    TEST = auto()
-    BENCHMARK = auto()
-
-    def __str__(self):
-        return self.name
-
-
-class AudioMode(str, Enum):
-    EXACT = auto()
-    DIFFERENT_VIDEO = auto()
-    SAME_VIDEO_MIN_DISTANCE = auto()
-    SAME_VIDEO_MAX_DISTANCE = auto()
-
-    def __str__(self):
-        return self.name
-
-
-def get_logger_and_checkpoint_callback(
-    log_dir, mode: SystemMode, debug, logger_info=None
-):
-    """Sets up a logger and a checkpointer.
-
-    The code is mostly copied from pl.trainer.py.
-    """
-    if debug:
-        name = "debug"
-        description = ""
-    else:
-        log_dir = str(Path(log_dir) / RUNS / str(mode))
-        if logger_info:
-            name = logger_info["name"]
-            description = logger_info["description"]
-        else:
-            # if the user provides a name create its own folder in the default folder
-            name = click.prompt("Name of run", type=str, default="default").replace(
-                " ", "_"
-            )
-            description = click.prompt("Description of run", type=str, default="")
-
-    logger = TestTubeLogger(save_dir=log_dir, name=name, description=description)
-    logger_dir = get_logger_dir(logger)
-
-    checkpoint_callback = ModelCheckpoint(
-        filepath=logger_dir / CHECKPOINTS,
-        save_top_k=-1,
-        monitor=VAL_ACC,
-        mode="max",
-        prefix="",
-    )
-    return checkpoint_callback, logger
-
-
-def get_logger_dir(logger):
-    return (
-        Path(logger.save_dir)
-        / logger.experiment.name
-        / f"version_{logger.experiment.version}"
-    )
 
 
 class DictHolder(dict):
@@ -354,3 +291,76 @@ def _log_hparams(
                     )
                 else:
                     w_hp.add_scalar(k, v, global_step=global_step)
+
+
+def get_latest_checkpoint(checkpoint_folder: Path) -> str:
+    """Returns the latest checkpoint in given path.
+
+    Raises FileNotFoundError if folder does not contain any .ckpt files."""
+
+    checkpoints = sorted(
+        checkpoint_folder.glob("*.ckpt"),
+        key=lambda x: int(x.with_suffix("").name.split("_")[-1]),
+    )
+    if len(checkpoints) == 0:
+        raise FileNotFoundError(
+            f"Could not find any .ckpt files in {checkpoint_folder}"
+        )
+    latest_checkpoint = str(checkpoints[-1])
+    logger.info(f"Using {latest_checkpoint} to load weights.")
+    return latest_checkpoint
+
+
+class PythonLiteralOptionGPUs(click.Option):
+    def type_cast_value(self, ctx, value):
+        try:
+            gpus = ast.literal_eval(value)
+            if not isinstance(gpus, list):
+                raise TypeError("gpus needs to be a list (i.e. [], [1], or [1,2].")
+            gpus = 0 if len(gpus) == 0 else gpus
+            return gpus
+        except ValueError:
+            raise click.BadParameter(value)
+
+
+def get_logger_and_checkpoint_callback(
+    log_dir, mode: SystemMode, debug, logger_info=None
+):
+    """Sets up a logger and a checkpointer.
+
+    The code is mostly copied from pl.trainer.py.
+    """
+    if debug:
+        name = "debug"
+        description = ""
+    else:
+        log_dir = str(Path(log_dir) / RUNS / str(mode))
+        if logger_info:
+            name = logger_info["name"]
+            description = logger_info["description"]
+        else:
+            # if the user provides a name create its own folder in the default folder
+            name = click.prompt("Name of run", type=str, default="default").replace(
+                " ", "_"
+            )
+            description = click.prompt("Description of run", type=str, default="")
+
+    logger = TestTubeLogger(save_dir=log_dir, name=name, description=description)
+    logger_dir = get_logger_dir(logger)
+
+    checkpoint_callback = ModelCheckpoint(
+        filepath=logger_dir / CHECKPOINTS,
+        save_top_k=-1,
+        monitor=VAL_ACC,
+        mode="max",
+        prefix="",
+    )
+    return checkpoint_callback, logger
+
+
+def get_logger_dir(logger):
+    return (
+        Path(logger.save_dir)
+        / logger.experiment.name
+        / f"version_{logger.experiment.version}"
+    )

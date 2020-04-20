@@ -17,7 +17,7 @@ from forgery_detection.data.face_forensics.splits import TEST_NAME
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
 from forgery_detection.data.face_forensics.splits import VAL_NAME
 from forgery_detection.data.set import FileListDataset
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
 
 logger = logging.getLogger(__file__)
 

@@ -11,7 +11,7 @@ from torchvision.utils import make_grid
 from forgery_detection.data.utils import irfft
 from forgery_detection.data.utils import rfft
 from forgery_detection.data.utils import windowed_rfft
-from forgery_detection.lightning.utils import NAN_TENSOR
+from forgery_detection.lightning.logging.const import NAN_TENSOR
 from forgery_detection.models.sliced_nets import FaceNet
 from forgery_detection.models.sliced_nets import SlicedNet
 from forgery_detection.models.sliced_nets import Vgg16

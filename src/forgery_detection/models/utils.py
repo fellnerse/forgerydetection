@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision.utils import make_grid
 
-from forgery_detection.lightning.utils import VAL_ACC
+from forgery_detection.lightning.logging.const import VAL_ACC
 
 logger = logging.getLogger(__file__)
 

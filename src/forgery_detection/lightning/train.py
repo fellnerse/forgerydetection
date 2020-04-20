@@ -3,11 +3,11 @@ import multiprocessing as mp
 import click
 from pytorch_lightning import Trainer
 
-from forgery_detection.lightning.logging.utils import AudioMode
+from forgery_detection.lightning.logging.const import AudioMode
+from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_callback
-from forgery_detection.lightning.logging.utils import SystemMode
+from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
 from forgery_detection.lightning.system import Supervised
-from forgery_detection.lightning.utils import PythonLiteralOptionGPUs
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -131,7 +131,6 @@ def run_lightning(*args, **kwargs):
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
         val_percent_check=kwargs["val_check_interval"],
-        val_check_interval=kwargs["val_check_interval"],
         distributed_backend="ddp"
         if kwargs["gpus"] and len(kwargs["gpus"]) > 1
         else None,
