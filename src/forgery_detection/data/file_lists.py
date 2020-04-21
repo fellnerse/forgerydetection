@@ -63,7 +63,7 @@ class SimpleFileList:
             with open(os.path.join(self.root, path), "rb") as f:
                 features = pickle.load(f)  # 13 x [len(video)*4]
 
-            if features.shape[-1] == 13:
+            if features.shape[0] == 13:
                 try:
                     features = (
                         np.transpose(features, (1, 0))
@@ -74,6 +74,8 @@ class SimpleFileList:
                     logger.error(
                         f"skipping {path}, as the shape is off: {features.shape}"
                     )
+            else:
+                logger.warning(f"not reshaping")
             self.files[key] = features
 
     def __repr__(self):

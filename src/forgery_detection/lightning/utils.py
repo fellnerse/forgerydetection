@@ -10,6 +10,18 @@ from forgery_detection.lightning.logging.utils import get_logger_and_checkpoint_
 from forgery_detection.lightning.system import Supervised
 
 
+def _get_logger_info(kwargs: dict):
+    if "logger" in kwargs and kwargs["logger"]:
+        return kwargs["logger"]
+
+    if "logger/name" in kwargs:
+        return {
+            "name": kwargs["logger/name"],
+            "description": kwargs["logger/description"],
+        }
+    return None
+
+
 def get_model_and_trainer(_logger=None, test_percent_check=1.0, **kwargs):
     kwargs["mode"] = SystemMode.TEST
 
@@ -23,7 +35,7 @@ def get_model_and_trainer(_logger=None, test_percent_check=1.0, **kwargs):
         overwrite_hparams=kwargs,
     )
     if _logger is None:
-        logger_info = model.hparams.get("logger", None)
+        logger_info = _get_logger_info(model.hparams)
 
         _, _logger = get_logger_and_checkpoint_callback(
             kwargs["log_dir"], kwargs["mode"], kwargs["debug"], logger_info=logger_info
