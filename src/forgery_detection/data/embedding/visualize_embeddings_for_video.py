@@ -37,6 +37,7 @@ for vid in vids:
     print(vid, len(images[vid]), list(images[vid].keys())[-1])
 
     assert list(images[vid].keys()) == sorted(list(images[vid].keys()))
+    assert list(images[vid].keys())[-1] == len(images[vid]) - 1
 
 #%%
 from torchvision.datasets.folder import default_loader
@@ -159,3 +160,65 @@ print(
     "my_mix" "loss:",
     p.loss((curr[:min_len], other[len(other) - min_len :]), torch.ones(min_len)),
 ),
+
+#%%
+import matplotlib.pyplot as plt
+import numpy as np
+
+colors = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
+]
+
+
+def plot_embeddings(embeddings, targets, xlim=None, ylim=None):
+    plt.clf()
+    plt.figure(figsize=(10, 10))
+    for i in range(10):
+        inds = np.where(targets == i)[0]
+        plt.scatter(
+            embeddings[inds, 0], embeddings[inds, 1], alpha=0.5, color=colors[i]
+        )
+    if xlim:
+        plt.xlim(xlim[0], xlim[1])
+    if ylim:
+        plt.ylim(ylim[0], ylim[1])
+    plt.legend(vids)
+
+
+#%%
+aud_vid_embeddings = torch.cat([torch.cat(x[1]) for x in stacked_outputs.items()])
+targets_embeddings = torch.cat(
+    [
+        torch.ones_like(torch.cat(x[1])) * idx
+        for idx, x in enumerate(stacked_outputs.items())
+    ]
+)
+
+#%%
+aud_vid_embeddings = torch.cat([x[1][0] for x in stacked_outputs.items()])
+targets_embeddings = torch.cat(
+    [torch.ones_like(x[1][0]) * idx for idx, x in enumerate(stacked_outputs.items())]
+)
+
+#%%
+aud_vid_embeddings = torch.cat([x[1][1] for x in stacked_outputs.items()])
+targets_embeddings = torch.cat(
+    [torch.ones_like(x[1][1]) * idx for idx, x in enumerate(stacked_outputs.items())]
+)
+#%%
+
+stds = torch.std(aud_vid_embeddings, dim=0)
+# _, highest_stds_idx = torch.topk(stds, k=2)
+aud_vid_embeddings = aud_vid_embeddings[:, highest_stds_idx]
+#%%
+plot_embeddings(aud_vid_embeddings, targets_embeddings)
+plt.savefig("/home/sebastian/differen_video_embeddings_vid_std_fixed.png")

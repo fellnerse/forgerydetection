@@ -7,29 +7,29 @@ def tensor(number, *args, **kwargs):
 
 
 test_result_train = {
-    "metrics/acc": {"test": tensor(0.9887)},
+    "metrics/acc": {"test": tensor(0.9759)},
     "metrics/class_acc": {
-        "Deepfakes": tensor(0.9995),
-        "Face2Face": tensor(0.9927),
-        "FaceSwap": tensor(0.9942),
-        "NeuralTextures": tensor(0.9738),
-        "youtube": tensor(0.9833),
+        "Deepfakes": tensor(0.9991),
+        "Face2Face": tensor(0.9833),
+        "FaceSwap": tensor(0.9945),
+        "NeuralTextures": tensor(0.9070),
+        "youtube": tensor(0.9958),
     },
-    "metrics/loss": {"test": tensor(0.0326, device="cuda:0")},
-    "val_acc": 0.988726019859314,
+    "metrics/loss": {"test": tensor(0.0663, device="cuda:0")},
+    "val_acc": 0.9759498834609985,
 }
 
 test_result_val = {
-    "metrics/acc": {"test": tensor(0.8036)},
+    "metrics/acc": {"test": tensor(0.8082)},
     "metrics/class_acc": {
-        "Deepfakes": tensor(0.9333),
-        "Face2Face": tensor(0.8114),
-        "FaceSwap": tensor(0.8698),
-        "NeuralTextures": tensor(0.7376),
-        "youtube": tensor(0.6657),
+        "Deepfakes": tensor(0.9077),
+        "Face2Face": tensor(0.7776),
+        "FaceSwap": tensor(0.9088),
+        "NeuralTextures": tensor(0.6667),
+        "youtube": tensor(0.7806),
     },
-    "metrics/loss": {"test": tensor(0.7729, device="cuda:0")},
-    "val_acc": 0.8035615086555481,
+    "metrics/loss": {"test": tensor(0.7202, device="cuda:0")},
+    "val_acc": 0.8082452416419983,
 }
 
 tab = "\t"
