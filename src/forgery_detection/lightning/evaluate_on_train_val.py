@@ -1,6 +1,8 @@
 import logging
 
 import click
+import numpy as np
+import torch
 
 from forgery_detection.lightning.logging.const import AudioMode
 from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
@@ -25,16 +27,25 @@ logger = logging.getLogger(__file__)
     help="Folder used for logging.",
     default="/log",
 )
-@click.option("--dataset_percent_check", "-p", type=float, default=0.1)
+@click.option("--train_percent_check", "-tp", type=float, default=0.2)
+@click.option("--val_percent_check", "-vp", type=float, default=1.0)
 @click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[0]")
 @click.option("--debug", is_flag=True)
-def run_train_val_evaluation(dataset_percent_check, audio_file, **kwargs):
+def run_train_val_evaluation(
+    train_percent_check, val_percent_check, audio_file, **kwargs
+):
+
+    torch.manual_seed(0)
+    np.random.seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     if audio_file:
         kwargs["audio_file"] = audio_file
     kwargs["audio_mode"] = AudioMode.EXACT.name
     # train data
     model, trainer = get_model_and_trainer(
-        test_percent_check=dataset_percent_check, **kwargs
+        test_percent_check=train_percent_check, **kwargs
     )
     _logger = model.logger
 
@@ -44,7 +55,7 @@ def run_train_val_evaluation(dataset_percent_check, audio_file, **kwargs):
 
     # val data
     model, trainer = get_model_and_trainer(
-        test_percent_check=dataset_percent_check, _logger=_logger, **kwargs
+        test_percent_check=val_percent_check, _logger=_logger, **kwargs
     )
     model.test_dataloader = model.val_dataloader
 

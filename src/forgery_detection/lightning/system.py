@@ -52,6 +52,7 @@ from forgery_detection.models.audio.audionet import PretrainedAudioNet34
 from forgery_detection.models.audio.audionet import PretrainedSyncAudioNet
 from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
+from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -255,6 +256,7 @@ class Supervised(pl.LightningModule):
         "pretrained_syncnet": PretrainedSyncNet,
         "pretrain_sync_audio_net": PretrainingSyncAudioNet,
         "sync_audio_net": PretrainedSyncAudioNet,
+        "ff_sync_net": FFSyncNet,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -395,6 +397,8 @@ class Supervised(pl.LightningModule):
         self.decay = 0.95
         self.acc = -1
         self.loss = -1
+
+        logger.warning(f"{self.train_data.class_to_idx}")
 
     def on_sanity_check_start(self):
         log_hparams(

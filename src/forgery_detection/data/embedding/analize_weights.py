@@ -13,10 +13,13 @@ from collections import OrderedDict
 # )
 # p = s.AudioNet().eval()
 
-model_path = (
-    "/mnt/raid/sebastian/log/runs/TRAIN/sync_audio_net/version_8/_ckpt_epoch_4.ckpt"
-)
-p = s.SyncAudioNet().eval()
+model_path = "/log/runs/TRAIN/audionet_34/version_1/_ckpt_epoch_4.ckpt"
+p = s.AudioNet34().eval()
+
+# model_path = (
+#     "/mnt/raid/sebastian/log/runs/TRAIN/sync_audio_net/version_8/_ckpt_epoch_4.ckpt"
+# )
+# p = s.SyncAudioNet().eval()
 
 state_dict = torch.load(model_path)["state_dict"]
 better_state_dict = OrderedDict()
@@ -25,6 +28,8 @@ for key, value in state_dict.items():
 
 p.load_state_dict(better_state_dict)
 
+#%%
+p = s.AudioNet34().eval()
 #%%
 first_fc = p.out[0]
 vid_weights = first_fc.weight[:, :128]
