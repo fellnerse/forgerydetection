@@ -88,7 +88,7 @@ class FFSyncNet(SequenceClassificationModel):
             label_list = [x["target"][0] for x in outputs]
             label = torch.cat(label_list, dim=0)
 
-            audio_target = label // 5
+            audio_target = label // 4
 
             loss_mean = self.loss((video_logits, audio_logtis), audio_target)
 

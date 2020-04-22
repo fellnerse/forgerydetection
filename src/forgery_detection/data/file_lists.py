@@ -59,6 +59,7 @@ class SimpleFileList:
             raise
 
     def _load_data_in_memory(self):
+        total_not_reshaped = 0
         for key, path in self.files.items():
             with open(os.path.join(self.root, path), "rb") as f:
                 features = pickle.load(f)  # 13 x [len(video)*4]
@@ -75,8 +76,9 @@ class SimpleFileList:
                         f"skipping {path}, as the shape is off: {features.shape}"
                     )
             else:
-                logger.warning(f"not reshaping")
+                total_not_reshaped += 1
             self.files[key] = features
+        logger.warning(f"not reshaping {total_not_reshaped} items")
 
     def __repr__(self):
         return f"""SimpleFileList:

@@ -16,7 +16,9 @@ f = FileList.load(
 )
 #%%
 
-vids = ["001", "005"]
+vids = sorted(set(map(lambda x: x[0].split("/")[-2], f.samples["train"])))[
+    :10
+]  # take first 10 videos in train set
 images = {}
 
 
@@ -32,14 +34,15 @@ for vid in vids:
                 images[vid][frame_nr] = path
             except KeyError:
                 images[vid] = {frame_nr: path}
-    print(len(images[vid]), list(images[vid].keys())[-1])
+    print(vid, len(images[vid]), list(images[vid].keys())[-1])
 
-    print(list(images[vid].keys()) == sorted(list(images[vid].keys())))
+    assert list(images[vid].keys()) == sorted(list(images[vid].keys()))
 
 #%%
 from torchvision.datasets.folder import default_loader
 import os
 from torchvision.transforms import ToTensor, Compose, Normalize
+from tqdm import tqdm
 
 loaded_images = {x: [] for x in vids}
 
@@ -47,7 +50,7 @@ transform = Compose(
     (ToTensor(), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
 )
 
-for vid in vids:
+for vid in tqdm(vids):
     for image_path in sorted(list(images[vid].values())):
         img = default_loader(os.path.join(f.root, image_path))
         loaded_images[vid].append(transform(img))
@@ -94,10 +97,9 @@ out = p.forward(batch)
 loss = p.loss(out, torch.ones((1)))
 
 #%%
-device = torch.device("cuda:2")
+device = torch.device("cuda:3")
 #%%
 p = p.to(device)
-from tqdm import tqdm
 
 outputs = {x: [] for x in vids}
 
