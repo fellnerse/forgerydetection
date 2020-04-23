@@ -4,8 +4,10 @@ import torch
 from torch import nn
 from torchvision.models.video import r2plus1d_18
 
+from forgery_detection.lightning.logging.const import NAN_TENSOR
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.utils import ContrastiveLoss
+from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 
 logger = logging.getLogger(__file__)
@@ -117,3 +119,89 @@ class FFSyncNet(SequenceClassificationModel):
             class_loss[target] += logit
             class_counts[target] += 1
         return class_loss / class_counts
+
+
+class PretrainedFFSyncNet(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_2.ckpt"
+    ),
+    FFSyncNet,
+):
+    pass
+
+
+class FFSyncNetGeneralize(FFSyncNet):
+    def loss_without_class(self, logits, labels, classes):
+        labels_mask = classes != 0
+        if labels_mask.sum() == 0:
+            return NAN_TENSOR
+        logits = logits[0][labels_mask], logits[1][labels_mask]
+        labels = labels[labels_mask]
+        video_logits, audio_logits = logits
+        return self.c_loss(video_logits, audio_logits, labels)
+
+    def training_step(self, batch, batch_nb, system):
+        x, (label, audio_shifted) = batch
+        audio_shifted: torch.Tensor
+        audio_target = label // 4
+
+        # assert torch.all(torch.ones_like(audio_shifted).eq(audio_shifted))
+
+        pred = self.forward(x)
+        loss_without_class = self.loss_without_class(pred, audio_target, label)
+        loss = self.loss(pred, audio_target)
+        lightning_log = {"loss": loss_without_class}
+
+        tensorboard_log = {
+            "loss": {"train": loss, "train_without_0": loss_without_class}
+        }
+        if self.log_class_loss or True:
+            class_loss = self.loss_per_class(pred[0], pred[1], label)
+            tensorboard_log["class_loss_train"] = {
+                str(idx): val for idx, val in enumerate(class_loss)
+            }
+            tensorboard_log["class_loss_diff_train"] = {
+                str(idx): val - class_loss[4] for idx, val in enumerate(class_loss[:4])
+            }
+            tensorboard_log["vid_std"] = {"train": torch.std(pred[0])}
+            tensorboard_log["aud_std"] = {"train": torch.std(pred[1])}
+            self.log_class_loss = False
+
+        return tensorboard_log, lightning_log
+
+
+class FFSyncNetClassifier(SequenceClassificationModel):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
+        )
+
+        self.ff_sync_net = PretrainedFFSyncNet()
+        self._set_requires_grad_for_module(self.ff_sync_net, requires_grad=False)
+
+        self.out = nn.Sequential(
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024 * 2, 50),
+            # nn.BatchNorm1d(50),
+            # nn.Dropout(p=0.5),
+            nn.LeakyReLU(0.02),
+            nn.Linear(50, 2),
+        )
+
+    def forward(self, x):
+        embeddings = self.ff_sync_net(x)
+        cat = torch.cat(embeddings, dim=1)
+        out = self.out(cat)
+        return out
+
+    def training_step(self, batch, batch_nb, system):
+        x, (target, audio_shift) = batch
+        return super().training_step((x, target // 4), batch_nb, system)
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"][0] // 4
+
+        return super().aggregate_outputs(outputs, system)
