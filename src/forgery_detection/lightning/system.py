@@ -1,6 +1,7 @@
 import logging
 import pickle
 from argparse import Namespace
+from datetime import datetime
 from functools import partial
 from typing import Dict
 from typing import Union
@@ -54,6 +55,7 @@ from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
+from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetGeneralize
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
@@ -261,6 +263,7 @@ class Supervised(pl.LightningModule):
         "ff_sync_net": FFSyncNet,
         "ff_sync_net_classification": FFSyncNetClassifier,
         "ff_sync_net_generalize": FFSyncNetGeneralize,
+        "ff_sync_net_classification_generalize": FFSyncNetClassifierGeneralze,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -475,7 +478,11 @@ class Supervised(pl.LightningModule):
 
     def test_epoch_end(self, outputs):
         with torch.no_grad():
-            with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
+            with open(
+                get_logger_dir(self.logger)
+                / f"outputs_{datetime.now().strftime('%Y-%m-%d/%H:%M:%S')}.pkl",
+                "wb",
+            ) as f:
                 pickle.dump(outputs, f)
 
             tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)

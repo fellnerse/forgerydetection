@@ -2,9 +2,11 @@ import logging
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.utils import ContrastiveLoss
 from forgery_detection.models.mixins import PretrainedNet
@@ -123,7 +125,7 @@ class FFSyncNet(SequenceClassificationModel):
 
 class PretrainedFFSyncNet(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_2.ckpt"
+        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_4.ckpt"
     ),
     FFSyncNet,
 ):
@@ -170,7 +172,104 @@ class FFSyncNetGeneralize(FFSyncNet):
         return tensorboard_log, lightning_log
 
 
-class FFSyncNetClassifier(SequenceClassificationModel):
+class PretrainedFFSyncNetGeneralize(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/ff_sync_net_generalize/version_1/_ckpt_epoch_15.ckpt"
+    ),
+    FFSyncNet,
+):
+    pass
+
+
+class EmbeddingClassifier(SequenceClassificationModel):
+    def forward(self, x):
+        embeddings = self.ff_sync_net(x)
+        cat = torch.cat(embeddings, dim=1)
+        out = self.out(cat)
+        return out, embeddings
+
+    def training_step(self, batch, batch_nb, system):
+        x, (target, audio_shift) = batch
+
+        label = target // 4
+
+        # if the model uses dropout we want to calculate the metrics on predictions done
+        # in eval mode before training no the samples
+        if self.contains_dropout:
+            with torch.no_grad():
+                self.eval()
+                pred_ = self.forward(x)
+                self.train()
+
+        pred, embeddings = self.forward(x)
+        loss = self.loss(pred, label)
+        lightning_log = {"loss": loss}
+
+        with torch.no_grad():
+            train_acc = self.calculate_accuracy(pred, label)
+            tensorboard_log = {"loss": {"train": loss}, "acc": {"train": train_acc}}
+
+            class_loss = self.ff_sync_net.loss_per_class(
+                embeddings[0], embeddings[1], target
+            )
+            tensorboard_log["class_loss_train"] = {
+                str(idx): val for idx, val in enumerate(class_loss)
+            }
+            tensorboard_log["class_loss_diff_train"] = {
+                str(idx): val - class_loss[4] for idx, val in enumerate(class_loss[:4])
+            }
+
+            if self.contains_dropout:
+                pred = pred_
+                loss_eval = self.loss(pred, label)
+                acc_eval = self.calculate_accuracy(pred, label)
+                tensorboard_log["loss"]["train_eval"] = loss_eval
+                tensorboard_log["acc"]["train_eval"] = acc_eval
+
+        return tensorboard_log, lightning_log
+
+    def aggregate_outputs(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            pred = torch.cat([x["pred"][0] for x in outputs], 0)
+            label = torch.cat([x["target"][0] for x in outputs], 0)
+            target = label // 4
+
+            video_logits = torch.cat([x["pred"][1][0] for x in outputs], 0)
+            audio_logtis = torch.cat([x["pred"][1][1] for x in outputs], 0)
+            class_loss = self.ff_sync_net.loss_per_class(
+                video_logits, audio_logtis, label
+            )
+
+            loss_mean = self.loss(pred, target)
+            pred = pred.cpu()
+            target = target.cpu()
+            pred = F.softmax(pred, dim=1)
+            acc_mean = self.calculate_accuracy(pred, target)
+
+            # confusion matrix
+            class_accuracies = system.log_confusion_matrix(target, pred)
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+                "class_loss_val": {str(idx): val for idx, val in enumerate(class_loss)},
+                "class_loss_diff_val": {
+                    str(idx): val - class_loss[4]
+                    for idx, val in enumerate(class_loss[:4])
+                },
+            }
+
+            lightning_log = {VAL_ACC: acc_mean}
+
+        return tensorboard_log, lightning_log
+
+
+class FFSyncNetClassifier(EmbeddingClassifier):
     def __init__(self, num_classes=5, sequence_length=8):
         super().__init__(
             num_classes=num_classes,
@@ -190,18 +289,23 @@ class FFSyncNetClassifier(SequenceClassificationModel):
             nn.Linear(50, 2),
         )
 
-    def forward(self, x):
-        embeddings = self.ff_sync_net(x)
-        cat = torch.cat(embeddings, dim=1)
-        out = self.out(cat)
-        return out
 
-    def training_step(self, batch, batch_nb, system):
-        x, (target, audio_shift) = batch
-        return super().training_step((x, target // 4), batch_nb, system)
+class FFSyncNetClassifierGeneralze(EmbeddingClassifier):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=False,
+        )
 
-    def aggregate_outputs(self, outputs, system):
-        for output in outputs:
-            output["target"] = output["target"][0] // 4
+        self.ff_sync_net = PretrainedFFSyncNetGeneralize()
+        self._set_requires_grad_for_module(self.ff_sync_net, requires_grad=False)
 
-        return super().aggregate_outputs(outputs, system)
+        self.out = nn.Sequential(
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024 * 2, 50),
+            # nn.BatchNorm1d(50),
+            # nn.Dropout(p=0.5),
+            nn.LeakyReLU(0.02),
+            nn.Linear(50, 2),
+        )
