@@ -97,7 +97,7 @@ class FileListDataset(VisionDataset):
         vid = default_loader(f"{self.root}/{path}")
 
         if self.should_align_faces:
-            relative_bb = self.relative_bbs[align_idx]
+            relative_bb = self.relative_bbs[img_idx]
             vid = self.align_face(vid, relative_bb)
 
         if self.transform is not None:
@@ -125,7 +125,10 @@ class FileListDataset(VisionDataset):
         x, y, w, h = self.calculate_relative_bb(
             sample.width, sample.height, relative_bb
         )
-        return sample.crop((x, y, x + w, y + h))
+        return sample.crop((x, y, (x + w), (y + h)))
+        # x, y, w, h = relative_bb
+        # width, height = sample.size
+        # return sample.crop((x * width, y * height, (x + w) * width, (y + h) * height))
 
     # todo do this in advance
     @staticmethod

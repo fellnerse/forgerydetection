@@ -29,17 +29,21 @@ for p in sorted(path.iterdir()):
 from forgery_detection.data.loading import get_fixed_dataloader
 from forgery_detection.data.loading import BalancedSampler
 from forgery_detection.data.file_lists import FileList
+from forgery_detection.data.utils import resized_crop
+from tqdm import trange
+from importlib import reload
+import forgery_detection.data.file_lists as file_lists
+
+reload(file_lists)
 
 f = FileList.load(
-    "/home/sebastian/data/file_lists/avspeech_crop_tests/aligned_faces.json"
+    "/data/ssd1/file_lists/c40/trf_100_100_full_size_relative_bb_8_sl.json"
+)
+s = file_lists.SimpleFileList.load(
+    "/data/hdd/audio_features/mfcc_features_file_list.json"
 )
 a = f.get_dataset(
-    "train",
-    audio_file_list=SimpleFileList.load(
-        "/home/sebastian/data/file_lists/avspeech_crop_tests/mfcc_features.json"
-    ),
-    sequence_length=8,
-    image_transforms=[],
+    "train", audio_file_list=s, sequence_length=8, image_transforms=resized_crop(112)
 )
 
 data_loader = get_fixed_dataloader(
@@ -50,7 +54,12 @@ print("len dataloader", len(data_loader))
 from tqdm import tqdm
 
 b = next(iter)
-for x in tqdm(iter, total=len(data_loader)):
+
+for x in trange(len(data_loader)):
+    try:
+        next(iter)
+    except KeyError as e:
+        print(e)
     pass
 #%%
 

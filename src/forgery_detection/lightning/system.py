@@ -354,8 +354,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=True,
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
@@ -363,8 +363,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=True,
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
@@ -373,8 +373,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=True,
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
