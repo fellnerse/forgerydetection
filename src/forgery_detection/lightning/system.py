@@ -57,6 +57,7 @@ from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetGeneralize
+from forgery_detection.models.audio.ff_sync_net import R2Plus1SmallAudiolikeBinary
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -193,6 +194,7 @@ class Supervised(pl.LightningModule):
         "r2plus1small": R2Plus1Small,
         "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
         "r2plus1small_audiolike": R2Plus1SmallAudiolikePretrained,
+        "r2plus1small_audiolike_binary": R2Plus1SmallAudiolikeBinary,
         "r2plus1smallest": R2Plus1Smallest,
         "mc3": MC3,
         "audionet": AudioNet,

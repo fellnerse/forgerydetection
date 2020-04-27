@@ -196,7 +196,7 @@ class PretrainingAudioNet34(AudioNet34):
 
 class PretrainedAudioNet34(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/pretrain_audionet_34/version_0/_ckpt_epoch_3.ckpt"
+        "/mnt/raid5/sebastian/model_checkpoints/audionet_34_pretrain/model.ckpt"
     ),
     AudioNet34,
 ):

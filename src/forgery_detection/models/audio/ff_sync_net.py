@@ -5,12 +5,14 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.models.video import r2plus1d_18
 
+from forgery_detection.lightning.logging.confusion_matrix import confusion_matrix
 from forgery_detection.lightning.logging.const import NAN_TENSOR
 from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.utils import ContrastiveLoss
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
+from forgery_detection.models.video.multi_class_classification import R2Plus1
 
 logger = logging.getLogger(__file__)
 
@@ -125,7 +127,7 @@ class FFSyncNet(SequenceClassificationModel):
 
 class PretrainedFFSyncNet(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_4.ckpt"
+        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_7.ckpt"
     ),
     FFSyncNet,
 ):
@@ -134,7 +136,7 @@ class PretrainedFFSyncNet(
 
 class FFSyncNetGeneralize(FFSyncNet):
     def loss_without_class(self, logits, labels, classes):
-        labels_mask = classes != 0
+        labels_mask = (classes != 0) * (classes != 1) * (classes != 2)
         if labels_mask.sum() == 0:
             return NAN_TENSOR
         logits = logits[0][labels_mask], logits[1][labels_mask]
@@ -174,7 +176,7 @@ class FFSyncNetGeneralize(FFSyncNet):
 
 class PretrainedFFSyncNetGeneralize(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/ff_sync_net_generalize/version_1/_ckpt_epoch_15.ckpt"
+        "/home/sebastian/log/runs/TRAIN/ff_sync_net_generalize/version_1/_ckpt_epoch_34.ckpt"
     ),
     FFSyncNet,
 ):
@@ -251,7 +253,14 @@ class EmbeddingClassifier(SequenceClassificationModel):
             acc_mean = self.calculate_accuracy(pred, target)
 
             # confusion matrix
-            class_accuracies = system.log_confusion_matrix(target, pred)
+            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
+            cm = cm[:, :2]  # this is only binary classification
+            cm[0] = torch.sum(cm[:-1], dim=0)
+            cm[1] = cm[-1]
+            accs = cm.diag() / torch.sum(cm[:2, :2], dim=1)
+            class_accuracies = system.log_confusion_matrix(label, pred)
+            class_accuracies[list(class_accuracies.keys())[0]] = accs[0]
+            class_accuracies[list(class_accuracies.keys())[1]] = accs[1]
 
             tensorboard_log = {
                 "loss": loss_mean,
@@ -309,3 +318,119 @@ class FFSyncNetClassifierGeneralze(EmbeddingClassifier):
             nn.LeakyReLU(0.02),
             nn.Linear(50, 2),
         )
+
+    def loss_without_class(self, pred, labels, classes):
+        labels_mask = classes != 0
+        if labels_mask.sum() == 0:
+            return NAN_TENSOR
+        pred = pred[labels_mask]
+        labels = labels[labels_mask]
+        return super().loss(pred, labels)
+
+    def training_step(self, batch, batch_nb, system):
+        x, (target, audio_shift) = batch
+
+        label = target // 4
+
+        # if the model uses dropout we want to calculate the metrics on predictions done
+        # in eval mode before training no the samples
+        if self.contains_dropout:
+            with torch.no_grad():
+                self.eval()
+                pred_ = self.forward(x)
+                self.train()
+
+        pred, embeddings = self.forward(x)
+        loss = self.loss(pred, label)
+        loss_without_class = self.loss_without_class(pred, label, target)
+        lightning_log = {"loss": loss_without_class}
+
+        with torch.no_grad():
+            train_acc = self.calculate_accuracy(pred, label)
+            tensorboard_log = {
+                "loss": {"train": loss, "train_without_0": loss_without_class},
+                "acc": {"train": train_acc},
+            }
+
+            class_loss = self.ff_sync_net.loss_per_class(
+                embeddings[0], embeddings[1], target
+            )
+            tensorboard_log["class_loss_train"] = {
+                str(idx): val for idx, val in enumerate(class_loss)
+            }
+            tensorboard_log["class_loss_diff_train"] = {
+                str(idx): val - class_loss[4] for idx, val in enumerate(class_loss[:4])
+            }
+
+            if self.contains_dropout:
+                pred = pred_
+                loss_eval = self.loss(pred, label)
+                acc_eval = self.calculate_accuracy(pred, label)
+                tensorboard_log["loss"]["train_eval"] = loss_eval
+                tensorboard_log["acc"]["train_eval"] = acc_eval
+
+        return tensorboard_log, lightning_log
+
+
+class R2Plus1SmallAudiolikeBinary(R2Plus1):
+    def __init__(self, num_classes=5, sequence_length=8):
+        super().__init__(
+            num_classes=2, sequence_length=sequence_length, contains_dropout=False
+        )
+
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(128, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
+
+    # def training_step(self, batch, batch_nb, system):
+    #     x, target = batch
+    #     return super().training_step((x, target // 4), batch_nb, system)
+
+    def loss_without_class(self, pred, labels, classes):
+        labels_mask = classes != 0
+        if labels_mask.sum() == 0:
+            return NAN_TENSOR
+        pred = pred[labels_mask]
+        labels = labels[labels_mask]
+        return super().loss(pred, labels)
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+
+        label = target // 4
+
+        # if the model uses dropout we want to calculate the metrics on predictions done
+        # in eval mode before training no the samples
+        if self.contains_dropout:
+            with torch.no_grad():
+                self.eval()
+                pred_ = self.forward(x)
+                self.train()
+
+        pred = self.forward(x)
+        loss = self.loss(pred, label)
+        loss_without_class = self.loss_without_class(pred, label, target)
+        lightning_log = {"loss": loss_without_class}
+
+        with torch.no_grad():
+            train_acc = self.calculate_accuracy(pred, label)
+            tensorboard_log = {
+                "loss": {"train": loss, "train_without_0": loss_without_class},
+                "acc": {"train": train_acc},
+            }
+
+            if self.contains_dropout:
+                pred = pred_
+                loss_eval = self.loss(pred, label)
+                acc_eval = self.calculate_accuracy(pred, label)
+                tensorboard_log["loss"]["train_eval"] = loss_eval
+                tensorboard_log["acc"]["train_eval"] = acc_eval
+
+        return tensorboard_log, lightning_log
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"] // 4
+        return super().aggregate_outputs(outputs, system)
