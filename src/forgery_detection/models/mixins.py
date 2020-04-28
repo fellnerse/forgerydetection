@@ -353,10 +353,13 @@ class BinaryEvaluationMixin:
         with torch.no_grad():
             if isinstance(outputs[0]["pred"], tuple):
                 pred = torch.cat([x["pred"][0] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"][0].shape
             else:
                 pred = torch.cat([x["pred"] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"].shape
 
-            if outputs[0]["target"].shape[0] != pred.shape[0]:
+            if outputs[0]["target"].shape[0] != pred_shape[0]:
+                print(outputs[0]["target"].shape, pred.shape)
                 label = torch.cat([x["target"][0] for x in outputs], 0)
             else:
                 label = torch.cat([x["target"] for x in outputs], 0)

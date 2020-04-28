@@ -63,6 +63,9 @@ from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
 from forgery_detection.models.audio.similarity_stuff import SyncNet
+from forgery_detection.models.audio.syncaudionet_regularized import (
+    SyncAudioNetRegularized,
+)
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -260,6 +263,7 @@ class Supervised(pl.LightningModule):
         "pretrained_syncnet": PretrainedSyncNet,
         "pretrain_sync_audio_net": PretrainingSyncAudioNet,
         "sync_audio_net": PretrainedSyncAudioNet,
+        "sync_audio_net_regularized": SyncAudioNetRegularized,
         "ff_sync_net": FFSyncNet,
         "ff_sync_net_classification": FFSyncNetClassifier,
         "ff_sync_net_generalize": FFSyncNetGeneralize,

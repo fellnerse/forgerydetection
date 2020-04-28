@@ -58,6 +58,8 @@ class FFSyncNetEnd2End(BinaryEvaluationMixin, SequenceClassificationModel):
                 "classification_loss": classification_loss,
                 "constrastive_loss": contrastive_loss,
                 "acc": {"train": train_acc},
+                "vid_std": torch.std(embeddings[0]),
+                "aud_std": torch.std(embeddings[1]),
             }
 
             class_loss = self.ff_sync_net.loss_per_class(
