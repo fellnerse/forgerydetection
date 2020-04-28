@@ -10,6 +10,7 @@ from forgery_detection.lightning.logging.const import NAN_TENSOR
 from forgery_detection.lightning.logging.const import VAL_ACC
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.utils import ContrastiveLoss
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 from forgery_detection.models.video.multi_class_classification import R2Plus1
@@ -183,7 +184,7 @@ class PretrainedFFSyncNetGeneralize(
     pass
 
 
-class EmbeddingClassifier(SequenceClassificationModel):
+class EmbeddingClassifier(BinaryEvaluationMixin, SequenceClassificationModel):
     def forward(self, x):
         embeddings = self.ff_sync_net(x)
         cat = torch.cat(embeddings, dim=1)

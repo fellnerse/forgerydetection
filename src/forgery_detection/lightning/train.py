@@ -100,6 +100,7 @@ from forgery_detection.lightning.system import Supervised
     " -1 corresponds to using all cpus available.",
 )
 @click.option("--max_epochs", default=100)
+@click.option("--crop_faces", is_flag=True)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN

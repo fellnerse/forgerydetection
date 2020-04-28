@@ -382,7 +382,7 @@ class PretrainedSyncNet(SyncNet):
 
     def _load_pretrained_weights(self):
         loaded_state = torch.load(
-            "/mnt/raid5/sebastian/model_checkpoints/syncnet/model.pth",
+            "/mnt/raid/sebastian/model_checkpoints/syncnet/model.pth",
             map_location=lambda storage, loc: storage,
         )
         self_state = self.state_dict()

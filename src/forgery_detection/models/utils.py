@@ -1,6 +1,9 @@
 import abc
+import json
 import logging
+import pickle
 from abc import ABC
+from datetime import datetime
 from functools import reduce
 
 import torch
@@ -10,6 +13,7 @@ from torch.nn import functional as F
 from torchvision.utils import make_grid
 
 from forgery_detection.lightning.logging.const import VAL_ACC
+from forgery_detection.lightning.logging.utils import get_logger_dir
 
 logger = logging.getLogger(__file__)
 
@@ -56,6 +60,27 @@ class LightningModel(nn.Module, ABC):
     def _set_requires_grad_for_module(module, requires_grad=False):
         for param in module.parameters():
             param.requires_grad = requires_grad
+
+    def test_epoch_end(self, outputs, system):
+        with torch.no_grad():
+            with open(
+                get_logger_dir(system.logger)
+                / f"outputs_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}.pkl",
+                "wb",
+            ) as f:
+                pickle.dump(outputs, f)
+
+            tensorboard_log, lightning_log = self.aggregate_outputs(outputs, system)
+            logger.info(f"Test accuracy is: {tensorboard_log}")
+            with open(
+                get_logger_dir(system.logger)
+                / f"log_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}.json",
+                "w",
+            ) as f:
+                json.dump(str(tensorboard_log), f)
+            return system._construct_lightning_log(
+                tensorboard_log, lightning_log, suffix="test"
+            )
 
 
 class SequenceClassificationModel(LightningModel, ABC):

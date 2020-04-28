@@ -1,7 +1,5 @@
 import logging
-import pickle
 from argparse import Namespace
-from datetime import datetime
 from functools import partial
 from typing import Dict
 from typing import Union
@@ -40,7 +38,6 @@ from forgery_detection.data.utils import rfft_transform
 from forgery_detection.lightning.logging.const import AudioMode
 from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import DictHolder
-from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
@@ -355,7 +352,7 @@ class Supervised(pl.LightningModule):
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
             audio_mode=self.audio_mode,
-            should_align_faces=True,
+            should_align_faces=self.hparams["crop_faces"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
@@ -364,7 +361,7 @@ class Supervised(pl.LightningModule):
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
             audio_mode=self.audio_mode,
-            should_align_faces=True,
+            should_align_faces=self.hparams["crop_faces"],
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
@@ -374,7 +371,7 @@ class Supervised(pl.LightningModule):
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
             audio_mode=self.audio_mode,
-            should_align_faces=True,
+            should_align_faces=self.hparams["crop_faces"],
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
@@ -479,19 +476,7 @@ class Supervised(pl.LightningModule):
             return val_out
 
     def test_epoch_end(self, outputs):
-        with torch.no_grad():
-            with open(
-                get_logger_dir(self.logger)
-                / f"outputs_{datetime.now().strftime('%Y-%m-%d/%H:%M:%S')}.pkl",
-                "wb",
-            ) as f:
-                pickle.dump(outputs, f)
-
-            tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-            logger.info(f"Test accuracy is: {tensorboard_log}")
-            return self._construct_lightning_log(
-                tensorboard_log, lightning_log, suffix="test"
-            )
+        return self.model.test_epoch_end(outputs, self)
 
     def configure_optimizers(self):
         optimizer = optim.SGD(
