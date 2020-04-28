@@ -128,7 +128,9 @@ class FFSyncNet(SequenceClassificationModel):
 
 class PretrainedFFSyncNet(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/ff_sync_net/version_0/_ckpt_epoch_7.ckpt"
+        "/home/sebastian/log/showcasings/18_ff_syncnet/ff_sync_net_5_classes_resnet18_100_samples/pre-training/_ckpt_epoch_7.ckpt"
+        # "/home/sebastian/log/runs/TRAIN/ff_syncnet_relative_bb/version_0/_ckpt_epoch_7.ckpt"
+        # "/mnt/raid/sebastian/log/runs/TRAIN/ff_syncnet_cropped_faces_full_FF_only_NT/version_0/checkpoints/_ckpt_epoch_4.ckpt"
     ),
     FFSyncNet,
 ):
@@ -177,7 +179,7 @@ class FFSyncNetGeneralize(FFSyncNet):
 
 class PretrainedFFSyncNetGeneralize(
     PretrainedNet(
-        "/home/sebastian/log/runs/TRAIN/ff_sync_net_generalize/version_1/_ckpt_epoch_34.ckpt"
+        "/home/sebastian/log/showcasings/18_ff_syncnet/ff_sync_net_4_classes_resnet18_100_samples/pre-training/_ckpt_epoch_34.ckpt"
     ),
     FFSyncNet,
 ):
@@ -373,7 +375,7 @@ class FFSyncNetClassifierGeneralze(EmbeddingClassifier):
         return tensorboard_log, lightning_log
 
 
-class R2Plus1SmallAudiolikeBinary(R2Plus1):
+class R2Plus1SmallAudiolikeBinary(BinaryEvaluationMixin, R2Plus1):
     def __init__(self, num_classes=5, sequence_length=8):
         super().__init__(
             num_classes=2, sequence_length=sequence_length, contains_dropout=False
@@ -385,9 +387,9 @@ class R2Plus1SmallAudiolikeBinary(R2Plus1):
             nn.Linear(128, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
         )
 
-    # def training_step(self, batch, batch_nb, system):
-    #     x, target = batch
-    #     return super().training_step((x, target // 4), batch_nb, system)
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        return super().training_step((x, target // 4), batch_nb, system)
 
     def loss_without_class(self, pred, labels, classes):
         labels_mask = classes != 0
@@ -397,39 +399,39 @@ class R2Plus1SmallAudiolikeBinary(R2Plus1):
         labels = labels[labels_mask]
         return super().loss(pred, labels)
 
-    def training_step(self, batch, batch_nb, system):
-        x, target = batch
-
-        label = target // 4
-
-        # if the model uses dropout we want to calculate the metrics on predictions done
-        # in eval mode before training no the samples
-        if self.contains_dropout:
-            with torch.no_grad():
-                self.eval()
-                pred_ = self.forward(x)
-                self.train()
-
-        pred = self.forward(x)
-        loss = self.loss(pred, label)
-        loss_without_class = self.loss_without_class(pred, label, target)
-        lightning_log = {"loss": loss_without_class}
-
-        with torch.no_grad():
-            train_acc = self.calculate_accuracy(pred, label)
-            tensorboard_log = {
-                "loss": {"train": loss, "train_without_0": loss_without_class},
-                "acc": {"train": train_acc},
-            }
-
-            if self.contains_dropout:
-                pred = pred_
-                loss_eval = self.loss(pred, label)
-                acc_eval = self.calculate_accuracy(pred, label)
-                tensorboard_log["loss"]["train_eval"] = loss_eval
-                tensorboard_log["acc"]["train_eval"] = acc_eval
-
-        return tensorboard_log, lightning_log
+    # def training_step(self, batch, batch_nb, system):
+    #     x, target = batch
+    #
+    #     label = target // 4
+    #
+    #     # if the model uses dropout we want to calculate the metrics on predictions done
+    #     # in eval mode before training no the samples
+    #     if self.contains_dropout:
+    #         with torch.no_grad():
+    #             self.eval()
+    #             pred_ = self.forward(x)
+    #             self.train()
+    #
+    #     pred = self.forward(x)
+    #     loss = self.loss(pred, label)
+    #     loss_without_class = self.loss_without_class(pred, label, target)
+    #     lightning_log = {"loss": loss_without_class}
+    #
+    #     with torch.no_grad():
+    #         train_acc = self.calculate_accuracy(pred, label)
+    #         tensorboard_log = {
+    #             "loss": {"train": loss, "train_without_0": loss_without_class},
+    #             "acc": {"train": train_acc},
+    #         }
+    #
+    #         if self.contains_dropout:
+    #             pred = pred_
+    #             loss_eval = self.loss(pred, label)
+    #             acc_eval = self.calculate_accuracy(pred, label)
+    #             tensorboard_log["loss"]["train_eval"] = loss_eval
+    #             tensorboard_log["acc"]["train_eval"] = acc_eval
+    #
+    #     return tensorboard_log, lightning_log
 
     def aggregate_outputs(self, outputs, system):
         for output in outputs:

@@ -351,8 +351,15 @@ class BinaryEvaluationMixin:
             outputs = outputs[0]
 
         with torch.no_grad():
-            pred = torch.cat([x["pred"][0] for x in outputs], 0)
-            label = torch.cat([x["target"][0] for x in outputs], 0)
+            if isinstance(outputs[0]["pred"], tuple):
+                pred = torch.cat([x["pred"][0] for x in outputs], 0)
+            else:
+                pred = torch.cat([x["pred"] for x in outputs], 0)
+
+            if outputs[0]["target"].shape[0] != pred.shape[0]:
+                label = torch.cat([x["target"][0] for x in outputs], 0)
+            else:
+                label = torch.cat([x["target"] for x in outputs], 0)
             target = label // 4
 
             loss_mean = self.loss(pred, target)

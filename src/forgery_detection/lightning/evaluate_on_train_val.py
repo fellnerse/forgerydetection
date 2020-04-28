@@ -25,7 +25,7 @@ logger = logging.getLogger(__file__)
     required=True,
     type=click.Path(exists=True),
     help="Folder used for logging.",
-    default="/log",
+    default="/mnt/raid/sebastian/log",
 )
 @click.option("--train_percent_check", "-tp", type=float, default=0.2)
 @click.option("--val_percent_check", "-vp", type=float, default=1.0)
