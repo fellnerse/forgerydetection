@@ -6,6 +6,7 @@ from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.file_lists import SimpleFileList
 from forgery_detection.data.utils import resized_crop
 
+
 f = FileList.load(
     "/home/sebastian/data/file_lists/avspeech_crop_tests/aligned_faces.json"
 )
@@ -33,6 +34,7 @@ from forgery_detection.data.utils import resized_crop
 from tqdm import trange
 from importlib import reload
 import forgery_detection.data.file_lists as file_lists
+from forgery_detection.lightning.logging.const import AudioMode
 
 reload(file_lists)
 
@@ -43,7 +45,11 @@ s = file_lists.SimpleFileList.load(
     "/data/hdd/audio_features/mfcc_features_file_list.json"
 )
 a = f.get_dataset(
-    "train", audio_file_list=s, sequence_length=8, image_transforms=resized_crop(112)
+    "train",
+    audio_file_list=s,
+    audio_mode=AudioMode.SAME_VIDEO_MAX_DISTANCE,
+    sequence_length=8,
+    image_transforms=resized_crop(112),
 )
 
 data_loader = get_fixed_dataloader(
