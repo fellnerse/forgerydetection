@@ -437,3 +437,32 @@ class R2Plus1SmallAudiolikeBinary(BinaryEvaluationMixin, R2Plus1):
         for output in outputs:
             output["target"] = output["target"] // 4
         return super().aggregate_outputs(outputs, system)
+
+
+class R2Plus1FFSyncNetLikeBinary(BinaryEvaluationMixin, SequenceClassificationModel):
+    def __init__(self, num_classes=5, sequence_length=8, contains_dropout=False):
+        super().__init__(
+            num_classes=num_classes,
+            sequence_length=sequence_length,
+            contains_dropout=contains_dropout,
+        )
+        self.r2plus1 = r2plus1d_18(pretrained=True)
+        self.r2plus1.layer2 = nn.Identity()
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(64, 512), nn.ReLU(), nn.Linear(512, self.num_classes)
+        )
+
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        return self.r2plus1(x)
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        return super().training_step((x, target // 4), batch_nb, system)
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"] // 4
+        return super().aggregate_outputs(outputs, system)

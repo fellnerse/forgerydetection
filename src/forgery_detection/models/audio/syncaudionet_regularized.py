@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.utils import SequenceClassificationModel
@@ -11,12 +12,9 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
         super().__init__(
             num_classes=num_classes, sequence_length=8, contains_dropout=False
         )
-        self.r2plus1 = torch.hub.load(
-            "moabitcoin/ig65m-pytorch",
-            "r2plus1d_34_8_kinetics",
-            num_classes=400,
-            pretrained=True,
-        )
+        self.r2plus1 = r2plus1d_18(pretrained=pretrained)
+
+        self.r2plus1.layer2 = nn.Identity()
         self.r2plus1.layer3 = nn.Identity()
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Identity()
@@ -26,7 +24,7 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
 
         self.relu = nn.ReLU()
         self.out = nn.Sequential(
-            nn.Linear(128 + 1024, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+            nn.Linear(64 + 1024, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
         )
 
     def forward(self, x):
@@ -47,9 +45,9 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
         return out, (video, audio)
 
     def weight_loss(self):
-        vid_weights = self.out[0].weight[:, :128].std()
-        aud_weights = self.out[0].weight[:, 128:].std()
-        return torch.norm(vid_weights - aud_weights, 2) * 1e3
+        vid_weights = self.out[0].weight[:, :64].std()
+        aud_weights = self.out[0].weight[:, 64:].std()
+        return torch.norm(vid_weights - aud_weights, 2) * 1e4
 
     def training_step(self, batch, batch_nb, system):
         x, (target, _) = batch
@@ -66,8 +64,8 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
                 "classification_loss": classification_loss,
                 "weight_loss": weight_loss,
                 "acc": {"train": train_acc},
-                "vid_std": torch.std(self.out[0].weight[:, :128]),
-                "aud_std": torch.std(self.out[0].weight[:, 128:]),
+                "vid_std": torch.std(self.out[0].weight[:, :64]),
+                "aud_std": torch.std(self.out[0].weight[:, 64:]),
             }
 
         return tensorboard_log, lightning_log
@@ -97,8 +95,8 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
                 "class_acc": class_accuracies,
                 "classification_loss": loss_mean_classification,
                 "weight_loss": weight_loss,
-                "vid_std": torch.std(self.out[0].weight[:, :128]),
-                "aud_std": torch.std(self.out[0].weight[:, 128:]),
+                "vid_std": torch.std(self.out[0].weight[:, :64]),
+                "aud_std": torch.std(self.out[0].weight[:, 64:]),
             }
         # if system.global_step > 0:
         self.log_class_loss = True
