@@ -47,7 +47,7 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
     def weight_loss(self):
         vid_weights = self.out[0].weight[:, :64].std()
         aud_weights = self.out[0].weight[:, 64:].std()
-        return torch.norm(vid_weights - aud_weights, 2) * 1e4
+        return torch.norm(vid_weights - aud_weights, 2) * 1e3
 
     def training_step(self, batch, batch_nb, system):
         x, (target, _) = batch

@@ -43,7 +43,7 @@ def run_train_val_evaluation(
     if audio_file:
         kwargs["audio_file"] = audio_file
     kwargs["audio_mode"] = AudioMode.EXACT.name
-    # kwargs["crop_faces"] = False
+    kwargs["crop_faces"] = False
     kwargs["sampling_probs"] = "1. 1. 1. 1. 4."
 
     # train data

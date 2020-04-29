@@ -94,11 +94,11 @@ class FileListDataset(VisionDataset):
         """
         (img_idx, align_idx), audio_idx = index
 
-        path, target = self._samples[align_idx]
+        path, target = self._samples[img_idx]
         vid = default_loader(f"{self.root}/{path}")
 
         if self.should_align_faces:
-            relative_bb = self.relative_bbs[img_idx]
+            relative_bb = self.relative_bbs[align_idx]
             vid = self.align_face(vid, relative_bb)
 
         if self.transform is not None:
