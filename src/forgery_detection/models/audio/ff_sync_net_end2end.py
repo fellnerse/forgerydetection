@@ -5,6 +5,7 @@ from torch.nn import functional as F
 from forgery_detection.lightning.logging.confusion_matrix import confusion_matrix
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.mixins import BinaryEvaluationMixin
+from forgery_detection.models.mixins import PretrainedNet
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -132,3 +133,12 @@ class FFSyncNetEnd2End(BinaryEvaluationMixin, SequenceClassificationModel):
         self.log_class_loss = True
 
         return tensorboard_log, {}
+
+
+class FFSyncNetEnd2EndPretrained(
+    PretrainedNet(
+        "/home/sebastian/log/runs/TRAIN/ff_syncnet_end2end/version_0/checkpoints/_ckpt_epoch_1.ckpt"
+    ),
+    FFSyncNetEnd2End,
+):
+    pass
