@@ -466,3 +466,38 @@ class R2Plus1FFSyncNetLikeBinary(BinaryEvaluationMixin, SequenceClassificationMo
         for output in outputs:
             output["target"] = output["target"] // 4
         return super().aggregate_outputs(outputs, system)
+
+
+class R2Plus1FFSyncNetLikeBinary2Outputs(R2Plus1FFSyncNetLikeBinary):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 50),
+            nn.ReLU(),
+            nn.Linear(50, self.num_classes),
+        )
+
+
+class R2Plus1FFSyncNetLikeBinary2Layer(R2Plus1FFSyncNetLikeBinary):
+    def __init__(self, num_classes=2, sequence_length=8, contains_dropout=False):
+        super(BinaryEvaluationMixin, self).__init__(
+            num_classes=2,
+            sequence_length=sequence_length,
+            contains_dropout=contains_dropout,
+        )
+        self.r2plus1 = r2plus1d_18(pretrained=True)
+        self.r2plus1.layer3 = nn.Identity()
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 50),
+            nn.ReLU(),
+            nn.Linear(50, self.num_classes),
+        )
