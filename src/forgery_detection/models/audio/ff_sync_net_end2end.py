@@ -142,3 +142,30 @@ class FFSyncNetEnd2EndPretrained(
     FFSyncNetEnd2End,
 ):
     pass
+
+
+class FFSyncNetEnd2EndSmall(FFSyncNetEnd2End):
+    def __init__(self, num_classes=2, sequence_length=8, pretrained=True):
+        super().__init__(num_classes=num_classes, sequence_length=sequence_length)
+
+        self.ff_sync_net = FFSyncNet(pretrained=pretrained)
+
+        self.ff_sync_net.video_mlp = nn.Sequential(
+            nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 1024)
+        )
+
+        self.out = nn.Sequential(
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024 * 2, 50),
+            # nn.BatchNorm1d(50),
+            # nn.Dropout(p=0.5),
+            nn.ReLU(),
+            nn.Linear(50, 2),
+        )
+
+
+class FFSyncNetEnd2EndSmallUntrained(FFSyncNetEnd2EndSmall):
+    def __init__(self, num_classes=2, sequence_length=8):
+        super().__init__(
+            num_classes=num_classes, sequence_length=sequence_length, pretrained=False
+        )
