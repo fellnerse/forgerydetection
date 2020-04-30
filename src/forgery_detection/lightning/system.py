@@ -51,6 +51,7 @@ from forgery_detection.models.audio.audionet import PretrainedSyncAudioNet
 from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNet
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
@@ -70,6 +71,9 @@ from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassif
 from forgery_detection.models.audio.similarity_stuff import SyncNet
 from forgery_detection.models.audio.syncaudionet_regularized import (
     SyncAudioNetRegularized,
+)
+from forgery_detection.models.audio.syncaudionet_regularized import (
+    SyncAudioNetRegularizedBinary,
 )
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
@@ -269,6 +273,7 @@ class Supervised(pl.LightningModule):
         "pretrain_sync_audio_net": PretrainingSyncAudioNet,
         "sync_audio_net": PretrainedSyncAudioNet,
         "sync_audio_net_regularized": SyncAudioNetRegularized,
+        "sync_audio_net_regularized_binary": SyncAudioNetRegularizedBinary,
         "ff_sync_net": FFSyncNet,
         "ff_sync_net_classification": FFSyncNetClassifier,
         "ff_sync_net_generalize": FFSyncNetGeneralize,
@@ -277,6 +282,7 @@ class Supervised(pl.LightningModule):
         "ff_sync_net_end2end_pretrained": FFSyncNetEnd2EndPretrained,
         "r2plus1_ff_syncnet_like_binary": R2Plus1FFSyncNetLikeBinary,
         "early_merge_net": EarlyMergeNet,
+        "early_merge_net_binary": EarlyMergeNetBinary,
     }
 
     CUSTOM_TRANSFORMS = {

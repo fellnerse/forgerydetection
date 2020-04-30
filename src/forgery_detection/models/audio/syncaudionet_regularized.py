@@ -102,3 +102,17 @@ class SyncAudioNetRegularized(SequenceClassificationModel):
         self.log_class_loss = True
 
         return tensorboard_log, {}
+
+
+class SyncAudioNetRegularizedBinary(SyncAudioNetRegularized):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        return super().training_step((x, target // 4), batch_nb, system)
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"] // 4
+        return super().aggregate_outputs(outputs, system)
