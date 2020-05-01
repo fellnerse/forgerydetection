@@ -468,6 +468,21 @@ class R2Plus1FFSyncNetLikeBinary(BinaryEvaluationMixin, SequenceClassificationMo
         return super().aggregate_outputs(outputs, system)
 
 
+class R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs(R2Plus1FFSyncNetLikeBinary):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(64, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 50),
+            nn.LeakyReLU(0.02),
+            nn.Linear(50, self.num_classes),
+        )
+
+
 class R2Plus1FFSyncNetLikeBinary2Outputs(R2Plus1FFSyncNetLikeBinary):
     def __init__(self, num_classes=2):
         super().__init__(num_classes=2)
