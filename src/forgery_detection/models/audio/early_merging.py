@@ -100,3 +100,13 @@ class EarlyMergeNetBinary(EarlyMergeNet):
         for output in outputs:
             output["target"] = output["target"] // 4
         return super().aggregate_outputs(outputs, system)
+
+
+class EarlyMergeNetBinarySumCombine(EarlyMergeNetBinary):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+        self.merge_conv: nn.Module = nn.Identity()
+
+    def merge_modalities(self, video, audio):
+        merged_features = video + audio
+        return merged_features

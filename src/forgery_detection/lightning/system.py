@@ -52,6 +52,7 @@ from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinarySumCombine
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
@@ -299,6 +300,7 @@ class Supervised(pl.LightningModule):
         "r2plus1_ff_syncnet_like_binary2layer": R2Plus1FFSyncNetLikeBinary2Layer,
         "early_merge_net": EarlyMergeNet,
         "early_merge_net_binary": EarlyMergeNetBinary,
+        "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
     }
 
     CUSTOM_TRANSFORMS = {
