@@ -473,11 +473,12 @@ class R2Plus1FFSyncNetLikeBinary2Outputs(R2Plus1FFSyncNetLikeBinary):
         super().__init__(num_classes=2)
         self.r2plus1.fc = nn.Sequential(
             nn.Linear(64, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Linear(64, 1024),
             nn.ReLU(),
             nn.Linear(1024, 50),
-            nn.ReLU(),
+            nn.LeakyReLU(0.02),
             nn.Linear(50, self.num_classes),
         )
 
@@ -494,10 +495,12 @@ class R2Plus1FFSyncNetLikeBinary2Layer(R2Plus1FFSyncNetLikeBinary):
         self.r2plus1.layer4 = nn.Identity()
         self.r2plus1.fc = nn.Sequential(
             nn.Linear(128, 128),
+            # nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Linear(128, 1024),
             nn.ReLU(),
             nn.Linear(1024, 50),
+            # nn.LeakyReLU(0.02),
             nn.ReLU(),
             nn.Linear(50, self.num_classes),
         )

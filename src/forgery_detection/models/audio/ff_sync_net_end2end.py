@@ -151,15 +151,16 @@ class FFSyncNetEnd2EndSmall(FFSyncNetEnd2End):
         self.ff_sync_net = FFSyncNet(pretrained=pretrained)
 
         self.ff_sync_net.video_mlp = nn.Sequential(
-            nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 1024)
+            nn.Linear(64, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Linear(64, 1024)
         )
-
+        #
         self.out = nn.Sequential(
             # nn.Dropout(p=0.5),
             nn.Linear(1024 * 2, 50),
             # nn.BatchNorm1d(50),
             # nn.Dropout(p=0.5),
-            nn.ReLU(),
+            # nn.ReLU(),
+            nn.LeakyReLU(0.02),
             nn.Linear(50, 2),
         )
 
