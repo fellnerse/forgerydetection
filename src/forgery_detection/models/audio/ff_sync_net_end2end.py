@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.lightning.logging.confusion_matrix import confusion_matrix
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
@@ -169,4 +170,31 @@ class FFSyncNetEnd2EndSmallUntrained(FFSyncNetEnd2EndSmall):
     def __init__(self, num_classes=2, sequence_length=8):
         super().__init__(
             num_classes=num_classes, sequence_length=sequence_length, pretrained=False
+        )
+
+
+class FFSyncNetEnd2EndSmall2Layer(FFSyncNetEnd2End):
+    def __init__(self, num_classes=2, sequence_length=8, pretrained=True):
+        super().__init__(num_classes=num_classes, sequence_length=sequence_length)
+
+        self.ff_sync_net = FFSyncNet(pretrained=pretrained)
+
+        self.ff_sync_net.r2plus1 = r2plus1d_18(pretrained=pretrained)
+        # self.ff_sync_net.r2plus1.layer2 = nn.Identity()
+        self.ff_sync_net.r2plus1.layer3 = nn.Identity()
+        self.ff_sync_net.r2plus1.layer4 = nn.Identity()
+        self.ff_sync_net.r2plus1.fc = nn.Identity()
+
+        self.ff_sync_net.video_mlp = nn.Sequential(
+            nn.Linear(64, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Linear(64, 1024)
+        )
+
+        self.out = nn.Sequential(
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024 * 2, 50),
+            # nn.BatchNorm1d(50),
+            # nn.Dropout(p=0.5),
+            # nn.ReLU(),
+            nn.LeakyReLU(0.02),
+            nn.Linear(50, 2),
         )
