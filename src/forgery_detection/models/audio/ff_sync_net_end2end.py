@@ -186,7 +186,7 @@ class FFSyncNetEnd2EndSmall2Layer(FFSyncNetEnd2End):
         self.ff_sync_net.r2plus1.fc = nn.Identity()
 
         self.ff_sync_net.video_mlp = nn.Sequential(
-            nn.Linear(64, 64), nn.BatchNorm1d(64), nn.ReLU(), nn.Linear(64, 1024)
+            nn.Linear(128, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Linear(128, 1024)
         )
 
         self.out = nn.Sequential(
@@ -197,4 +197,34 @@ class FFSyncNetEnd2EndSmall2Layer(FFSyncNetEnd2End):
             # nn.ReLU(),
             nn.LeakyReLU(0.02),
             nn.Linear(50, 2),
+        )
+
+
+class FFSyncNetEnd2EndSmallAudioFilter(FFSyncNetEnd2EndSmall):
+    def __init__(self, num_classes=2, sequence_length=8):
+        super().__init__(num_classes=num_classes, sequence_length=sequence_length)
+
+        self.filter = nn.Conv2d(
+            1, 1, (4, 1), (1, 1), (0, 0), bias=False
+        )  # only filter over these 4 embeddings
+        self.ff_sync_net.forward = self.ff_sync_net_filtered_audio_forward
+
+    def ff_sync_net_filtered_audio_forward(self, x):
+        video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 4 x 13
+        # syncnet only uses 5 frames
+        audio = torch.stack(
+            (audio[:, 0:-3], audio[:, 1:-2], audio[:, 2:-1], audio[:, 3:]), dim=1
+        ).reshape(
+            (-1, 5, 4, 13)
+        )  # (bs*4) x 5 x 4 x 13
+        audio = (audio.reshape((audio.shape[0], -1, 13)).unsqueeze(1)).transpose(-2, -1)
+        audio_embeddings = self.ff_sync_net.audio_extractor(audio)
+        audio_embeddings = audio_embeddings.reshape((-1, 1, 4, 1024))
+        audio_embeddings = self.filter(audio_embeddings).squeeze(1).squeeze(1)
+
+        video = video.permute(0, 2, 1, 3, 4)
+
+        return (
+            self.ff_sync_net.video_mlp(self.ff_sync_net.r2plus1(video)),
+            audio_embeddings,
         )

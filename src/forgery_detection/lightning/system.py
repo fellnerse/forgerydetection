@@ -75,6 +75,9 @@ from forgery_detection.models.audio.ff_sync_net_end2end import (
     FFSyncNetEnd2EndSmall2Layer,
 )
 from forgery_detection.models.audio.ff_sync_net_end2end import (
+    FFSyncNetEnd2EndSmallAudioFilter,
+)
+from forgery_detection.models.audio.ff_sync_net_end2end import (
     FFSyncNetEnd2EndSmallUntrained,
 )
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
@@ -298,6 +301,7 @@ class Supervised(pl.LightningModule):
         "ff_sync_net_end2end_small": FFSyncNetEnd2EndSmall,
         "ff_sync_net_end2end_small_untrained": FFSyncNetEnd2EndSmallUntrained,
         "ff_sync_net_end2end_small_2_layer": FFSyncNetEnd2EndSmall2Layer,
+        "ff_sync_net_end2end_small_filtered": FFSyncNetEnd2EndSmallAudioFilter,
         "r2plus1_ff_syncnet_like_binary": R2Plus1FFSyncNetLikeBinary,
         "r2plus1_ff_syncnet_like_binary2outputs": R2Plus1FFSyncNetLikeBinary2Outputs,
         "r2plus1_ff_big_cropped_faces_syncnet_like_binary2outputs": R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs,
