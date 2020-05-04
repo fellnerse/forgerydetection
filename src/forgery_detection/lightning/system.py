@@ -52,11 +52,13 @@ from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary3Layer
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinarySumCombine
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetGeneralize
+from forgery_detection.models.audio.ff_sync_net import R2Plus13LayerSimpelMLP
 from forgery_detection.models.audio.ff_sync_net import R2Plus1EarlyMergeNet
 from forgery_detection.models.audio.ff_sync_net import (
     R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs,
@@ -308,8 +310,10 @@ class Supervised(pl.LightningModule):
         "r2plus1_ff_big_cropped_faces_syncnet_like_binary2outputs": R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs,
         "r2plus1_ff_syncnet_like_binary2layer": R2Plus1FFSyncNetLikeBinary2Layer,
         "r2plus1_early_merge_net": R2Plus1EarlyMergeNet,
+        "r2plus1_3_layer_simple_mlp": R2Plus13LayerSimpelMLP,
         "early_merge_net": EarlyMergeNet,
         "early_merge_net_binary": EarlyMergeNetBinary,
+        "early_merge_net_binary_3_layer": EarlyMergeNetBinary3Layer,
         "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
     }
 

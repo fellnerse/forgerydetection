@@ -102,6 +102,19 @@ class EarlyMergeNetBinary(EarlyMergeNet):
         return super().aggregate_outputs(outputs, system)
 
 
+class EarlyMergeNetBinary3Layer(EarlyMergeNetBinary):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+        self.r2plus1 = r2plus1d_18(pretrained=True)
+
+        self.r2plus1.layer4 = nn.Identity()
+        self.r2plus1.fc = nn.Identity()
+
+        self.out = nn.Sequential(
+            nn.Linear(256, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
+
+
 class EarlyMergeNetBinarySumCombine(EarlyMergeNetBinary):
     def __init__(self, num_classes=2):
         super().__init__(num_classes=2)
