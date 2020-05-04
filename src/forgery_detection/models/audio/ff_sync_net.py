@@ -519,3 +519,11 @@ class R2Plus1FFSyncNetLikeBinary2Layer(R2Plus1FFSyncNetLikeBinary):
             nn.ReLU(),
             nn.Linear(50, self.num_classes),
         )
+
+
+class R2Plus1EarlyMergeNet(R2Plus1FFSyncNetLikeBinary2Layer):
+    def __init__(self, num_classes=2, sequence_length=8):
+        super().__init__(num_classes=2, sequence_length=sequence_length)
+        self.r2plus1.fc = nn.Sequential(
+            nn.Linear(128, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
+        )
