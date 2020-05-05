@@ -342,6 +342,7 @@ class Supervised(pl.LightningModule):
         "rfft": rfft_transform(),
         "imagenet_val": [transforms.Resize(256), transforms.CenterCrop(224)],
     }
+    OPTIMIZER = {"adam": optim.Adam, "sgd": partial(optim.SGD, momentum=0.9)}
 
     def _get_transforms(self, transforms: str):
         if " " not in transforms:
@@ -531,12 +532,17 @@ class Supervised(pl.LightningModule):
         return self.model.test_epoch_end(outputs, self)
 
     def configure_optimizers(self):
-        optimizer = optim.SGD(
+        optimizer = self.OPTIMIZER[self.hparams["optimizer"]](
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.hparams["lr"],
             weight_decay=self.hparams["weight_decay"],
-            momentum=0.9,
         )
+        # optimizer = optim.SGD(
+        #     filter(lambda p: p.requires_grad, self.parameters()),
+        #     lr=self.hparams["lr"],
+        #     weight_decay=self.hparams["weight_decay"],
+        #     momentum=0.9,
+        # )
         return optimizer
 
     @pl.data_loader

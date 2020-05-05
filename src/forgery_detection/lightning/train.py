@@ -36,6 +36,9 @@ from forgery_detection.lightning.system import Supervised
     help="Folder used for logging.",
     default="/mnt/raid/sebastian/log",
 )
+@click.option(
+    "--optimizer", default="sgd", type=click.Choice(Supervised.OPTIMIZER.keys())
+)
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
 @click.option("--weight_decay", default=0.0, help="Weight-decay used by optimizer")
 @click.option("--batch_size", default=256, help="Path to data to validate on")
