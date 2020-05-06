@@ -4,11 +4,30 @@ import click
 import numpy as np
 import torch
 
+from forgery_detection.data.misc.evaluate_outputs_binary import calculate_metrics
+from forgery_detection.data.misc.evaluate_outputs_binary import (
+    get_output_file_names_ordered,
+)
 from forgery_detection.lightning.logging.const import AudioMode
+from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import PythonLiteralOptionGPUs
 from forgery_detection.lightning.utils import get_model_and_trainer
 
 logger = logging.getLogger(__file__)
+
+
+def print_google_sheet_ready_output(_logger):
+    logger_dir = get_logger_dir(_logger)
+
+    output_files = get_output_file_names_ordered(logger_dir)
+    train_acc, train_class_accs = calculate_metrics(output_files[0])
+    val_acc, val_class_accs = calculate_metrics(output_files[1])
+
+    print(
+        f"{train_acc:.2%}/{val_acc:.2%};"
+        + "".join("{:.2%};".format(x) for x in train_class_accs)
+        + "".join("{:.2%};".format(x) for x in val_class_accs)
+    )
 
 
 @click.command()
@@ -64,6 +83,8 @@ def run_train_val_evaluation(
     model.test_dataloader = model.val_dataloader
 
     trainer.test(model)
+
+    print_google_sheet_ready_output(_logger)
 
 
 if __name__ == "__main__":

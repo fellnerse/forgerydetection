@@ -359,7 +359,6 @@ class BinaryEvaluationMixin:
                 pred_shape = outputs[0]["pred"].shape
 
             if outputs[0]["target"].shape[0] != pred_shape[0]:
-                print(outputs[0]["target"].shape, pred.shape)
                 label = torch.cat([x["target"][0] for x in outputs], 0)
             else:
                 label = torch.cat([x["target"] for x in outputs], 0)

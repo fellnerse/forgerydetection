@@ -4,6 +4,7 @@ from torchvision.models.video import r2plus1d_18
 from torchvision.models.video.resnet import Conv2Plus1D
 
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -88,7 +89,7 @@ class EarlyMergeNet(SequenceClassificationModel):
         return super().aggregate_outputs(outputs, system)
 
 
-class EarlyMergeNetBinary(EarlyMergeNet):
+class EarlyMergeNetBinary(BinaryEvaluationMixin, EarlyMergeNet):
     def __init__(self, num_classes=2):
         super().__init__(num_classes=2)
 
