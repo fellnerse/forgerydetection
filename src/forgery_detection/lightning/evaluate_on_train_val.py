@@ -45,6 +45,7 @@ def run_train_val_evaluation(
     kwargs["audio_mode"] = AudioMode.EXACT.name
     kwargs["crop_faces"] = False
     kwargs["sampling_probs"] = "1. 1. 1. 1. 4."
+    kwargs["optimizer"] = "sgd"
 
     # train data
     model, trainer = get_model_and_trainer(

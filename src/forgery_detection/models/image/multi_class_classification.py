@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torchvision.models import resnet18
 
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -39,6 +40,21 @@ class Resnet182D(Resnet18):
         super().__init__(**kwargs)
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Linear(256, self.num_classes)
+
+
+class Resnet182DBinary(BinaryEvaluationMixin, Resnet182D):
+    def __init__(self, **kwargs):
+        kwargs["num_classes"] = 2
+        super().__init__(**kwargs)
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        return super().training_step((x, target // 4), batch_nb, system)
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"] // 4
+        return super().aggregate_outputs(outputs, system)
 
 
 class Resnet182d2Blocks(Resnet182D):

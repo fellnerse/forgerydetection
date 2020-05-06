@@ -54,6 +54,7 @@ from forgery_detection.models.audio.early_merging import EarlyMergeNet
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary3Layer
 from forgery_detection.models.audio.early_merging import EarlyMergeNetBinarySumCombine
+from forgery_detection.models.audio.early_merging import MiddleMergeNetBinary3Layer
 from forgery_detection.models.audio.ff_sync_net import FFSyncNet
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
 from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
@@ -147,6 +148,7 @@ from forgery_detection.models.image.multi_class_classification import Resnet182d
 from forgery_detection.models.image.multi_class_classification import (
     Resnet182d2BlocksFrozen,
 )
+from forgery_detection.models.image.multi_class_classification import Resnet182DBinary
 from forgery_detection.models.image.multi_class_classification import Resnet182dFrozen
 from forgery_detection.models.image.multi_class_classification import Resnet18Frozen
 from forgery_detection.models.image.multi_class_classification import (
@@ -201,6 +203,7 @@ class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet18": Resnet18,
         "resnet182d": Resnet182D,
+        "resnet182d_binary": Resnet182DBinary,
         "resnet182d2blocks": Resnet182d2Blocks,
         "resnet182d1block": Resnet182d1Block,
         "resnet182d1blockfrozen": Resnet182d1BlockFrozen,
@@ -314,6 +317,7 @@ class Supervised(pl.LightningModule):
         "early_merge_net": EarlyMergeNet,
         "early_merge_net_binary": EarlyMergeNetBinary,
         "early_merge_net_binary_3_layer": EarlyMergeNetBinary3Layer,
+        "middle_merge_net_binary_3_layer": MiddleMergeNetBinary3Layer,
         "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
     }
 

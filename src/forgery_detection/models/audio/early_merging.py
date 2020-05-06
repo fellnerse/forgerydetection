@@ -115,6 +115,42 @@ class EarlyMergeNetBinary3Layer(EarlyMergeNetBinary):
         )
 
 
+class MiddleMergeNetBinary3Layer(EarlyMergeNetBinary3Layer):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+        self.merge_conv: nn.Module = nn.Sequential(
+            Conv2Plus1D(128, 64, 144, 1), nn.BatchNorm3d(64), nn.ReLU(inplace=True)
+        )
+        self.upsample = nn.Upsample(size=(16, 28, 28))
+        self.audio_conv = nn.Conv3d(256, 128, (4, 1, 1), (4, 1, 1), 0)
+        self.merge_conv: nn.Module = nn.Sequential(
+            Conv2Plus1D(256, 128, 230, 1), nn.BatchNorm3d(128), nn.ReLU(inplace=True)
+        )
+
+    def audio_forward(self, audio):
+        features = self.sync_net.netcnnaud[:15](audio)  # bs x 256 x 11 x 15
+        features = self.padding(features)  # bs x 256 x 11 x 16
+        features = features.repeat((1, 1, 11, 1))  # bs x 256 x 22 x 16
+        features = features.reshape((-1, 256, 11, 11, 16))  # bs x 256 x 11 x 11 x 16
+        features = features.permute((0, 1, 4, 2, 3))  # bs x 256 x 16 x 11 x 11
+        features = self.upsample(features)  # bs x 256 x 16 x 28 x 28
+        features = self.audio_conv(features)  # bs x 128 x 8 x 28 x 28
+        return features
+
+    def video_forward(self, video):
+        x = self.r2plus1.stem(video)
+
+        x = self.r2plus1.layer1(x)  # bs x 64 x 8 x 56 x 56
+        x = self.r2plus1.layer2(x)  # bs x 128 x 4 x 28 x 28
+        return x
+
+    def final_forward(self, x):
+        x = self.r2plus1.layer3(x)
+        x = self.r2plus1.layer4(x)
+        x = self.r2plus1.avgpool(x).squeeze(-1).squeeze(-1).squeeze(-1)
+        return x
+
+
 class EarlyMergeNetBinarySumCombine(EarlyMergeNetBinary):
     def __init__(self, num_classes=2):
         super().__init__(num_classes=2)
