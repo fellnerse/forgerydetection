@@ -69,6 +69,11 @@ from forgery_detection.lightning.system import Supervised
     help="Augmentations applied to tensors. " "Can be multiple if split with blank.",
 )
 @click.option(
+    "--train_percent_check",
+    default=1.0,
+    help="If float, % of tng epoch. If int, check every n batch",
+)
+@click.option(
     "--val_check_interval",
     default=0.02,
     help="If float, % of tng epoch. If int, check every n batch",
@@ -134,6 +139,7 @@ def run_lightning(*args, **kwargs):
         checkpoint_callback=checkpoint_callback,
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
+        train_percent_check=kwargs["train_percent_check"],
         val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
         distributed_backend="ddp"

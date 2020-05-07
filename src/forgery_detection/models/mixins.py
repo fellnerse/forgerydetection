@@ -1,6 +1,9 @@
 import json
 import logging
 import pickle
+from abc import ABC
+from abc import abstractmethod
+from collections import Counter
 from collections import OrderedDict
 from datetime import datetime
 from typing import List
@@ -344,53 +347,10 @@ def TwoHeadedSupervisedNet(input_units: int, num_classes: int):
     return TwoheadedSupervisedNetMixin
 
 
-class BinaryEvaluationMixin:
+class EvaluationMixin(ABC):
+    @abstractmethod
     def aggregate_test_output(self, outputs, system):
-        # if there are more then one dataloader we ignore the additional data
-        if len(system.val_dataloader()) > 1:
-            outputs = outputs[0]
-
-        with torch.no_grad():
-            if isinstance(outputs[0]["pred"], tuple):
-                pred = torch.cat([x["pred"][0] for x in outputs], 0)
-                pred_shape = outputs[0]["pred"][0].shape
-            else:
-                pred = torch.cat([x["pred"] for x in outputs], 0)
-                pred_shape = outputs[0]["pred"].shape
-
-            if outputs[0]["target"].shape[0] != pred_shape[0]:
-                label = torch.cat([x["target"][0] for x in outputs], 0)
-            else:
-                label = torch.cat([x["target"] for x in outputs], 0)
-            target = label // 4
-
-            loss_mean = self.loss(pred, target)
-            pred = pred.cpu()
-            target = target.cpu()
-            pred = F.softmax(pred, dim=1)
-            acc_mean = self.calculate_accuracy(pred, target)
-
-            # confusion matrix
-            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
-            cm = cm[:, :2]  # this is only binary classification
-
-            cm /= torch.sum(cm, dim=1, keepdim=True)
-            class_accuracies = system.log_confusion_matrix(label, pred)
-            class_accuracies[list(class_accuracies.keys())[0]] = cm[0, 0]
-            class_accuracies[list(class_accuracies.keys())[1]] = cm[1, 0]
-            class_accuracies[list(class_accuracies.keys())[2]] = cm[2, 0]
-            class_accuracies[list(class_accuracies.keys())[3]] = cm[3, 0]
-            class_accuracies[list(class_accuracies.keys())[4]] = cm[4, 1]
-
-            tensorboard_log = {
-                "loss": loss_mean,
-                "acc": acc_mean,
-                "class_acc": class_accuracies,
-            }
-
-            lightning_log = {VAL_ACC: acc_mean}
-
-        return tensorboard_log, lightning_log
+        raise NotImplementedError()
 
     def test_epoch_end(self, outputs, system):
         with torch.no_grad():
@@ -415,3 +375,106 @@ class BinaryEvaluationMixin:
             return system._construct_lightning_log(
                 tensorboard_log, lightning_log, suffix="test"
             )
+
+
+class BinaryEvaluationMixin(EvaluationMixin):
+    def acc_mean_from_confusion_matrix(self, cm: torch.tensor):
+        cm[0] = cm[0:4].sum(dim=0)
+        cm[1] = cm[4]
+        cm = cm / torch.sum(cm, dim=1, keepdim=True)
+        print(cm.diag())
+        return cm.diag().mean()
+
+    def aggregate_test_output(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            if isinstance(outputs[0]["pred"], tuple):
+                pred = torch.cat([x["pred"][0] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"][0].shape
+            else:
+                pred = torch.cat([x["pred"] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"].shape
+
+            if outputs[0]["target"].shape[0] != pred_shape[0]:
+                label = torch.cat([x["target"][0] for x in outputs], 0)
+            else:
+                label = torch.cat([x["target"] for x in outputs], 0)
+            target = label // 4
+
+            loss_mean = self.loss(pred, target)
+            pred = pred.cpu()
+            target = target.cpu()
+            pred = F.softmax(pred, dim=1)
+
+            # confusion matrix
+            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
+            cm = cm[:, :2]  # this is only binary classification
+
+            cm2 = cm / torch.sum(cm, dim=1, keepdim=True)
+            class_accuracies = system.log_confusion_matrix(label, pred)
+            class_accuracies[list(class_accuracies.keys())[0]] = cm2[0, 0]
+            class_accuracies[list(class_accuracies.keys())[1]] = cm2[1, 0]
+            class_accuracies[list(class_accuracies.keys())[2]] = cm2[2, 0]
+            class_accuracies[list(class_accuracies.keys())[3]] = cm2[3, 0]
+            class_accuracies[list(class_accuracies.keys())[4]] = cm2[4, 1]
+
+            acc_mean = self.acc_mean_from_confusion_matrix(cm)
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+
+            lightning_log = {VAL_ACC: acc_mean}
+
+        logger.warning(f"class_occurencies: {(Counter(label.cpu().numpy()))}")
+
+        return tensorboard_log, lightning_log
+
+
+class MultiEvaluationMixin(EvaluationMixin):
+    def aggregate_test_output(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            if isinstance(outputs[0]["pred"], tuple):
+                pred = torch.cat([x["pred"][0] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"][0].shape
+            else:
+                pred = torch.cat([x["pred"] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"].shape
+
+            if outputs[0]["target"].shape[0] != pred_shape[0]:
+                label = torch.cat([x["target"][0] for x in outputs], 0)
+            else:
+                label = torch.cat([x["target"] for x in outputs], 0)
+
+            loss_mean = self.loss(pred, label)
+            pred = pred.cpu()
+            label = label.cpu()
+            pred = F.softmax(pred, dim=1)
+
+            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
+            cm /= torch.sum(cm, dim=1, keepdim=True)
+
+            class_accuracies = system.log_confusion_matrix(label, pred)
+
+            acc_mean = cm.diag().mean()
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+
+            lightning_log = {VAL_ACC: acc_mean}
+
+        logger.warning(f"class_occurencies: {(Counter(label.cpu().numpy()))}")
+
+        return tensorboard_log, lightning_log

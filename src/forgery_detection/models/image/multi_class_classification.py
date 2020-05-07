@@ -122,7 +122,7 @@ class ResidualResnet(Resnet182D):
 
 
 class Resnet18MultiClassDropout(Resnet182D):
-    def __init__(self, pretrained=True):
+    def __init__(self, num_classes, pretrained=True):
         super().__init__(
             num_classes=5,
             sequence_length=1,
@@ -137,8 +137,8 @@ class Resnet18MultiClassDropout(Resnet182D):
 
 
 class Resnet18UntrainedMultiClassDropout(Resnet18MultiClassDropout):
-    def __init__(self):
-        super().__init__(pretrained=False)
+    def __init__(self, num_classes):
+        super().__init__(num_classes, pretrained=False)
 
 
 class Resnet18SameAsInAE(Resnet18):

@@ -3,10 +3,10 @@ import logging
 import click
 import numpy as np
 import torch
+from torch.utils.data import SequentialSampler
 
-from forgery_detection.data.misc.evaluate_outputs_binary import calculate_metrics
 from forgery_detection.data.misc.evaluate_outputs_binary import (
-    get_output_file_names_ordered,
+    print_evaluation_for_test_folder,
 )
 from forgery_detection.lightning.logging.const import AudioMode
 from forgery_detection.lightning.logging.utils import get_logger_dir
@@ -19,15 +19,7 @@ logger = logging.getLogger(__file__)
 def print_google_sheet_ready_output(_logger):
     logger_dir = get_logger_dir(_logger)
 
-    output_files = get_output_file_names_ordered(logger_dir)
-    train_acc, train_class_accs = calculate_metrics(output_files[0])
-    val_acc, val_class_accs = calculate_metrics(output_files[1])
-
-    print(
-        f"{train_acc:.2%}/{val_acc:.2%};"
-        + "".join("{:.2%};".format(x) for x in train_class_accs)
-        + "".join("{:.2%};".format(x) for x in val_class_accs)
-    )
+    print_evaluation_for_test_folder(logger_dir)
 
 
 @click.command()
@@ -63,7 +55,6 @@ def run_train_val_evaluation(
         kwargs["audio_file"] = audio_file
     kwargs["audio_mode"] = AudioMode.EXACT.name
     kwargs["crop_faces"] = False
-    kwargs["sampling_probs"] = "1. 1. 1. 1. 4."
     kwargs["optimizer"] = "sgd"
 
     # train data
@@ -77,14 +68,18 @@ def run_train_val_evaluation(
     trainer.test(model)
 
     # val data
+    kwargs["sampling_probs"] = None
     model, trainer = get_model_and_trainer(
         test_percent_check=val_percent_check, _logger=_logger, **kwargs
     )
+    model.sampler_cls = SequentialSampler
+    # model.sampler_cls = RandomSampler
     model.test_dataloader = model.val_dataloader
 
     trainer.test(model)
 
     print_google_sheet_ready_output(_logger)
+    print(f"{kwargs['checkpoint_dir']} | ckpt_nr: {kwargs['checkpoint_nr']}")
 
 
 if __name__ == "__main__":
