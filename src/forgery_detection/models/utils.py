@@ -10,6 +10,7 @@ from torch.nn import functional as F
 from torchvision.utils import make_grid
 
 from forgery_detection.lightning.logging.const import VAL_ACC
+from forgery_detection.models.mixins import MultiEvaluationMixin
 
 logger = logging.getLogger(__file__)
 
@@ -28,7 +29,7 @@ LOG_VAR = "log_var"
 BATCH_SIZE = "batch_size"
 
 
-class LightningModel(nn.Module, ABC):
+class LightningModel(nn.Module, MultiEvaluationMixin, ABC):
     def __init__(self, num_classes, sequence_length, contains_dropout):
         super().__init__()
         self.num_classes = num_classes

@@ -170,6 +170,10 @@ class AudioNet34(AudionetUtils):
             nn.Linear(256, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
         )
 
+    def forward(self, x):
+        video, audio = x
+        return super().forward((video, audio.reshape((audio.shape[0], -1, 13))))
+
 
 class PretrainingAudioNet34(AudioNet34):
     def __init__(self, num_classes=5, pretrained=True):
@@ -189,6 +193,11 @@ class PretrainingAudioNet34(AudioNet34):
         self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
         self._set_requires_grad_for_module(self.resnet, requires_grad=False)
 
-    def forward(self, x):
-        video, audio = x
-        return super().forward((video, audio.reshape((audio.shape[0], -1, 13))))
+
+class PretrainedAudioNet34(
+    PretrainedNet(
+        "/mnt/raid5/sebastian/model_checkpoints/audionet_34_pretrain/model.ckpt"
+    ),
+    AudioNet34,
+):
+    pass

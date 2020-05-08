@@ -36,6 +36,9 @@ from forgery_detection.lightning.system import Supervised
     help="Folder used for logging.",
     default="/mnt/raid/sebastian/log",
 )
+@click.option(
+    "--optimizer", default="sgd", type=click.Choice(Supervised.OPTIMIZER.keys())
+)
 @click.option("--lr", default=10e-5, help="Learning rate used by optimizer")
 @click.option("--weight_decay", default=0.0, help="Weight-decay used by optimizer")
 @click.option("--batch_size", default=256, help="Path to data to validate on")
@@ -64,6 +67,11 @@ from forgery_detection.lightning.system import Supervised
     "--tensor_augmentation_transforms",
     default="none",
     help="Augmentations applied to tensors. " "Can be multiple if split with blank.",
+)
+@click.option(
+    "--train_percent_check",
+    default=1.0,
+    help="If float, % of tng epoch. If int, check every n batch",
 )
 @click.option(
     "--val_check_interval",
@@ -100,6 +108,7 @@ from forgery_detection.lightning.system import Supervised
     " -1 corresponds to using all cpus available.",
 )
 @click.option("--max_epochs", default=100)
+@click.option("--crop_faces", is_flag=True)
 @click.option("--debug", is_flag=True)
 def run_lightning(*args, **kwargs):
     kwargs["mode"] = SystemMode.TRAIN
@@ -130,6 +139,7 @@ def run_lightning(*args, **kwargs):
         checkpoint_callback=checkpoint_callback,
         early_stop_callback=early_stopping_callback,
         default_save_path=kwargs["log_dir"],
+        train_percent_check=kwargs["train_percent_check"],
         val_percent_check=kwargs["val_check_interval"],
         val_check_interval=kwargs["val_check_interval"],
         distributed_backend="ddp"

@@ -4,6 +4,7 @@ import ast
 import itertools
 import logging
 import os
+import shutil
 from argparse import Namespace
 from copy import deepcopy
 from pathlib import Path
@@ -364,9 +365,9 @@ def get_logger_and_checkpoint_callback(
     logger = TestTubeLogger(save_dir=log_dir, name=name, description=description)
     logger_dir = get_logger_dir(logger)
 
-    checkpoint_callback = ModelCheckpoint(
+    checkpoint_callback = OldModelCheckpoint(
         filepath=logger_dir / CHECKPOINTS,
-        save_top_k=-1,
+        save_best_only=False,
         monitor=VAL_ACC,
         mode="max",
         prefix="",
@@ -380,3 +381,143 @@ def get_logger_dir(logger):
         / logger.experiment.name
         / f"version_{logger.experiment.version}"
     )
+
+
+class OldModelCheckpoint(ModelCheckpoint):
+    """Save the model after every epoch.
+    `filepath` can contain named formatting options,
+    which will be filled the value of `epoch` and
+    keys in `logs` (passed in `on_epoch_end`).
+    For example: if `filepath` is `weights.{epoch:02d}-{val_loss:.2f}.hdf5`,
+    then the model checkpoints will be saved with the epoch number and
+    the validation loss in the filename.
+    # Arguments
+        filepath: string, path to save the model file.
+        monitor: quantity to monitor.
+        verbose: verbosity mode, 0 or 1.
+        save_best_only: if `save_best_only=True`,
+            the latest best model according to
+            the quantity monitored will not be overwritten.
+        mode: one of {auto, min, max}.
+            If `save_best_only=True`, the decision
+            to overwrite the current save file is made
+            based on either the maximization or the
+            minimization of the monitored quantity. For `val_acc`,
+            this should be `max`, for `val_loss` this should
+            be `min`, etc. In `auto` mode, the direction is
+            automatically inferred from the name of the monitored quantity.
+        save_weights_only: if True, then only the model's weights will be
+            saved (`model.save_weights(filepath)`), else the full model
+            is saved (`model.save(filepath)`).
+        period: Interval (number of epochs) between checkpoints.
+    """
+
+    def __init__(
+        self,
+        filepath,
+        monitor="val_loss",
+        verbose=0,
+        save_best_only=True,
+        save_weights_only=False,
+        mode="auto",
+        period=1,
+        prefix="",
+    ):
+        super(ModelCheckpoint, self).__init__()
+        if save_best_only and os.path.isdir(filepath) and len(os.listdir(filepath)) > 0:
+            logger.warn(
+                f"Checkpoint directory {filepath} exists and is not empty with save_best_only=True."
+                "All files in this directory will be deleted when a checkpoint is saved!"
+            )
+
+        self.monitor = monitor
+        self.verbose = verbose
+        self.filepath = filepath
+        self.dirpath, self.filename = filepath, "{epoch}"
+        self.save_best_only = save_best_only
+        self.save_weights_only = save_weights_only
+        self.period = period
+        self.epochs_since_last_save = 0
+        self.prefix = prefix
+        self.save_top_k = -1
+        self.epoch_last_check = None
+
+        if mode not in ["auto", "min", "max"]:
+            logger.warn(
+                f"ModelCheckpoint mode {mode} is unknown, " "fallback to auto mode.",
+                RuntimeWarning,
+            )
+            mode = "auto"
+
+        if mode == "min":
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == "max":
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
+
+    def save_model(self, filepath, overwrite):
+        dirpath = "/".join(filepath.split("/")[:-1])
+
+        # make paths
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        if overwrite:
+            for filename in os.listdir(dirpath):
+                if self.prefix in filename:
+                    path_to_delete = os.path.join(dirpath, filename)
+                    try:
+                        shutil.rmtree(path_to_delete)
+                    except OSError:
+                        os.remove(path_to_delete)
+
+        # delegate the saving to the model
+        self.save_function(filepath)
+
+    def on_validation_end(self, trainer, pl_module):
+        metrics = trainer.callback_metrics
+        epoch = trainer.current_epoch
+        self.epoch_last_check = epoch
+
+        logs = metrics
+        self.epochs_since_last_save += 1
+        if self.epochs_since_last_save >= self.period:
+            self.epochs_since_last_save = 0
+            filepath = "{}/{}_ckpt_epoch_{}.ckpt".format(
+                self.filepath, self.prefix, epoch + 1
+            )
+            if self.save_best_only:
+                current = logs.get(self.monitor)
+                if current is None:
+                    logger.warn(
+                        f"Can save best model only with {self.monitor} available,"
+                        " skipping.",
+                        RuntimeWarning,
+                    )
+                else:
+                    if self.monitor_op(current, self.best):
+                        if self.verbose > 0:
+                            logging.info(
+                                f"\nEpoch {epoch + 1:05d}: {self.monitor} improved"
+                                f" from {self.best:0.5f} to {current:0.5f},"
+                                f" saving model to {filepath}"
+                            )
+                        self.best = current
+                        self.save_model(filepath, overwrite=True)
+
+                    else:
+                        if self.verbose > 0:
+                            logging.info(
+                                f"\nEpoch {epoch + 1:05d}: {self.monitor} did not improve"
+                            )
+            else:
+                if self.verbose > 0:
+                    logging.info(f"\nEpoch {epoch + 1:05d}: saving model to {filepath}")
+                self.save_model(filepath, overwrite=False)

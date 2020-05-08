@@ -1,5 +1,4 @@
 import logging
-import pickle
 from argparse import Namespace
 from functools import partial
 from typing import Dict
@@ -39,7 +38,6 @@ from forgery_detection.data.utils import rfft_transform
 from forgery_detection.lightning.logging.const import AudioMode
 from forgery_detection.lightning.logging.const import SystemMode
 from forgery_detection.lightning.logging.utils import DictHolder
-from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.lightning.logging.utils import log_confusion_matrix
 from forgery_detection.lightning.logging.utils import log_dataset_preview
 from forgery_detection.lightning.logging.utils import log_hparams
@@ -48,9 +46,44 @@ from forgery_detection.models.audio.audionet import AudioNet
 from forgery_detection.models.audio.audionet import AudioNetFrozen
 from forgery_detection.models.audio.audionet import AudioNetLayer2Unfrozen
 from forgery_detection.models.audio.audionet import PretrainedAudioNet
+from forgery_detection.models.audio.audionet import PretrainedAudioNet34
 from forgery_detection.models.audio.audionet import PretrainedSyncAudioNet
 from forgery_detection.models.audio.audionet import PretrainingAudioNet34
 from forgery_detection.models.audio.audionet import PretrainingSyncAudioNet
+from forgery_detection.models.audio.early_merging import EarlyMergeNet
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinary3Layer
+from forgery_detection.models.audio.early_merging import EarlyMergeNetBinarySumCombine
+from forgery_detection.models.audio.early_merging import MiddleMergeNetBinary3Layer
+from forgery_detection.models.audio.ff_sync_net import FFSyncNet
+from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifier
+from forgery_detection.models.audio.ff_sync_net import FFSyncNetClassifierGeneralze
+from forgery_detection.models.audio.ff_sync_net import FFSyncNetGeneralize
+from forgery_detection.models.audio.ff_sync_net import R2Plus13LayerSimpelMLP
+from forgery_detection.models.audio.ff_sync_net import R2Plus1EarlyMergeNet
+from forgery_detection.models.audio.ff_sync_net import (
+    R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs,
+)
+from forgery_detection.models.audio.ff_sync_net import R2Plus1FFSyncNetLikeBinary
+from forgery_detection.models.audio.ff_sync_net import R2Plus1FFSyncNetLikeBinary2Layer
+from forgery_detection.models.audio.ff_sync_net import (
+    R2Plus1FFSyncNetLikeBinary2Outputs,
+)
+from forgery_detection.models.audio.ff_sync_net import R2Plus1SmallAudiolikeBinary
+from forgery_detection.models.audio.ff_sync_net_end2end import FFSyncNetEnd2End
+from forgery_detection.models.audio.ff_sync_net_end2end import (
+    FFSyncNetEnd2EndPretrained,
+)
+from forgery_detection.models.audio.ff_sync_net_end2end import FFSyncNetEnd2EndSmall
+from forgery_detection.models.audio.ff_sync_net_end2end import (
+    FFSyncNetEnd2EndSmall2Layer,
+)
+from forgery_detection.models.audio.ff_sync_net_end2end import (
+    FFSyncNetEnd2EndSmallAudioFilter,
+)
+from forgery_detection.models.audio.ff_sync_net_end2end import (
+    FFSyncNetEnd2EndSmallUntrained,
+)
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -58,6 +91,12 @@ from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
 from forgery_detection.models.audio.similarity_stuff import SyncNet
+from forgery_detection.models.audio.syncaudionet_regularized import (
+    SyncAudioNetRegularized,
+)
+from forgery_detection.models.audio.syncaudionet_regularized import (
+    SyncAudioNetRegularizedBinary,
+)
 from forgery_detection.models.image.ae import AEFullFaceNet
 from forgery_detection.models.image.ae import AEFullVGG
 from forgery_detection.models.image.ae import AEL1VGG
@@ -109,6 +148,7 @@ from forgery_detection.models.image.multi_class_classification import Resnet182d
 from forgery_detection.models.image.multi_class_classification import (
     Resnet182d2BlocksFrozen,
 )
+from forgery_detection.models.image.multi_class_classification import Resnet182DBinary
 from forgery_detection.models.image.multi_class_classification import Resnet182dFrozen
 from forgery_detection.models.image.multi_class_classification import Resnet18Frozen
 from forgery_detection.models.image.multi_class_classification import (
@@ -163,6 +203,7 @@ class Supervised(pl.LightningModule):
     MODEL_DICT = {
         "resnet18": Resnet18,
         "resnet182d": Resnet182D,
+        "resnet182d_binary": Resnet182DBinary,
         "resnet182d2blocks": Resnet182d2Blocks,
         "resnet182d1block": Resnet182d1Block,
         "resnet182d1blockfrozen": Resnet182d1BlockFrozen,
@@ -187,6 +228,7 @@ class Supervised(pl.LightningModule):
         "r2plus1small": R2Plus1Small,
         "r2plus1small_audiolike_pretrain": R2Plus1SmallAudioLikePretrain,
         "r2plus1small_audiolike": R2Plus1SmallAudiolikePretrained,
+        "r2plus1small_audiolike_binary": R2Plus1SmallAudiolikeBinary,
         "r2plus1smallest": R2Plus1Smallest,
         "mc3": MC3,
         "audionet": AudioNet,
@@ -194,6 +236,7 @@ class Supervised(pl.LightningModule):
         "audionet_pretrained": PretrainedAudioNet,
         "audionet_layer2unfrozen": AudioNetLayer2Unfrozen,
         "audionet34_pretraining": PretrainingAudioNet34,
+        "audionet34": PretrainedAudioNet34,
         "audioonly": AudioOnly,
         "vae": SimpleVAE,
         "ae": SimpleAE,
@@ -253,6 +296,29 @@ class Supervised(pl.LightningModule):
         "pretrained_syncnet": PretrainedSyncNet,
         "pretrain_sync_audio_net": PretrainingSyncAudioNet,
         "sync_audio_net": PretrainedSyncAudioNet,
+        "sync_audio_net_regularized": SyncAudioNetRegularized,
+        "sync_audio_net_regularized_binary": SyncAudioNetRegularizedBinary,
+        "ff_sync_net": FFSyncNet,
+        "ff_sync_net_classification": FFSyncNetClassifier,
+        "ff_sync_net_generalize": FFSyncNetGeneralize,
+        "ff_sync_net_classification_generalize": FFSyncNetClassifierGeneralze,
+        "ff_sync_net_end2end": FFSyncNetEnd2End,
+        "ff_sync_net_end2end_pretrained": FFSyncNetEnd2EndPretrained,
+        "ff_sync_net_end2end_small": FFSyncNetEnd2EndSmall,
+        "ff_sync_net_end2end_small_untrained": FFSyncNetEnd2EndSmallUntrained,
+        "ff_sync_net_end2end_small_2_layer": FFSyncNetEnd2EndSmall2Layer,
+        "ff_sync_net_end2end_small_filtered": FFSyncNetEnd2EndSmallAudioFilter,
+        "r2plus1_ff_syncnet_like_binary": R2Plus1FFSyncNetLikeBinary,
+        "r2plus1_ff_syncnet_like_binary2outputs": R2Plus1FFSyncNetLikeBinary2Outputs,
+        "r2plus1_ff_big_cropped_faces_syncnet_like_binary2outputs": R2Plus1FFBigCroppedFacesSyncNetLikeBinary2Outputs,
+        "r2plus1_ff_syncnet_like_binary2layer": R2Plus1FFSyncNetLikeBinary2Layer,
+        "r2plus1_early_merge_net": R2Plus1EarlyMergeNet,
+        "r2plus1_3_layer_simple_mlp": R2Plus13LayerSimpelMLP,
+        "early_merge_net": EarlyMergeNet,
+        "early_merge_net_binary": EarlyMergeNetBinary,
+        "early_merge_net_binary_3_layer": EarlyMergeNetBinary3Layer,
+        "middle_merge_net_binary_3_layer": MiddleMergeNetBinary3Layer,
+        "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -280,6 +346,7 @@ class Supervised(pl.LightningModule):
         "rfft": rfft_transform(),
         "imagenet_val": [transforms.Resize(256), transforms.CenterCrop(224)],
     }
+    OPTIMIZER = {"adam": optim.Adam, "sgd": partial(optim.SGD, momentum=0.9)}
 
     def _get_transforms(self, transforms: str):
         if " " not in transforms:
@@ -341,8 +408,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=self.hparams["crop_faces"],
         )
         self.val_data = self.file_list.get_dataset(
             VAL_NAME,
@@ -350,8 +417,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=self.hparams["crop_faces"],
         )
         # handle empty test_data better
         self.test_data = self.file_list.get_dataset(
@@ -360,8 +427,8 @@ class Supervised(pl.LightningModule):
             tensor_transforms=self.tensor_augmentation_transforms,
             sequence_length=self.model.sequence_length,
             audio_file_list=self.audio_file_list,
-            audio_mode=self.audio_mode
-            # should_align_faces=True,
+            audio_mode=self.audio_mode,
+            should_align_faces=self.hparams["crop_faces"],
         )
         self.hparams.add_dataset_size(len(self.train_data), TRAIN_NAME)
         self.hparams.add_dataset_size(len(self.val_data), VAL_NAME)
@@ -393,6 +460,8 @@ class Supervised(pl.LightningModule):
         self.decay = 0.95
         self.acc = -1
         self.loss = -1
+
+        logger.warning(f"{self.train_data.class_to_idx}")
 
     def on_sanity_check_start(self):
         log_hparams(
@@ -464,23 +533,20 @@ class Supervised(pl.LightningModule):
             return val_out
 
     def test_epoch_end(self, outputs):
-        with torch.no_grad():
-            with open(get_logger_dir(self.logger) / "outputs.pkl", "wb") as f:
-                pickle.dump(outputs, f)
-
-            tensorboard_log, lightning_log = self.model.aggregate_outputs(outputs, self)
-            logger.info(f"Test accuracy is: {tensorboard_log}")
-            return self._construct_lightning_log(
-                tensorboard_log, lightning_log, suffix="test"
-            )
+        return self.model.test_epoch_end(outputs, self)
 
     def configure_optimizers(self):
-        optimizer = optim.SGD(
+        optimizer = self.OPTIMIZER[self.hparams["optimizer"]](
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.hparams["lr"],
             weight_decay=self.hparams["weight_decay"],
-            momentum=0.9,
         )
+        # optimizer = optim.SGD(
+        #     filter(lambda p: p.requires_grad, self.parameters()),
+        #     lr=self.hparams["lr"],
+        #     weight_decay=self.hparams["weight_decay"],
+        #     momentum=0.9,
+        # )
         return optimizer
 
     @pl.data_loader

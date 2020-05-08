@@ -1,5 +1,11 @@
+import json
 import logging
+import pickle
+from abc import ABC
+from abc import abstractmethod
+from collections import Counter
 from collections import OrderedDict
+from datetime import datetime
 from typing import List
 
 import numpy as np
@@ -11,7 +17,10 @@ from torchvision.utils import make_grid
 from forgery_detection.data.utils import irfft
 from forgery_detection.data.utils import rfft
 from forgery_detection.data.utils import windowed_rfft
+from forgery_detection.lightning.logging.confusion_matrix import confusion_matrix
 from forgery_detection.lightning.logging.const import NAN_TENSOR
+from forgery_detection.lightning.logging.const import VAL_ACC
+from forgery_detection.lightning.logging.utils import get_logger_dir
 from forgery_detection.models.sliced_nets import FaceNet
 from forgery_detection.models.sliced_nets import SlicedNet
 from forgery_detection.models.sliced_nets import Vgg16
@@ -336,3 +345,136 @@ def TwoHeadedSupervisedNet(input_units: int, num_classes: int):
             return acc
 
     return TwoheadedSupervisedNetMixin
+
+
+class EvaluationMixin(ABC):
+    @abstractmethod
+    def aggregate_test_output(self, outputs, system):
+        raise NotImplementedError()
+
+    def test_epoch_end(self, outputs, system):
+        with torch.no_grad():
+            with open(
+                get_logger_dir(system.logger)
+                / f"outputs_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}.pkl",
+                "wb",
+            ) as f:
+                pickle.dump(outputs, f)
+
+            tensorboard_log, lightning_log = self.aggregate_test_output(outputs, system)
+            logger.info(f"Test accuracy is: {tensorboard_log}")
+            print(
+                f"{''.join('{:.2%};'.format(float(x.cpu())) for x in tensorboard_log['class_acc'].values())}"
+            )
+            with open(
+                get_logger_dir(system.logger)
+                / f"log_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}.json",
+                "w",
+            ) as f:
+                json.dump(str(tensorboard_log), f)
+            return system._construct_lightning_log(
+                tensorboard_log, lightning_log, suffix="test"
+            )
+
+
+class BinaryEvaluationMixin(EvaluationMixin):
+    def acc_mean_from_confusion_matrix(self, cm: torch.tensor):
+        cm[0] = cm[0:4].sum(dim=0)
+        cm[1] = cm[4]
+        cm = cm / torch.sum(cm, dim=1, keepdim=True)
+        print(cm.diag())
+        return cm.diag().mean()
+
+    def aggregate_test_output(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            if isinstance(outputs[0]["pred"], tuple):
+                pred = torch.cat([x["pred"][0] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"][0].shape
+            else:
+                pred = torch.cat([x["pred"] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"].shape
+
+            if outputs[0]["target"].shape[0] != pred_shape[0]:
+                label = torch.cat([x["target"][0] for x in outputs], 0)
+            else:
+                label = torch.cat([x["target"] for x in outputs], 0)
+            target = label // 4
+
+            loss_mean = self.loss(pred, target)
+            pred = pred.cpu()
+            target = target.cpu()
+            pred = F.softmax(pred, dim=1)
+
+            # confusion matrix
+            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
+            cm = cm[:, :2]  # this is only binary classification
+
+            cm2 = cm / torch.sum(cm, dim=1, keepdim=True)
+            class_accuracies = system.log_confusion_matrix(label, pred)
+            class_accuracies[list(class_accuracies.keys())[0]] = cm2[0, 0]
+            class_accuracies[list(class_accuracies.keys())[1]] = cm2[1, 0]
+            class_accuracies[list(class_accuracies.keys())[2]] = cm2[2, 0]
+            class_accuracies[list(class_accuracies.keys())[3]] = cm2[3, 0]
+            class_accuracies[list(class_accuracies.keys())[4]] = cm2[4, 1]
+
+            acc_mean = self.acc_mean_from_confusion_matrix(cm)
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+
+            lightning_log = {VAL_ACC: acc_mean}
+
+        logger.warning(f"class_occurencies: {(Counter(label.cpu().numpy()))}")
+
+        return tensorboard_log, lightning_log
+
+
+class MultiEvaluationMixin(EvaluationMixin):
+    def aggregate_test_output(self, outputs, system):
+        # if there are more then one dataloader we ignore the additional data
+        if len(system.val_dataloader()) > 1:
+            outputs = outputs[0]
+
+        with torch.no_grad():
+            if isinstance(outputs[0]["pred"], tuple):
+                pred = torch.cat([x["pred"][0] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"][0].shape
+            else:
+                pred = torch.cat([x["pred"] for x in outputs], 0)
+                pred_shape = outputs[0]["pred"].shape
+
+            if outputs[0]["target"].shape[0] != pred_shape[0]:
+                label = torch.cat([x["target"][0] for x in outputs], 0)
+            else:
+                label = torch.cat([x["target"] for x in outputs], 0)
+
+            loss_mean = self.loss(pred, label)
+            pred = pred.cpu()
+            label = label.cpu()
+            pred = F.softmax(pred, dim=1)
+
+            cm = confusion_matrix(label, torch.argmax(pred, dim=1), num_classes=5)
+            cm /= torch.sum(cm, dim=1, keepdim=True)
+
+            class_accuracies = system.log_confusion_matrix(label, pred)
+
+            acc_mean = cm.diag().mean()
+
+            tensorboard_log = {
+                "loss": loss_mean,
+                "acc": acc_mean,
+                "class_acc": class_accuracies,
+            }
+
+            lightning_log = {VAL_ACC: acc_mean}
+
+        logger.warning(f"class_occurencies: {(Counter(label.cpu().numpy()))}")
+
+        return tensorboard_log, lightning_log

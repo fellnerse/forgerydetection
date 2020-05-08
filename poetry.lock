@@ -345,7 +345,7 @@ description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML resea
 name = "pytorch-lightning"
 optional = false
 python-versions = ">=3.6"
-version = "0.7.3"
+version = "0.7.4rc8"
 
 [package.dependencies]
 future = ">=0.17.1"
@@ -354,6 +354,10 @@ tensorboard = ">=1.14"
 torch = ">=1.1"
 tqdm = ">=4.41.0"
 
+[package.source]
+reference = "f531ab957b05c97630d98fed18f9349b7e97046b"
+type = "git"
+url = "https://github.com/PyTorchLightning/pytorch-lightning.git"
 [[package]]
 category = "main"
 description = "A pythonic library for downloading YouTube Videos."
@@ -560,7 +564,7 @@ version = "0.33.6"
 test = ["pytest (>=3.0.0)", "pytest-cov"]
 
 [metadata]
-content-hash = "7c24689603282c5909c4791898b1b4580dfac5317321d64a354b0e0820f3c0d6"
+content-hash = "815af047bce6b815a613433ee1f97f0bfc3a1081244d92c144670674964847c6"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -884,10 +888,7 @@ python-dateutil = [
 python-speech-features = [
     {file = "python_speech_features-0.6.tar.gz", hash = "sha256:a0aebf746464bc929dc3162cb369d7ff967c398c5120ddf5fb40a65f01b92b11"},
 ]
-pytorch-lightning = [
-    {file = "pytorch-lightning-0.7.3.tar.gz", hash = "sha256:516a90e1620f37995f72a17aa163dba3af51551719c9bdbaf47e61e049acd71b"},
-    {file = "pytorch_lightning-0.7.3-py3-none-any.whl", hash = "sha256:df503f37e22bec519166abb40d5e4897746250bba5a005282ca829fa46bcb107"},
-]
+pytorch-lightning = []
 pytube = [
     {file = "pytube-9.5.3-py3-none-any.whl", hash = "sha256:8ab0dc5e7443450361e2e6991c4df99ea37d109f42e6804933644821aa609b77"},
     {file = "pytube-9.5.3.tar.gz", hash = "sha256:b95c9b836e557d5df126397dff997b73fe1786c8cb0ad598bf1d49e4046d9141"},

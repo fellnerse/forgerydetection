@@ -67,6 +67,7 @@ class FileListDataset(VisionDataset):
         )
         self.audio_file_list = audio_file_list
         self.should_sample_audio = audio_file_list is not None
+        self.audio_table = {}
         self.audio_mode = audio_mode
 
         self.classes = file_list.classes
@@ -125,7 +126,10 @@ class FileListDataset(VisionDataset):
         x, y, w, h = self.calculate_relative_bb(
             sample.width, sample.height, relative_bb
         )
-        return sample.crop((x, y, x + w, y + h))
+        return sample.crop((x, y, (x + w), (y + h)))
+        # x, y, w, h = relative_bb
+        # width, height = sample.size
+        # return sample.crop((x * width, y * height, (x + w) * width, (y + h) * height))
 
     # todo do this in advance
     @staticmethod
@@ -196,4 +200,16 @@ class FileListDataset(VisionDataset):
         abs_path = Path(f"{self.root}/{path}")
         frame_number_in_video = int(abs_path.with_suffix("").name)
         video_length = len(sorted(abs_path.parent.glob("*" + abs_path.suffix)))
+
+        # frame_number_in_video = int(path.split("/")[-1].split(".")[0])
+        #
+        # video_path = "/".join(path.split("/")[:-1])
+        # try:
+        #     video_length = self.audio_table[video_path]
+        # except KeyError:
+        #     video_length = len(
+        #         list(filter(lambda x: video_path in x[0], self._samples))
+        #     )
+        #     self.audio_table[video_path] = video_length
+
         return frame_number_in_video, video_length

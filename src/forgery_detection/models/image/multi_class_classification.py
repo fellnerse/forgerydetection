@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torchvision.models import resnet18
 
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -39,6 +40,21 @@ class Resnet182D(Resnet18):
         super().__init__(**kwargs)
         self.resnet.layer4 = nn.Identity()
         self.resnet.fc = nn.Linear(256, self.num_classes)
+
+
+class Resnet182DBinary(BinaryEvaluationMixin, Resnet182D):
+    def __init__(self, **kwargs):
+        kwargs["num_classes"] = 2
+        super().__init__(**kwargs)
+
+    def training_step(self, batch, batch_nb, system):
+        x, target = batch
+        return super().training_step((x, target // 4), batch_nb, system)
+
+    def aggregate_outputs(self, outputs, system):
+        for output in outputs:
+            output["target"] = output["target"] // 4
+        return super().aggregate_outputs(outputs, system)
 
 
 class Resnet182d2Blocks(Resnet182D):
@@ -106,7 +122,7 @@ class ResidualResnet(Resnet182D):
 
 
 class Resnet18MultiClassDropout(Resnet182D):
-    def __init__(self, pretrained=True):
+    def __init__(self, num_classes, pretrained=True):
         super().__init__(
             num_classes=5,
             sequence_length=1,
@@ -121,8 +137,8 @@ class Resnet18MultiClassDropout(Resnet182D):
 
 
 class Resnet18UntrainedMultiClassDropout(Resnet18MultiClassDropout):
-    def __init__(self):
-        super().__init__(pretrained=False)
+    def __init__(self, num_classes):
+        super().__init__(num_classes, pretrained=False)
 
 
 class Resnet18SameAsInAE(Resnet18):
