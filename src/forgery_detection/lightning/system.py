@@ -91,6 +91,8 @@ from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNetClassification
 from forgery_detection.models.audio.similarity_stuff import SyncNet
+from forgery_detection.models.audio.small_embedding_space import SmallEmbeddingSpace
+from forgery_detection.models.audio.small_embedding_space import SmallVideoNetwork
 from forgery_detection.models.audio.syncaudionet_regularized import (
     SyncAudioNetRegularized,
 )
@@ -319,6 +321,8 @@ class Supervised(pl.LightningModule):
         "early_merge_net_binary_3_layer": EarlyMergeNetBinary3Layer,
         "middle_merge_net_binary_3_layer": MiddleMergeNetBinary3Layer,
         "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
+        "small_embedding_space": SmallEmbeddingSpace,
+        "small_video_network": SmallVideoNetwork,
     }
 
     CUSTOM_TRANSFORMS = {
