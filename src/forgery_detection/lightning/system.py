@@ -86,6 +86,7 @@ from forgery_detection.models.audio.ff_sync_net_end2end import (
 )
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
+from forgery_detection.models.audio.noisy_audio import NoisySyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
@@ -240,6 +241,7 @@ class Supervised(pl.LightningModule):
         "audionet34_pretraining": PretrainingAudioNet34,
         "audionet34": PretrainedAudioNet34,
         "audioonly": AudioOnly,
+        "noisy_audionet": NoisySyncAudioNet,
         "vae": SimpleVAE,
         "ae": SimpleAE,
         "ae_vgg": SimpleAEVGG,
