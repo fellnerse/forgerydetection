@@ -137,6 +137,8 @@ def print_evaluation_for_test_folder(folder_to_evaluate):
 
 
 if __name__ == "__main__":
-    folder_to_evaluate = "/mnt/raid/sebastian/log/runs/TRAIN/r2plus1_3_layer_binary/version_0/test/version_0"
+    folder_to_evaluate = (
+        "/home/sebastian/log/showcasings/17_audionet_stuff/TEST/r2plus1/version_0"
+    )
 
     print_evaluation_for_test_folder(folder_to_evaluate)
