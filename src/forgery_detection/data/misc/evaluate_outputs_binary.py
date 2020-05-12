@@ -122,7 +122,11 @@ def print_evaluation_for_test_folder(folder_to_evaluate):
     output_files = get_output_file_names_ordered(folder_to_evaluate)
     for binary in [True, False]:
         train_acc, train_class_accs = calculate_metrics(output_files[0], binary=binary)
-        val_acc, val_class_accs = calculate_metrics(output_files[1], binary=binary)
+        if len(output_files) == 1:
+            val_acc, val_class_accs = train_acc, train_class_accs
+            print("Warning, found only on logfile, probably ony validating on val.")
+        else:
+            val_acc, val_class_accs = calculate_metrics(output_files[1], binary=binary)
 
         print(f"binary case: {binary}")
         print(

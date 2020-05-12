@@ -468,6 +468,7 @@ class Supervised(pl.LightningModule):
         self.loss = -1
 
         logger.warning(f"{self.train_data.class_to_idx}")
+        self._optimizer = None
 
     def on_sanity_check_start(self):
         log_hparams(
@@ -542,6 +543,8 @@ class Supervised(pl.LightningModule):
         return self.model.test_epoch_end(outputs, self)
 
     def configure_optimizers(self):
+        if self._optimizer:
+            return self._optimizer
         optimizer = self.OPTIMIZER[self.hparams["optimizer"]](
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.hparams["lr"],
@@ -734,6 +737,9 @@ class Supervised(pl.LightningModule):
         # load the state_dict on the model automatically
         model = cls(hparams)
         model.load_state_dict(checkpoint["state_dict"])
+
+        optimizer = model.configure_optimizers()
+        optimizer.load_state_dict(checkpoint["optimizer_states"][0])
 
         # give model a chance to load something
         model.on_load_checkpoint(checkpoint)
