@@ -108,12 +108,19 @@ class FileListDataset(VisionDataset):
             target = self.target_transform(target)
 
         if self.should_sample_audio:
-            aud_path, _ = self._samples[audio_idx]
+            if self.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO:
+                aud_path, _ = self._samples[img_idx]
+            else:
+                aud_path, _ = self._samples[audio_idx]
             aud = self.audio_file_list(aud_path)
             aud: np.ndarray
+
             # this adds gaussian noise to audio input if it's supposed to be fake input
-            if self.audio_mode == AudioMode.FAKE_NOISE and target != 4:
-                aud += np.random.normal(0, 10, aud.shape).astype(aud.dtype)
+            if (
+                self.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO
+                and audio_idx != img_idx
+            ) or (self.audio_mode == AudioMode.FAKE_NOISE and target != 4):
+                aud += np.random.normal(0, 1, aud.shape).astype(aud.dtype)
 
             sample = vid, aud
 

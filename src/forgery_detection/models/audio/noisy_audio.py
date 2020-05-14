@@ -17,12 +17,13 @@ class NoisySyncAudioNet(SequenceClassificationModel):
         self.r2plus1.fc = nn.Identity()
 
         self.sync_net = PretrainedSyncNet()
-        self._set_requires_grad_for_module(self.sync_net, requires_grad=False)
+        # self._set_requires_grad_for_module(self.sync_net, requires_grad=False)
 
         self.relu = nn.ReLU()
         self.out = nn.Sequential(
             nn.Linear(64 + 1024, 50), nn.ReLU(), nn.Linear(50, self.num_classes)
         )
+        self._init = False
 
     def forward(self, x):
         # def forward(self, video, audio):
@@ -42,10 +43,14 @@ class NoisySyncAudioNet(SequenceClassificationModel):
         return out
 
     def training_step(self, batch, batch_nb, system):
-        x, (target, _) = batch
-        return super().training_step((x, target // 4), batch_nb, system)
+        x, (target, aud_noisy) = batch
+        return super().training_step((x, aud_noisy), batch_nb, system)
 
     def aggregate_outputs(self, outputs, system):
+        if not self._init:
+            self._init = True
+            system.file_list.class_to_idx = {"fake": 0, "youtube": 1}
+            system.file_list.classes = ["fake", "youtube"]
         for x in outputs:
-            x["target"] = x["target"][0] // 4
+            x["target"] = x["target"][1]
         return super().aggregate_outputs(outputs, system)

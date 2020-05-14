@@ -189,7 +189,10 @@ class SequenceBatchSampler(BatchSampler):
             # do nothing, because audio should match
             pass
 
-        elif self.d.audio_mode == AudioMode.DIFFERENT_VIDEO:
+        elif (
+            self.d.audio_mode == AudioMode.DIFFERENT_VIDEO
+            or self.d.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO
+        ):
             idx = np.random.choice(self.samples_idx)
 
         elif self.d.audio_mode == AudioMode.SAME_VIDEO_MIN_DISTANCE:
