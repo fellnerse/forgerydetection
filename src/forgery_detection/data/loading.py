@@ -159,6 +159,7 @@ class SequenceBatchSampler(BatchSampler):
         super().__init__(sampler, batch_size, drop_last)
         self.sequence_length = sequence_length
         self.samples_idx = samples_idx
+        self.sampled_idx_len = len(self.samples_idx)
         self.d = dataset
 
         self.should_sample_audio = dataset.should_sample_audio
@@ -193,7 +194,7 @@ class SequenceBatchSampler(BatchSampler):
             self.d.audio_mode == AudioMode.DIFFERENT_VIDEO
             or self.d.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO
         ):
-            idx = np.random.choice(self.samples_idx)
+            idx = self.samples_idx[np.random.randint(0, self.sampled_idx_len)]
 
         elif self.d.audio_mode == AudioMode.SAME_VIDEO_MIN_DISTANCE:
             offset = np.random.choice(
