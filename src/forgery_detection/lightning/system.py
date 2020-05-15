@@ -84,8 +84,13 @@ from forgery_detection.models.audio.ff_sync_net_end2end import (
 from forgery_detection.models.audio.ff_sync_net_end2end import (
     FFSyncNetEnd2EndSmallUntrained,
 )
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1Audio
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1AudioResnet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
+from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
+from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import NoisySyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
@@ -242,6 +247,8 @@ class Supervised(pl.LightningModule):
         "audionet34": PretrainedAudioNet34,
         "audioonly": AudioOnly,
         "noisy_audionet": NoisySyncAudioNet,
+        "frozen_noisy_audionet": FrozenNoisySyncAudioNet,
+        "big_noisy_audionet": BigNoisySyncAudioNet,
         "vae": SimpleVAE,
         "ae": SimpleAE,
         "ae_vgg": SimpleAEVGG,
@@ -325,6 +332,9 @@ class Supervised(pl.LightningModule):
         "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
         "small_embedding_space": SmallEmbeddingSpace,
         "small_video_network": SmallVideoNetwork,
+        "frozen_r2plus1": FrozenR2plus1,
+        "frozen_r2plus1_audio": FrozenR2plus1Audio,
+        "frozen_r2plus1_audio_resnet": FrozenR2plus1AudioResnet,
     }
 
     CUSTOM_TRANSFORMS = {
