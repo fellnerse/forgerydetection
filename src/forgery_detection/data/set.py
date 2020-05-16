@@ -112,7 +112,7 @@ class FileListDataset(VisionDataset):
                 aud_path, _ = self._samples[img_idx]
             else:
                 aud_path, _ = self._samples[audio_idx]
-            aud = self.audio_file_list(aud_path)
+            aud = self.audio_file_list(aud_path, stacked=True)
             aud: np.ndarray
 
             # this adds gaussian noise to audio input if it's supposed to be fake input
