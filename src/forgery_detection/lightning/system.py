@@ -90,6 +90,7 @@ from forgery_detection.models.audio.frozen_audio import FrozenR2plus1AudioResnet
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
+from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import NoisySyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -249,6 +250,7 @@ class Supervised(pl.LightningModule):
         "noisy_audionet": NoisySyncAudioNet,
         "frozen_noisy_audionet": FrozenNoisySyncAudioNet,
         "big_noisy_audionet": BigNoisySyncAudioNet,
+        "filtered_noisy_audionet": FilterNoisySyncAudioNet,
         "vae": SimpleVAE,
         "ae": SimpleAE,
         "ae_vgg": SimpleAEVGG,
