@@ -108,7 +108,11 @@ class FileListDataset(VisionDataset):
             target = self.target_transform(target)
 
         if self.should_sample_audio:
-            if self.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO:
+            if self.audio_mode == AudioMode.FAKE_NOISE_DIFFERENT_VIDEO or (
+                self.audio_mode == AudioMode.MANIPULATION_METHOD_DIFFERENT_VIDEO
+                and target
+                == 4  # MANIPULATION_METHOD_DIFFERENT_VIDEO means we select different audio for manipulation vidoes
+            ):
                 aud_path, _ = self._samples[img_idx]
             else:
                 aud_path, _ = self._samples[audio_idx]
@@ -123,6 +127,16 @@ class FileListDataset(VisionDataset):
                 aud += np.random.normal(0, 1, aud.shape).astype(aud.dtype)
 
             sample = vid, aud
+
+            # we have to do this because noisynets use the audio label for classification
+            if self.audio_mode == AudioMode.MANIPULATION_METHOD_DIFFERENT_VIDEO:
+                if target == 4:
+                    audio_idx = img_idx
+                else:
+                    audio_idx = (
+                        -1
+                    )  # this is nessecary for the case of wanting exact audio,
+                    # but using audio targets for training not class targets
 
             # this indicates if the audio and the images are in sync
             target = (target, int(audio_idx == img_idx))

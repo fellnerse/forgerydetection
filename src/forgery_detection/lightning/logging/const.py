@@ -9,8 +9,11 @@ class AudioMode(str, Enum):
     DIFFERENT_VIDEO = auto()
     SAME_VIDEO_MIN_DISTANCE = auto()
     SAME_VIDEO_MAX_DISTANCE = auto()
+
     FAKE_NOISE = auto()
     FAKE_NOISE_DIFFERENT_VIDEO = auto()
+
+    MANIPULATION_METHOD_DIFFERENT_VIDEO = auto()
 
     def __str__(self):
         return self.name

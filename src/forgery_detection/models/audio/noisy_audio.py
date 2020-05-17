@@ -74,7 +74,7 @@ class BigNoisySyncAudioNet(NoisySyncAudioNet):
         super().__init__(num_classes=2)
         self.r2plus1 = r2plus1d_18(pretrained=True)
         self.r2plus1.fc = nn.Identity()
-        # self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=False)
 
         self.sync_net = resnet18(pretrained=True, num_classes=1000)
         self.sync_net.fc = nn.Identity()

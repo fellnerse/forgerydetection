@@ -184,9 +184,28 @@ class SequenceBatchSampler(BatchSampler):
         if len(batch) > 0 and not self.drop_last:
             yield batch
 
+    def better_np_random_choice(self, arr: list):
+        return arr[np.random.randint(0, len(arr))]
+
     def _sample_audio(self, idx):
+        if self.d.audio_mode == AudioMode.MANIPULATION_METHOD_DIFFERENT_VIDEO:
+            # always select different audio
+            # idx = self.samples_idx[np.random.randint(0, self.sampled_idx_len)]
+            # min
+            # offset = self.better_np_random_choice(
+            #     self.d._get_possible_audio_shifts_with_min_distance(idx)
+            # )
+            # idx += offset
+            # max
+            # offset = self.better_np_random_choice(
+            #     self.d._get_possible_audio_shifts_with_max_distance(idx)
+            # )
+            # idx += offset
+            # exact
+            pass
+
         # 50% matching
-        if int(random.random() + (1.0 / 2.0)) or self.d.audio_mode == AudioMode.EXACT:
+        elif int(random.random() + (1.0 / 2.0)) or self.d.audio_mode == AudioMode.EXACT:
             # do nothing, because audio should match
             pass
 
