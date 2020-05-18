@@ -4,10 +4,11 @@ from torchvision.models import resnet18
 from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
-class NoisySyncAudioNet(SequenceClassificationModel):
+class NoisySyncAudioNet(BinaryEvaluationMixin, SequenceClassificationModel):
     def __init__(self, num_classes, pretrained=True):
         super().__init__(num_classes=2, sequence_length=8, contains_dropout=False)
 
@@ -139,23 +140,6 @@ class FilterNoisySyncAudioNet(BigNoisySyncAudioNet):
     def filter_audio(self, audio: torch.Tensor):
         # audio shape: b x 16 x 4 x 13
         bs = audio.shape[0]
-
-        # audio = torch.stack(
-        #     (
-        #         audio[:, 0:-8],
-        #         audio[:, 1:-7],
-        #         audio[:, 2:-6],
-        #         audio[:, 3:-5],
-        #         audio[:, 4:-4],
-        #         audio[:, 5:-3],
-        #         audio[:, 6:-2],
-        #         audio[:, 7:-1],
-        #         audio[:, 8:],
-        #     ),
-        #     dim=1,
-        # ).reshape(
-        #     (-1, 8, 4, 13)
-        # )  # (bs*9) x 8 x 4 x 13
 
         audio = audio.reshape((-1, 8, 4, 13))
 

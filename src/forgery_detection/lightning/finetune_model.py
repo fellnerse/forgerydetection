@@ -89,7 +89,7 @@ def run_fine_tuning(train_percent_check, num_runs, gradient_accumulation_nb, **k
             if kwargs["gpus"] and len(kwargs["gpus"]) > 1
             else None,
             train_percent_check=train_percent_check,
-            val_percent_check=0.0001,
+            val_percent_check=0.001,  # change to 0.0001 for -1-1 filelists
             val_check_interval=1.0,
             weights_summary=None,
             max_nb_epochs=1,

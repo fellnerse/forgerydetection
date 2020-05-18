@@ -4,6 +4,7 @@ from torchvision.models import resnet18
 from torchvision.models.video import r2plus1d_18
 
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
+from forgery_detection.models.mixins import BinaryEvaluationMixin
 from forgery_detection.models.utils import SequenceClassificationModel
 
 
@@ -141,3 +142,17 @@ class FrozenR2plus1AudioResnet(SequenceClassificationModel):
         for x in outputs:
             x["target"] = x["target"][0] // 4
         return super().aggregate_outputs(outputs, system)
+
+
+class FrozenR2Plus1BNLeakyRelu(BinaryEvaluationMixin, FrozenR2plus1):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+
+        self.relu = nn.Identity()
+
+        self.out = nn.Sequential(
+            nn.Linear(512, 50),
+            nn.BatchNorm1d(50),
+            nn.LeakyReLU(0.2),
+            nn.Linear(50, self.num_classes),
+        )
