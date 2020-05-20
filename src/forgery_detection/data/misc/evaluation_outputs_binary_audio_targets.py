@@ -19,7 +19,7 @@ def load_outputs(outputs_file):
         pred_shape = outputs[0]["pred"].shape
 
     if outputs[0]["target"].shape[0] != pred_shape[0]:
-        label = torch.cat([x["target"][0] for x in outputs], 0)
+        label = torch.cat([x["target"][1] for x in outputs], 0)
     else:
         label = torch.cat([x["target"] for x in outputs], 0)
 
@@ -69,7 +69,7 @@ def binary_class_acc(pred_arg_maxed, labels):
     accs = np.zeros((5,))
     for c in range(5):
         class_mask = labels == c
-        p, t = pred_arg_maxed[class_mask], c // 4
+        p, t = pred_arg_maxed[class_mask], c  # c // 4
 
         if p.shape[0] == 0:
             accs[c] = NAN_TENSOR
@@ -106,7 +106,7 @@ def calculate_metrics(outputs_file, binary=True):
         if pred.max() > 1:
             pred = pred // 4
 
-        acc = binary_acc(pred, binary_target).mean()
+        acc = binary_acc(pred, label).mean()
         class_accs = binary_class_acc(pred, label)
 
     else:
@@ -136,6 +136,7 @@ def print_evaluation_for_test_folder(folder_to_evaluate):
 
 
 if __name__ == "__main__":
-    folder_to_evaluate = "/mnt/raid/sebastian/log/consolidated_results/2.Filter/finetune_2.non_filter/version_0/test/version_0"
-
-    print_evaluation_for_test_folder(folder_to_evaluate)
+    folder_to_evaluate = "/mnt/raid/sebastian/log/consolidated_results/1.audio_setup_works_bce/finetune/version_{}/test/version_0"
+    for i in range(5):
+        print(f"###########\nversion_{i}\n###########")
+        print_evaluation_for_test_folder(folder_to_evaluate.format(i))
