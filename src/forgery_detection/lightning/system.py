@@ -91,11 +91,16 @@ from forgery_detection.models.audio.frozen_audio import FrozenR2Plus1BNLeakyRelu
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_modal_net import MultiModalNet
+from forgery_detection.models.audio.multi_modal_net import (
+    MultiModalNetFrozenSimNetNonDetachNonFiltered,
+)
+from forgery_detection.models.audio.multi_modal_net import MultiModalNetPretrained50ShiftNonFilter
 from forgery_detection.models.audio.multi_modal_net import MutliModalNetFrozenSimNet
 from forgery_detection.models.audio.multi_modal_net import (
     MutliModalNetFrozenSimNetNonDetach,
 )
 from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigFiltered
+from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigNonFiltered
 from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
@@ -346,9 +351,12 @@ class Supervised(pl.LightningModule):
         "frozen_r2plus1_audio": FrozenR2plus1Audio,
         "frozen_r2plus1_audio_resnet": FrozenR2plus1AudioResnet,
         "test": SimilarityNetBigFiltered,
+        "similarity_net_big_non_filtered": SimilarityNetBigNonFiltered,
         "multi_modal_net": MultiModalNet,
         "multi_modal_net_frozen_simnet": MutliModalNetFrozenSimNet,
         "multi_modal_net_frozen_simnet_non_detach": MutliModalNetFrozenSimNetNonDetach,
+        "multi_modal_net_frozen_simnet_non_detach_non_filtered": MultiModalNetFrozenSimNetNonDetachNonFiltered,
+        "multi_modal_net_pretrained_50_shift_non_filter": MultiModalNetPretrained50ShiftNonFilter,
     }
 
     CUSTOM_TRANSFORMS = {

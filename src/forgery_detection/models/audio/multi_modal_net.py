@@ -235,3 +235,86 @@ class MutliModalNetFrozenSimNetNonDetach(MutliModalNetFrozenSimNet):
         out = self.out(flat)
 
         return out, (diff_vid_embedding, diff_aud_embedding)
+
+
+class MultiModalNetFrozenSimNetNonDetachNonFiltered(MutliModalNetFrozenSimNetNonDetach):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+
+        def _forward(x):
+            video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
+            # def forward(self, video, audio):
+            audio = (
+                audio.reshape((audio.shape[0], -1, 13))
+                .unsqueeze(1)
+                .expand(-1, 3, -1, -1)
+            )
+
+            video = video.permute(0, 2, 1, 3, 4)
+            return (
+                self.similarity_net.r2plus1(video),
+                self.similarity_net.audio_extractor(audio),
+            )
+
+        self.similarity_net.forward = _forward
+
+
+class MultiModalNetPretrained50ShiftNonFilter(MutliModalNetFrozenSimNet):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+        checkpoint = torch.load(
+            "/mnt/raid/sebastian/log/debug/version_332/checkpoints/_ckpt_epoch_3.ckpt"
+        )
+        state_dict = checkpoint["state_dict"]
+        self_state = self.similarity_net.state_dict()
+        for name, param in state_dict.items():
+            self_state[name.replace("model.", "")].copy_(param)
+
+        def _forward(x):
+            video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
+            # def forward(self, video, audio):
+            audio = (
+                audio.reshape((audio.shape[0], -1, 13))
+                .unsqueeze(1)
+                .expand(-1, 3, -1, -1)
+            )
+
+            video = video.permute(0, 2, 1, 3, 4)
+            return (
+                self.similarity_net.r2plus1(video),
+                self.similarity_net.audio_extractor(audio),
+            )
+
+        self.similarity_net.forward = _forward
+        self._set_requires_grad_for_module(self.similarity_net, requires_grad=False)
+
+
+class SimilarityNetBigNonFiltered(SimilarityNetBigFiltered):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+
+        def _forward(x):
+            video, audio = x  # bs x 8 x 3 x 112 x 112 , bs x 8 x 16 x 29
+            # def forward(self, video, audio):
+            audio = (
+                audio.reshape((audio.shape[0], -1, 13))
+                .unsqueeze(1)
+                .expand(-1, 3, -1, -1)
+            )
+
+            video = video.permute(0, 2, 1, 3, 4)
+            return (self.r2plus1(video), self.audio_extractor(audio))
+
+        self.forward = _forward
+
+
+class Hello:
+    def __init__(self):
+        self.var1 = "home"
+
+    def get_var1(self):
+        return self.var1
+
+    def print_var1(self):
+        """Print the var1 in the output stream """
+        print(self.get_var1())

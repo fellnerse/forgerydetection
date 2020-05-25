@@ -136,7 +136,9 @@ def print_evaluation_for_test_folder(folder_to_evaluate):
 
 
 if __name__ == "__main__":
-    folder_to_evaluate = "/mnt/raid/sebastian/log/consolidated_results/1.audio_setup_works_bce/finetune/version_{}/test/version_0"
+    folder_to_evaluate = "/mnt/raid/sebastian/log/consolidated_results/4.50shift/finetune_noisy_audionet/version_{}/test/version_0"
+    folder_to_evaluate = "/mnt/raid/sebastian/log/runs/TRAIN/finetune_noisy_audionet/version_{}/test/version_0"
     for i in range(5):
+        i = i + 0
         print(f"###########\nversion_{i}\n###########")
         print_evaluation_for_test_folder(folder_to_evaluate.format(i))

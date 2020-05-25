@@ -190,7 +190,7 @@ class SequenceBatchSampler(BatchSampler):
     def _sample_audio(self, idx):
         if self.d.audio_mode == AudioMode.MANIPULATION_METHOD_DIFFERENT_VIDEO:
             # always select different audio
-            idx = self.samples_idx[np.random.randint(0, self.sampled_idx_len)]
+            # idx = self.samples_idx[np.random.randint(0, self.sampled_idx_len)]
             # min
             # offset = self.better_np_random_choice(
             #     self.d._get_possible_audio_shifts_with_min_distance(idx)
