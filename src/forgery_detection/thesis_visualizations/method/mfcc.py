@@ -28,29 +28,30 @@ ax.spines["right"].set_visible(False)
 ax.spines["left"].set_visible(False)
 
 mfcc = np.load("./visualization_data/000.npy", allow_pickle=True)[
-    :, start : start + 4 * 8
+    :, start * 4 : start * 4 + 4 * 8
 ]
 # mfcc -= np.expand_dims(np.mean(mfcc, axis=0), axis=0)
 # mfcc /= np.expand_dims(np.std(mfcc, axis=0), axis=0)
-mfcc -= np.min(mfcc, axis=0)
-mfcc /= np.max(mfcc, axis=0)
+mfcc -= np.expand_dims(np.min(mfcc, axis=1), 1)
+mfcc /= np.expand_dims(np.max(mfcc, axis=1), 1)
 mfcc = cv2.resize(mfcc, dsize=(32 * 100, 13 * 100), interpolation=cv2.INTER_NEAREST)
 mfcc = np.stack((mfcc, mfcc, mfcc), axis=2)
 
 
+# cv2.imwrite(f"mfcc_features_{start}.png", mfcc * 255)
 print(mfcc.shape, data.shape)
 data = np.concatenate((data, mfcc), axis=0)
-
 # mfcc = np.concatenate((np.zeros(*mfcc.shape), mfcc), dim=0)
 # ax.imshow(data, extent=[0, 320, 0, 13 * 10])
 ax.imshow(data, interpolation="none")
 for i in range(1, 8):
-    ax.axvline(x=i * 4 * 100 - 0.5, linewidth=1, color="#185D5E")
+    ax.axvline(x=i * 4 * 100 - 0.5, linewidth=1, color="#E37222")
 plt.xlabel("time in ms")
 plt.ylabel("frequency bands")
 plt.xticks(np.arange(8) / 8 * 3200, np.arange(8) * 4)
 plt.yticks([])
 plt.title("Extracted MFCC-features")
 ax.yaxis.set_label_coords(-0.02, 0.375)
+
 # plt.show()
 export_pdf("mfcc_features", "method")

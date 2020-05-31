@@ -156,3 +156,9 @@ class FrozenR2Plus1BNLeakyRelu(BinaryEvaluationMixin, FrozenR2plus1):
             nn.LeakyReLU(0.2),
             nn.Linear(50, self.num_classes),
         )
+
+
+class R2plus1UnfrozenBaseline(FrozenR2Plus1BNLeakyRelu):
+    def __init__(self, num_classes=2):
+        super().__init__(num_classes=2)
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=True)

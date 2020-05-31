@@ -220,6 +220,7 @@ class MutliModalNetFrozenSimNet(MultiModalNet):
         )
 
 
+# todo here
 class MutliModalNetFrozenSimNetNonDetach(MutliModalNetFrozenSimNet):
     def forward(self, x):
         video, audio = x

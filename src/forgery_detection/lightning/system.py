@@ -88,13 +88,16 @@ from forgery_detection.models.audio.frozen_audio import FrozenR2plus1
 from forgery_detection.models.audio.frozen_audio import FrozenR2plus1Audio
 from forgery_detection.models.audio.frozen_audio import FrozenR2plus1AudioResnet
 from forgery_detection.models.audio.frozen_audio import FrozenR2Plus1BNLeakyRelu
+from forgery_detection.models.audio.frozen_audio import R2plus1UnfrozenBaseline
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
 from forgery_detection.models.audio.multi_modal_net import MultiModalNet
 from forgery_detection.models.audio.multi_modal_net import (
     MultiModalNetFrozenSimNetNonDetachNonFiltered,
 )
-from forgery_detection.models.audio.multi_modal_net import MultiModalNetPretrained50ShiftNonFilter
+from forgery_detection.models.audio.multi_modal_net import (
+    MultiModalNetPretrained50ShiftNonFilter,
+)
 from forgery_detection.models.audio.multi_modal_net import MutliModalNetFrozenSimNet
 from forgery_detection.models.audio.multi_modal_net import (
     MutliModalNetFrozenSimNetNonDetach,
@@ -348,6 +351,7 @@ class Supervised(pl.LightningModule):
         "small_video_network": SmallVideoNetwork,
         "frozen_r2plus1": FrozenR2plus1,
         "frozen_r2plus1_bn_lrelu": FrozenR2Plus1BNLeakyRelu,
+        "unforzen_r2plus1_baseline": R2plus1UnfrozenBaseline,
         "frozen_r2plus1_audio": FrozenR2plus1Audio,
         "frozen_r2plus1_audio_resnet": FrozenR2plus1AudioResnet,
         "test": SimilarityNetBigFiltered,
