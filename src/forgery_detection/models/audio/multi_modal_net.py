@@ -91,6 +91,20 @@ class SimilarityNetBigFiltered(SimilarityNet):
         return self.r2plus1(video), self.filter_audio(audio)
 
 
+class SimilarityNetBigNonFilteredNewOtherHasNoRepeat(SimilarityNetBigFiltered):
+    def filter_audio(self, audio: torch.Tensor):
+
+        audio = (
+            audio.reshape((audio.shape[0], -1, 13))
+            .unsqueeze(1)
+            .expand(-1, 3, -1, -1)
+            .repeat((1, 1, 1, 4))
+        )  # (bs*9) x 3 x 32 x 52
+
+        audio: torch.Tensor = self.audio_extractor(audio)
+        return audio
+
+
 class MultiModalNet(BinaryEvaluationMixin, SequenceClassificationModel):
     def __init__(self, num_classes=5, pretrained=True):
         super().__init__(num_classes=2, sequence_length=8, contains_dropout=False)

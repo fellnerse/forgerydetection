@@ -104,6 +104,9 @@ from forgery_detection.models.audio.multi_modal_net import (
 )
 from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigFiltered
 from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigNonFiltered
+from forgery_detection.models.audio.multi_modal_net import (
+    SimilarityNetBigNonFilteredNewOtherHasNoRepeat,
+)
 from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
@@ -354,7 +357,8 @@ class Supervised(pl.LightningModule):
         "unforzen_r2plus1_baseline": R2plus1UnfrozenBaseline,
         "frozen_r2plus1_audio": FrozenR2plus1Audio,
         "frozen_r2plus1_audio_resnet": FrozenR2plus1AudioResnet,
-        "test": SimilarityNetBigFiltered,
+        "similarity_net_big_filtered": SimilarityNetBigFiltered,
+        "similarity_net_big_non_filtered_new_other_has_no_repeat": SimilarityNetBigNonFilteredNewOtherHasNoRepeat,
         "similarity_net_big_non_filtered": SimilarityNetBigNonFiltered,
         "multi_modal_net": MultiModalNet,
         "multi_modal_net_frozen_simnet": MutliModalNetFrozenSimNet,
