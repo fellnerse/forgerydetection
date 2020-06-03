@@ -17,6 +17,7 @@ def export_pdf(name, chapter):
     path.parent.mkdir(exist_ok=True)
 
     os.environ["PATH"] += os.pathsep + "/Library/TeX/texbin/"
+    os.environ["PATH"] += os.pathsep + "/usr/bin/tex"
     plt.rc("font", **{"family": "serif", "serif": ["Computer Modern"]})
     plt.rc("text", usetex=True)
 
@@ -28,6 +29,5 @@ def export_pdf(name, chapter):
     plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
     plt.rc("figure", titlesize=MEDIUM_SIZE)  # fontsize of the figure title
 
-    plt.savefig(path, bbox_inches="tight", pad_inches=0.1)
     plt.savefig(path, bbox_inches="tight", pad_inches=0.1)
     plt.close()
