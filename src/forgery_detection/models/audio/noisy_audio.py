@@ -172,3 +172,24 @@ class FilterNoisySyncAudioNet(BigNoisySyncAudioNet):
 
         out = self.out(self.relu(flat))  # todo dont use relu
         return out
+
+
+class FilterNoisySyncAudioNetUnfrozen(FilterNoisySyncAudioNet):
+    def __init__(self, num_classes):
+        super().__init__(num_classes=2)
+        self._set_requires_grad_for_module(self.r2plus1, requires_grad=True)
+
+    def training_step(self, batch, batch_nb, system):
+        x, (target, aud_noisy) = batch
+        return super(NoisySyncAudioNet, self).training_step(
+            (x, target // 4), batch_nb, system
+        )
+
+    def aggregate_outputs(self, outputs, system):
+        if not self._init:
+            self._init = True
+            system.file_list.class_to_idx = {"fake": 0, "youtube": 1}
+            system.file_list.classes = ["fake", "youtube"]
+        for x in outputs:
+            x["target"] = x["target"][0] // 4
+        return super(NoisySyncAudioNet, self).aggregate_outputs(outputs, system)
