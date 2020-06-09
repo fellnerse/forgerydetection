@@ -3,6 +3,7 @@ import logging
 import click
 import numpy as np
 import torch
+from torch.utils.data import RandomSampler
 from torch.utils.data import SequentialSampler
 
 from forgery_detection.data.misc.evaluate_outputs_binary import (
@@ -40,10 +41,17 @@ def print_google_sheet_ready_output(_logger):
 )
 @click.option("--train_percent_check", "-tp", type=float, default=0.2)
 @click.option("--val_percent_check", "-vp", type=float, default=1.0)
+@click.option("--randomize_sampling", is_flag=True)
+@click.option("--set_default_file_list", is_flag=True)
 @click.option("--gpus", cls=PythonLiteralOptionGPUs, default="[0]")
 @click.option("--debug", is_flag=True)
 def run_train_val_evaluation(
-    train_percent_check, val_percent_check, audio_file, **kwargs
+    train_percent_check,
+    val_percent_check,
+    audio_file,
+    set_default_file_list,
+    randomize_sampling,
+    **kwargs,
 ):
 
     torch.manual_seed(0)
@@ -54,8 +62,19 @@ def run_train_val_evaluation(
     if audio_file:
         kwargs["audio_file"] = audio_file
     kwargs["audio_mode"] = AudioMode.EXACT.name
-    kwargs["crop_faces"] = False
+
+    kwargs.setdefault("crop_faces", False)
+    # kwargs["crop_faces"] = False
     kwargs["optimizer"] = "sgd"
+
+    if set_default_file_list:
+        kwargs[
+            "data_dir"
+        ] = "/home/sebastian/data/file_lists/c40/trf_-1_-1_full_size_relative_bb_8_sl.json"
+
+        kwargs[
+            "resize_transforms"
+        ] = "resized_crop_112"  # todo this needs to go -> add cli argument
 
     # train data
     model, trainer = get_model_and_trainer(
@@ -73,7 +92,8 @@ def run_train_val_evaluation(
         test_percent_check=val_percent_check, _logger=_logger, **kwargs
     )
     model.sampler_cls = SequentialSampler
-    # model.sampler_cls = RandomSampler
+    if randomize_sampling:
+        model.sampler_cls = RandomSampler
     model.test_dataloader = model.val_dataloader
 
     trainer.test(model)

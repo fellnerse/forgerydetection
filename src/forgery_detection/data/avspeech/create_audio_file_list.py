@@ -4,7 +4,6 @@ from pathlib import Path
 import click
 
 from forgery_detection.data.face_forensics.splits import TRAIN_NAME
-from forgery_detection.data.file_lists import FileList
 from forgery_detection.data.file_lists import SimpleFileList
 
 logger = logging.getLogger(__file__)
@@ -31,7 +30,7 @@ def _create_file_list(output_file: str, source_dir_root: str):
 def create_file_list(source_dir_root, output_file):
     try:
         # if file exists, we don't have to create it again
-        FileList.load(output_file)
+        SimpleFileList.load(output_file)
     except FileNotFoundError:
         file_list = _create_file_list(output_file, source_dir_root)
         file_list.save(output_file)

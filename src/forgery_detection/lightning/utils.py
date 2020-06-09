@@ -29,9 +29,7 @@ def _get_logger_info(kwargs: dict):
 
 def get_model_and_trainer(_logger=None, test_percent_check=1.0, **kwargs):
     kwargs["mode"] = SystemMode.TEST
-
     checkpoint_folder = Path(kwargs["checkpoint_dir"])
-
     model: Supervised = Supervised.load_from_metrics(
         weights_path=backwards_compatible_get_checkpoint(
             checkpoint_folder, kwargs["checkpoint_nr"]

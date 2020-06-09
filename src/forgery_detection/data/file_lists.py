@@ -42,7 +42,7 @@ class SimpleFileList:
         file_list._load_data_in_memory()
         return file_list
 
-    def __call__(self, path):
+    def __call__(self, path, stacked=False):
         parts = path.split("/")
         video_name = "/".join(parts[:-1])
         image_name = parts[-1].split(".")[0]
@@ -50,7 +50,28 @@ class SimpleFileList:
         corresponding_audio = self.files[video_name]
 
         try:
-            return corresponding_audio[int(image_name)]
+            if not stacked:
+                return corresponding_audio[int(image_name)]
+            else:
+                start = int(image_name) - 4
+                end = int(image_name) + 5
+
+                if start < 0 or end > len(corresponding_audio):
+                    return np.concatenate(
+                        (
+                            np.zeros((abs(min(start, 0)), 4, 13), dtype=np.float32),
+                            corresponding_audio[
+                                max(start, 0) : min(end, len(corresponding_audio))
+                            ],
+                            np.zeros(
+                                (abs(min(0, len(corresponding_audio) - end)), 4, 13),
+                                dtype=np.float32,
+                            ),
+                        )
+                    )
+                else:
+                    return corresponding_audio[start:end]
+
         except IndexError:
             logger.error(
                 f"{int(image_name)} is out of bounds for {len(corresponding_audio)}.\n"

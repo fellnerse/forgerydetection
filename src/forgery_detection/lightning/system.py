@@ -84,8 +84,37 @@ from forgery_detection.models.audio.ff_sync_net_end2end import (
 from forgery_detection.models.audio.ff_sync_net_end2end import (
     FFSyncNetEnd2EndSmallUntrained,
 )
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1Audio
+from forgery_detection.models.audio.frozen_audio import FrozenR2plus1AudioResnet
+from forgery_detection.models.audio.frozen_audio import FrozenR2Plus1BNLeakyRelu
+from forgery_detection.models.audio.frozen_audio import R2plus1UnfrozenBaseline
 from forgery_detection.models.audio.multi_class_classification import AudioOnly
 from forgery_detection.models.audio.multi_class_classification import FrameNet
+from forgery_detection.models.audio.multi_modal_net import MultiModalNet
+from forgery_detection.models.audio.multi_modal_net import (
+    MultiModalNetFrozenSimNetNonDetachNonFiltered,
+)
+from forgery_detection.models.audio.multi_modal_net import (
+    MultiModalNetPretrained50ShiftNonFilter,
+)
+from forgery_detection.models.audio.multi_modal_net import MutliModalNetFrozenSimNet
+from forgery_detection.models.audio.multi_modal_net import (
+    MutliModalNetFrozenSimNetNonDetach,
+)
+from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigFiltered
+from forgery_detection.models.audio.multi_modal_net import SimilarityNetBigNonFiltered
+from forgery_detection.models.audio.multi_modal_net import (
+    SimilarityNetBigNonFilteredNewOtherHasNoRepeat,
+)
+from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
+from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNet
+from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNetUnfrozen
+from forgery_detection.models.audio.noisy_audio import (
+    FilterNoisySyncAudioNetUnfrozen2VideoLayer,
+)
+from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
+from forgery_detection.models.audio.noisy_audio import NoisySyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSyncNet
 from forgery_detection.models.audio.similarity_stuff import SimilarityNet
@@ -240,6 +269,10 @@ class Supervised(pl.LightningModule):
         "audionet34_pretraining": PretrainingAudioNet34,
         "audionet34": PretrainedAudioNet34,
         "audioonly": AudioOnly,
+        "noisy_audionet": NoisySyncAudioNet,
+        "frozen_noisy_audionet": FrozenNoisySyncAudioNet,
+        "big_noisy_audionet": BigNoisySyncAudioNet,
+        "filtered_noisy_audionet": FilterNoisySyncAudioNet,
         "vae": SimpleVAE,
         "ae": SimpleAE,
         "ae_vgg": SimpleAEVGG,
@@ -323,6 +356,21 @@ class Supervised(pl.LightningModule):
         "early_merge_net_binary_sum_combine": EarlyMergeNetBinarySumCombine,
         "small_embedding_space": SmallEmbeddingSpace,
         "small_video_network": SmallVideoNetwork,
+        "frozen_r2plus1": FrozenR2plus1,
+        "frozen_r2plus1_bn_lrelu": FrozenR2Plus1BNLeakyRelu,
+        "unforzen_r2plus1_baseline": R2plus1UnfrozenBaseline,
+        "frozen_r2plus1_audio": FrozenR2plus1Audio,
+        "frozen_r2plus1_audio_resnet": FrozenR2plus1AudioResnet,
+        "similarity_net_big_filtered": SimilarityNetBigFiltered,
+        "similarity_net_big_non_filtered_new_other_has_no_repeat": SimilarityNetBigNonFilteredNewOtherHasNoRepeat,
+        "similarity_net_big_non_filtered": SimilarityNetBigNonFiltered,
+        "multi_modal_net": MultiModalNet,
+        "multi_modal_net_frozen_simnet": MutliModalNetFrozenSimNet,
+        "multi_modal_net_frozen_simnet_non_detach": MutliModalNetFrozenSimNetNonDetach,
+        "multi_modal_net_frozen_simnet_non_detach_non_filtered": MultiModalNetFrozenSimNetNonDetachNonFiltered,
+        "multi_modal_net_pretrained_50_shift_non_filter": MultiModalNetPretrained50ShiftNonFilter,
+        "method_unfrozen": FilterNoisySyncAudioNetUnfrozen,
+        "method_unfrozen_2_video_layer": FilterNoisySyncAudioNetUnfrozen2VideoLayer,
     }
 
     CUSTOM_TRANSFORMS = {
@@ -466,6 +514,7 @@ class Supervised(pl.LightningModule):
         self.loss = -1
 
         logger.warning(f"{self.train_data.class_to_idx}")
+        self._optimizer = None
 
     def on_sanity_check_start(self):
         log_hparams(
@@ -540,6 +589,8 @@ class Supervised(pl.LightningModule):
         return self.model.test_epoch_end(outputs, self)
 
     def configure_optimizers(self):
+        if self._optimizer:
+            return self._optimizer
         optimizer = self.OPTIMIZER[self.hparams["optimizer"]](
             filter(lambda p: p.requires_grad, self.parameters()),
             lr=self.hparams["lr"],
@@ -732,6 +783,9 @@ class Supervised(pl.LightningModule):
         # load the state_dict on the model automatically
         model = cls(hparams)
         model.load_state_dict(checkpoint["state_dict"])
+
+        optimizer = model.configure_optimizers()
+        optimizer.load_state_dict(checkpoint["optimizer_states"][0])
 
         # give model a chance to load something
         model.on_load_checkpoint(checkpoint)
