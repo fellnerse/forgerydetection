@@ -110,6 +110,9 @@ from forgery_detection.models.audio.multi_modal_net import (
 from forgery_detection.models.audio.noisy_audio import BigNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import FilterNoisySyncAudioNetUnfrozen
+from forgery_detection.models.audio.noisy_audio import (
+    FilterNoisySyncAudioNetUnfrozen2VideoLayer,
+)
 from forgery_detection.models.audio.noisy_audio import FrozenNoisySyncAudioNet
 from forgery_detection.models.audio.noisy_audio import NoisySyncAudioNet
 from forgery_detection.models.audio.similarity_stuff import PretrainedSimilarityNet
@@ -367,6 +370,7 @@ class Supervised(pl.LightningModule):
         "multi_modal_net_frozen_simnet_non_detach_non_filtered": MultiModalNetFrozenSimNetNonDetachNonFiltered,
         "multi_modal_net_pretrained_50_shift_non_filter": MultiModalNetPretrained50ShiftNonFilter,
         "method_unfrozen": FilterNoisySyncAudioNetUnfrozen,
+        "method_unfrozen_2_video_layer": FilterNoisySyncAudioNetUnfrozen2VideoLayer,
     }
 
     CUSTOM_TRANSFORMS = {

@@ -62,6 +62,8 @@ def run_train_val_evaluation(
     if audio_file:
         kwargs["audio_file"] = audio_file
     kwargs["audio_mode"] = AudioMode.EXACT.name
+
+    kwargs.setdefault("crop_faces", False)
     # kwargs["crop_faces"] = False
     kwargs["optimizer"] = "sgd"
 
@@ -69,6 +71,10 @@ def run_train_val_evaluation(
         kwargs[
             "data_dir"
         ] = "/home/sebastian/data/file_lists/c40/trf_-1_-1_full_size_relative_bb_8_sl.json"
+
+        kwargs[
+            "resize_transforms"
+        ] = "resized_crop_112"  # todo this needs to go -> add cli argument
 
     # train data
     model, trainer = get_model_and_trainer(
